@@ -38,6 +38,8 @@ import androidx.core.app.ServiceCompat
 import java.io.IOException
 import java.net.ServerSocket
 import java.net.Socket
+import java.security.SecureRandom
+import java.util.Locale
 
 class MonitorService : Service() {
     private val binder: IBinder = MonitorBinder()
@@ -48,7 +50,37 @@ class MonitorService : Service() {
     private var currentPort = 0
     private lateinit var notificationManager: NotificationManager
     private var monitorThread: Thread? = null
+    private lateinit var pairingPin: String
     var monitorActivity: MonitorActivity? = null
+
+    fun updateMonitorActivity() {
+        val ma = this.monitorActivity ?: return
+        ma.runOnUiThread {
+            val pairingPinText = ma.findViewById<TextView>(R.id.pairingPin)
+            pairingPinText.text = pairingPin
+        }
+    }
+
+    private fun authenticateParent(socket: Socket): Boolean {
+        return try {
+            socket.soTimeout = AUTH_TIMEOUT_MS
+            val providedPin = socket.getInputStream().bufferedReader(Charsets.US_ASCII).readLine()?.trim()
+            val authenticated = providedPin == pairingPin
+            if (!authenticated) {
+                Log.w(TAG, "Rejected parent connection with invalid pairing PIN")
+            }
+            authenticated
+        } catch (e: IOException) {
+            Log.w(TAG, "Failed to authenticate parent connection", e)
+            false
+        } finally {
+            try {
+                socket.soTimeout = 0
+            } catch (e: IOException) {
+                Log.d(TAG, "Failed to reset socket timeout after authentication", e)
+            }
+        }
+    }
 
     private fun serviceConnection(socket: Socket) {
         val ma = this.monitorActivity
@@ -99,6 +131,7 @@ class MonitorService : Service() {
         this.nsdManager = this.getSystemService(NSD_SERVICE) as NsdManager
         this.currentPort = 10000
         this.currentSocket = null
+        this.pairingPin = generatePairingPin()
     }
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
@@ -130,14 +163,21 @@ class MonitorService : Service() {
                         // Register the service so that parent devices can
                         // locate the child device
                         registerService(localPort)
-                        serverSocket.accept().use { socket ->
-                            Log.i(TAG, "Connection from parent device received")
+                        var authenticatedConnectionHandled = false
+                        while (!authenticatedConnectionHandled &&
+                                this.connectionToken == currentToken &&
+                                !Thread.currentThread().isInterrupted) {
+                            serverSocket.accept().use { socket ->
+                                Log.i(TAG, "Connection from parent device received")
 
-                            // We now have a client connection.
-                            // Unregister so no other clients will
-                            // attempt to connect
-                            unregisterService()
-                            serviceConnection(socket)
+                                if (authenticateParent(socket)) {
+                                    // We now have an authenticated client connection.
+                                    // Unregister so no other clients will attempt to connect.
+                                    unregisterService()
+                                    serviceConnection(socket)
+                                    authenticatedConnectionHandled = true
+                                }
+                            }
                         }
                     }
                 } catch (e: Exception) {
@@ -173,6 +213,8 @@ class MonitorService : Service() {
                             serviceText.text = serviceName
                             val portText = ma.findViewById<TextView>(R.id.port)
                             portText.text = port.toString()
+                            val pairingPinText = ma.findViewById<TextView>(R.id.pairingPin)
+                            pairingPinText.text = pairingPin
                         }
                     }
                 }
@@ -265,5 +307,11 @@ class MonitorService : Service() {
         const val TAG = "MonitorService"
         const val CHANNEL_ID = TAG
         const val ID = 1338
+        private const val AUTH_TIMEOUT_MS = 10_000
+        private val PIN_RANDOM = SecureRandom()
+
+        private fun generatePairingPin(): String {
+            return String.format(Locale.US, "%06d", PIN_RANDOM.nextInt(1_000_000))
+        }
     }
 }

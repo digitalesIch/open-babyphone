@@ -29,6 +29,24 @@
         android:text="@string/selectChildDevice"
         android:textSize="20sp" />
 
+    <TextView
+        android:id="@+id/pairingPinTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:labelFor="@id/pinField"
+        android:text="@string/pairingPinTitle"
+        android:textSize="20sp" />
+
+    <EditText
+        android:id="@+id/pinField"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ems="10"
+        android:hint="@string/examplePairingPin"
+        android:inputType="numberPassword"
+        android:maxLength="6"
+        android:textSize="20sp" />
+
     <ListView
         android:id="@+id/ServiceTable"
         android:scrollbars="vertical"

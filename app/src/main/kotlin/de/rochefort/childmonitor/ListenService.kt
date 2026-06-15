@@ -66,7 +66,8 @@ class ListenService : Service() {
             ServiceCompat.startForeground(this, ID, n, foregroundServiceType)
             val address = it.getString("address")
             val port = it.getInt("port")
-            doListen(address, port)
+            val pairingPin = it.getString("pairingPin")
+            doListen(address, port, pairingPin)
         }
         return START_REDELIVER_INTENT
     }
@@ -123,11 +124,12 @@ class ListenService : Service() {
 
     var onError: (() -> Unit)? = null
     var onUpdate: (() -> Unit)? = null
-    private fun doListen(address: String?, port: Int) {
+    private fun doListen(address: String?, port: Int, pairingPin: String?) {
         val lt = Thread {
             try {
                 val socket = Socket(address, port)
                 socket.soTimeout = 30_000
+                sendPairingPin(socket, pairingPin)
                 val success = streamAudio(socket)
                 if (!success) {
                     playAlert()
@@ -135,10 +137,21 @@ class ListenService : Service() {
                 }
             } catch (e : IOException) {
                 Log.e(TAG, "Error opening socket to $address on port $port", e)
+                playAlert()
+                onError?.invoke()
             }
         }
         this.listenThread = lt
         lt.start()
+    }
+
+    private fun sendPairingPin(socket: Socket, pairingPin: String?) {
+        if (pairingPin.isNullOrBlank()) {
+            throw IOException("Missing pairing PIN")
+        }
+        val out = socket.getOutputStream()
+        out.write((pairingPin.trim() + "\n").toByteArray(Charsets.US_ASCII))
+        out.flush()
     }
 
     private fun streamAudio(socket: Socket): Boolean {

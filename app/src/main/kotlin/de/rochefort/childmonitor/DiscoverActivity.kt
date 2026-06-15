@@ -57,6 +57,7 @@ class DiscoverActivity : Activity() {
         val connectButton = findViewById<Button>(R.id.connectViaAddressButton)
         val addressField = findViewById<EditText>(R.id.ipAddressField)
         val portField = findViewById<EditText>(R.id.portField)
+        val pinField = findViewById<EditText>(R.id.pinField)
         val preferredAddress = getPreferences(MODE_PRIVATE).getString(PREF_KEY_CHILD_DEVICE_ADDRESS, null)
         if (!preferredAddress.isNullOrEmpty()) {
             addressField.setText(preferredAddress)
@@ -81,11 +82,12 @@ class DiscoverActivity : Activity() {
                 Toast.makeText(this@DiscoverActivity, R.string.invalidPort, Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
+            val pairingPin = readPairingPin(pinField) ?: return@setOnClickListener
             val preferencesEditor = getPreferences(MODE_PRIVATE).edit()
             preferencesEditor.putString(PREF_KEY_CHILD_DEVICE_ADDRESS, addressString)
             preferencesEditor.putInt(PREF_KEY_CHILD_DEVICE_PORT, port)
             preferencesEditor.apply()
-            connectToChild(addressString, port, addressString)
+            connectToChild(addressString, port, addressString, pairingPin)
         }
     }
 
@@ -113,13 +115,17 @@ class DiscoverActivity : Activity() {
             }
         }
         val serviceTable = findViewById<ListView>(R.id.ServiceTable)
+        val pinField = findViewById<EditText>(R.id.pinField)
         val availableServicesAdapter = ArrayAdapter<ServiceInfoWrapper>(this,
                 R.layout.available_children_list)
         serviceTable.adapter = availableServicesAdapter
         serviceTable.onItemClickListener = OnItemClickListener { parent: AdapterView<*>, _: View?, position: Int, _: Long ->
             val info = parent.getItemAtPosition(position) as ServiceInfoWrapper
-            info.address?.let {
-                connectToChild(it, info.port, info.name)
+            val pairingPin = readPairingPin(pinField)
+            if (pairingPin != null) {
+                info.address?.let {
+                    connectToChild(it, info.port, info.name, pairingPin)
+                }
             }
         }
 
@@ -158,7 +164,7 @@ class DiscoverActivity : Activity() {
                             }
                         }
                     }
-                    this@DiscoverActivity.nsdManager.resolveService(service, resolver)
+                    nsdManager.resolveService(service, resolver)
                 } else {
                     Log.d(TAG, "Unknown Service name: " + service.serviceName)
                 }
@@ -193,12 +199,22 @@ class DiscoverActivity : Activity() {
         )
     }
 
-    private fun connectToChild(address: String, port: Int, name: String) {
+    private fun readPairingPin(pinField: EditText): String? {
+        val pairingPin = pinField.text.toString().trim()
+        if (!PAIRING_PIN_PATTERN.matches(pairingPin)) {
+            Toast.makeText(this@DiscoverActivity, R.string.invalidPairingPin, Toast.LENGTH_LONG).show()
+            return null
+        }
+        return pairingPin
+    }
+
+    private fun connectToChild(address: String, port: Int, name: String, pairingPin: String) {
         val i = Intent(applicationContext, ListenActivity::class.java)
         val b = Bundle()
         b.putString("address", address)
         b.putInt("port", port)
         b.putString("name", name)
+        b.putString("pairingPin", pairingPin)
         i.putExtras(b)
         startActivity(i)
     }
@@ -207,6 +223,7 @@ class DiscoverActivity : Activity() {
         private const val TAG = "ChildMonitor"
         private const val PREF_KEY_CHILD_DEVICE_ADDRESS = "childDeviceAddress"
         private const val PREF_KEY_CHILD_DEVICE_PORT = "childDevicePort"
+        private val PAIRING_PIN_PATTERN = Regex("\\d{6}")
     }
 }
 

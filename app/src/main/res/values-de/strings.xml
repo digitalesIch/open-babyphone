@@ -10,6 +10,8 @@
     <string name="childDevice">Kind-Gerät</string>
     <string name="serviceTitle">Dienst:</string>
     <string name="serviceDescription">Name des Diensten, mit dem sich die Eltern verbinden müssen.</string>
+    <string name="pairingPinTitle">Kopplungs-PIN:</string>
+    <string name="pairingPinDescription">Gib diese PIN vor dem Verbinden auf dem Eltern-Gerät ein.</string>
     <string name="loading">Lade...</string>
     <string name="stopped">Angehalten</string>
     <string name="streaming">Streaming...</string>
@@ -27,8 +29,10 @@
     <string name="connect">Verbinden</string>
     <string name="exampleAddress">192.168.1.2</string>
     <string name="examplePort">10000</string>
+    <string name="examplePairingPin">123456</string>
     <string name="invalidPort">Entweder wurde kein Port eingegeben oder er ist ungültig</string>
     <string name="invalidAddress">Das Adressfeld muss ausgefüllt sein</string>
+    <string name="invalidPairingPin">Gib die 6-stellige Kopplungs-PIN vom Kind-Gerät ein</string>
     <string name="discoverChild">Suche Kind im Netzwerk</string>
     <string name="discoverChildDescription">Wähle ein Kind aus einer Liste der erkannten Kinder im Netzwerk</string>
     <string name="enterChildAddress">Wähle Kind durch Adresse</string>

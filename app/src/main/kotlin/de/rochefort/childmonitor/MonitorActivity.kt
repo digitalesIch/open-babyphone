@@ -40,6 +40,7 @@ class MonitorActivity : Activity() {
             // cast its IBinder to a concrete class and directly access it.
             val bs = (service as MonitorBinder).service
             bs.monitorActivity = this@MonitorActivity
+            bs.updateMonitorActivity()
         }
 
         override fun onServiceDisconnected(className: ComponentName) {
