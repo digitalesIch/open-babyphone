@@ -10,9 +10,14 @@ project.
 
 ## Test Your Code
 
-There are four possible tests you can run to verify your code.  The first
-is unit tests, which check the basic functionality of the application, and
-can be run by gradle using:
+Use JDK 21 when building the project. The Android app emits Java 17 bytecode
+for Android tool compatibility. The release-grade verification command is:
+
+    # ./gradlew assembleRelease testReleaseUnitTest lintRelease
+
+There are three possible checks you can run while developing.  The first is
+unit tests, which check the basic functionality of the application, and can be
+run by gradle using:
 
     # ./gradlew testReleaseUnitTest
 
@@ -22,7 +27,7 @@ This is the Android lint checker, run using:
     # ./gradlew lintRelease
 
 
-The final check is by testing the application on a live device and verifying
+The final check is testing the application on a live device and verifying
 the basic functionality works as expected.
 
 ## Explain Your Work

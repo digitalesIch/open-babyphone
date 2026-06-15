@@ -1,0 +1,5 @@
+# Project-specific release shrinking rules.
+#
+# Minification is currently disabled, but app/build.gradle references this file
+# for release builds. Keep it present so release configuration stays valid when
+# shrinking is enabled later.

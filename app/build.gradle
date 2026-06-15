@@ -27,12 +27,15 @@ android {
         warning 'MissingTranslation'
     }
     compileOptions {
-        // Sets Java compatibility to Java 21
-        sourceCompatibility JavaVersion.VERSION_21
-        targetCompatibility JavaVersion.VERSION_21
+        // Build with JDK 21, but emit Java 17 bytecode for Android tool compatibility.
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
     kotlin {
         jvmToolchain(21)
+    }
+    kotlinOptions {
+        jvmTarget = '17'
     }
 }
 

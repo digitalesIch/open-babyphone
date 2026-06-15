@@ -158,7 +158,7 @@ class DiscoverActivity : Activity() {
                             }
                         }
                     }
-                    this@DiscoverActivity.nsdManager.resolveService(service, resolver)
+                    nsdManager.resolveService(service, resolver)
                 } else {
                     Log.d(TAG, "Unknown Service name: " + service.serviceName)
                 }
