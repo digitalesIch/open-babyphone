@@ -36,13 +36,16 @@ privacy, and modernization before larger feature work.
 - ✅ Changed `START_REDELIVER_INTENT` to `START_NOT_STICKY` for explicit user control.
 - ✅ Socket timeout set to 20 seconds for timely stream-loss detection.
 
-## 5. Modernize the Network Protocol
+## 5. Modernize the Network Protocol ✅
 
-- Move toward a small frame-based audio stream.
-- Include enough metadata to detect stale or missing frames, such as sequence numbers or timestamps.
-- Prefer current audio over buffered old audio.
-- Drop stale frames instead of building up latency.
-- Add explicit connection, disconnect, timeout, and error handling.
+- ✅ Implement frame-based audio streaming (11-byte header + payload).
+- ✅ Sequence numbers (uint32) for gap detection and logging.
+- ✅ Timestamps (uint32, ms since session start) for stale frame detection.
+- ✅ Heartbeat frames every 5 seconds for connection monitoring.
+- ✅ 10-second heartbeat timeout for faster dead connection detection (was 20-30s).
+- ✅ Drop frames older than 200ms (prefer current audio over buffered old audio).
+- ✅ Integration with existing ChaCha20-Poly1305 encryption.
+- ✅ ~27 bytes overhead per frame (11 header + 16 auth tag).
 
 ## 6. Implement Multi-Client Listening
 
