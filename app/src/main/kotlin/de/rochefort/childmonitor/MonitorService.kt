@@ -49,6 +49,9 @@ class MonitorService : Service() {
     private var currentPort = 0
     private lateinit var notificationManager: NotificationManager
     private var monitorThread: Thread? = null
+    private var audioProducerThread: Thread? = null
+    private val clientManager = ClientManager()
+    @Volatile private var isStreaming = false
     var monitorActivity: MonitorActivity? = null
 
     private val pairingCode: String
@@ -60,6 +63,8 @@ class MonitorService : Service() {
         ma.runOnUiThread {
             val pairingCodeText = ma.findViewById<TextView>(R.id.pairingCodeField)
             pairingCodeText.text = pairingCode
+            val clientCountText = ma.findViewById<TextView>(R.id.clientCount)
+            clientCountText.text = "Connected: ${clientManager.getClientCount()} parents"
         }
     }
 
@@ -88,101 +93,125 @@ class MonitorService : Service() {
         }
     }
 
-    private fun serviceConnection(socket: Socket) {
+    private fun handleClient(socket: Socket): Boolean {
+        if (!authenticateParent(socket)) {
+            Log.w(TAG, "Client authentication failed")
+            return false
+        }
+        
+        val client = clientManager.addClient(socket, pairingCode)
+        if (client == null) {
+            Log.w(TAG, "Rejected client - max clients reached")
+            socket.close()
+            return false
+        }
+        
+        updateMonitorActivity()
+        
+        if (!clientManager.canAcceptMoreClients()) {
+            unregisterService()
+            Log.i(TAG, "Max clients reached, unregistering NSD")
+        }
+        
+        return true
+    }
+
+    private fun startAudioProducer() {
+        if (isStreaming) {
+            Log.w(TAG, "Audio producer already running")
+            return
+        }
+        
+        isStreaming = true
         val ma = this.monitorActivity
         ma?.runOnUiThread {
             val statusText = ma.findViewById<TextView>(R.id.textStatus)
             statusText.setText(R.string.streaming)
         }
-        val frequency: Int = AudioCodecDefines.FREQUENCY
-        val channelConfiguration: Int = AudioCodecDefines.CHANNEL_CONFIGURATION_IN
-        val audioEncoding: Int = AudioCodecDefines.ENCODING
-        val bufferSize = AudioRecord.getMinBufferSize(frequency, channelConfiguration, audioEncoding)
         
-        if (bufferSize <= 0) {
-            Log.e(TAG, "Invalid audio buffer size: $bufferSize")
-            ma?.runOnUiThread {
-                Toast.makeText(ma, "Microphone not available - is another app using it?", Toast.LENGTH_LONG).show()
+        audioProducerThread = Thread {
+            val frequency: Int = AudioCodecDefines.FREQUENCY
+            val channelConfiguration: Int = AudioCodecDefines.CHANNEL_CONFIGURATION_IN
+            val audioEncoding: Int = AudioCodecDefines.ENCODING
+            val bufferSize = AudioRecord.getMinBufferSize(frequency, channelConfiguration, audioEncoding)
+            
+            if (bufferSize <= 0) {
+                Log.e(TAG, "Invalid audio buffer size: $bufferSize")
+                isStreaming = false
+                return@Thread
             }
-            return
-        }
-        
-        val audioRecord: AudioRecord = try {
-            AudioRecord(
-                    MediaRecorder.AudioSource.MIC,
-                    frequency,
-                    channelConfiguration,
-                    audioEncoding,
-                    bufferSize
-            )
-        } catch (e: SecurityException) {
-            throw RuntimeException(e)
-        } catch (e: IllegalStateException) {
-            Log.e(TAG, "AudioRecord initialization failed", e)
-            ma?.runOnUiThread {
-                Toast.makeText(ma, "Microphone not available", Toast.LENGTH_LONG).show()
-            }
-            return
-        }
-        
-        if (audioRecord.state != AudioRecord.STATE_INITIALIZED) {
-            Log.e(TAG, "AudioRecord not initialized properly")
-            audioRecord.release()
-            ma?.runOnUiThread {
-                Toast.makeText(ma, "Microphone not available", Toast.LENGTH_LONG).show()
-            }
-            return
-        }
-        
-        val pcmBufferSize = bufferSize * 2
-        val pcmBuffer = ShortArray(pcmBufferSize)
-        val ulawBuffer = ByteArray(pcmBufferSize)
-        
-        val key: ByteArray? = if (pairingCode.isNotEmpty()) {
-            CryptoHelper.deriveKey(pairingCode)
-        } else {
-            null
-        }
-        var seqNum = 0
-        val sessionStartTime = System.currentTimeMillis()
-        var lastHeartbeatTime = 0L
-        
-        try {
-            audioRecord.startRecording()
-            val out = socket.getOutputStream()
-            socket.sendBufferSize = pcmBufferSize
-            socket.soTimeout = 20_000
-            Log.d(TAG, "Socket send buffer size: " + socket.sendBufferSize)
-            while (socket.isConnected && (this.currentSocket != null) && !Thread.currentThread().isInterrupted) {
-                val read = audioRecord.read(pcmBuffer, 0, bufferSize)
-                if (read < 0) {
-                    Log.e(TAG, "AudioRecord read error: $read")
-                    break
-                }
-                val encoded: Int = AudioCodecDefines.CODEC.encode(pcmBuffer, read, ulawBuffer, 0)
-                
-                val timestampMs = (System.currentTimeMillis() - sessionStartTime).toInt()
-                val frame = FrameCodec.encodeFrame(ulawBuffer.copyOf(encoded), seqNum++, timestampMs, key)
-                out.write(frame)
-                
-                val currentTime = System.currentTimeMillis()
-                if (currentTime - lastHeartbeatTime >= AudioCodecDefines.HEARTBEAT_INTERVAL_MS) {
-                    val heartbeat = FrameCodec.encodeHeartbeat(seqNum++, timestampMs)
-                    out.write(heartbeat)
-                    lastHeartbeatTime = currentTime
-                    Log.d(TAG, "Sent heartbeat frame")
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Connection failed", e)
-        } finally {
-            try {
-                audioRecord.stop()
+            
+            val audioRecord: AudioRecord = try {
+                AudioRecord(
+                        MediaRecorder.AudioSource.MIC,
+                        frequency,
+                        channelConfiguration,
+                        audioEncoding,
+                        bufferSize
+                )
+            } catch (e: SecurityException) {
+                throw RuntimeException(e)
             } catch (e: IllegalStateException) {
-                Log.d(TAG, "AudioRecord already stopped")
+                Log.e(TAG, "AudioRecord initialization failed", e)
+                isStreaming = false
+                return@Thread
             }
-            audioRecord.release()
+            
+            if (audioRecord.state != AudioRecord.STATE_INITIALIZED) {
+                Log.e(TAG, "AudioRecord not initialized properly")
+                audioRecord.release()
+                isStreaming = false
+                return@Thread
+            }
+            
+            val pcmBufferSize = bufferSize * 2
+            val pcmBuffer = ShortArray(pcmBufferSize)
+            val ulawBuffer = ByteArray(pcmBufferSize)
+            
+            val key: ByteArray? = if (pairingCode.isNotEmpty()) {
+                CryptoHelper.deriveKey(pairingCode)
+            } else {
+                null
+            }
+            var seqNum = 0
+            val sessionStartTime = System.currentTimeMillis()
+            var lastHeartbeatTime = 0L
+            
+            try {
+                audioRecord.startRecording()
+                while (isStreaming && !Thread.currentThread().isInterrupted) {
+                    val read = audioRecord.read(pcmBuffer, 0, bufferSize)
+                    if (read < 0) {
+                        Log.e(TAG, "AudioRecord read error: $read")
+                        break
+                    }
+                    val encoded: Int = AudioCodecDefines.CODEC.encode(pcmBuffer, read, ulawBuffer, 0)
+                    
+                    val timestampMs = (System.currentTimeMillis() - sessionStartTime).toInt()
+                    val frame = FrameCodec.encodeFrame(ulawBuffer.copyOf(encoded), seqNum++, timestampMs, key)
+                    clientManager.broadcastFrame(frame)
+                    
+                    val currentTime = System.currentTimeMillis()
+                    if (currentTime - lastHeartbeatTime >= AudioCodecDefines.HEARTBEAT_INTERVAL_MS) {
+                        val heartbeat = FrameCodec.encodeHeartbeat(seqNum++, timestampMs)
+                        clientManager.broadcastFrame(heartbeat)
+                        lastHeartbeatTime = currentTime
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Audio producer failed", e)
+            } finally {
+                try {
+                    audioRecord.stop()
+                } catch (e: IllegalStateException) {
+                    Log.d(TAG, "AudioRecord already stopped")
+                }
+                audioRecord.release()
+                isStreaming = false
+            }
         }
+        audioProducerThread?.start()
+        Log.i(TAG, "Audio producer started")
     }
 
     override fun onCreate() {
@@ -223,26 +252,26 @@ class MonitorService : Service() {
                         // Register the service so that parent devices can
                         // locate the child device
                         registerService(localPort)
-                        var authenticatedConnectionHandled = false
-                        while (!authenticatedConnectionHandled &&
+                        
+                        // Start audio producer once we have a server socket
+                        startAudioProducer()
+                        
+                        // Accept multiple clients until max reached or connection token changes
+                        while (clientManager.canAcceptMoreClients() &&
                                 this.connectionToken == currentToken &&
                                 !Thread.currentThread().isInterrupted) {
                             serverSocket.accept().use { socket ->
                                 Log.i(TAG, "Connection from parent device received")
-
-                                if (authenticateParent(socket)) {
-                                    // We now have an authenticated client connection.
-                                    // Unregister so no other clients will attempt to connect.
-                                    unregisterService()
-                                    serviceConnection(socket)
-                                    authenticatedConnectionHandled = true
-                                }
+                                handleClient(socket)
                             }
+                        }
+                        
+                        if (!clientManager.canAcceptMoreClients()) {
+                            Log.i(TAG, "Max clients reached, waiting for disconnect")
                         }
                     }
                 } catch (e: Exception) {
                     if (this.connectionToken == currentToken) {
-                        // Just in case
                         this.currentPort++
                         Log.e(TAG, "Failed to open server socket. Port increased to $currentPort", e)
                     }
@@ -331,6 +360,22 @@ class MonitorService : Service() {
     }
 
     override fun onDestroy() {
+        // Stop audio producer
+        isStreaming = false
+        this.audioProducerThread?.let {
+            it.interrupt()
+            try {
+                it.join(1000)
+            } catch (e: InterruptedException) {
+                Log.d(TAG, "Interrupted while waiting for audio producer to stop")
+            }
+        }
+        this.audioProducerThread = null
+        
+        // Disconnect all clients
+        clientManager.removeAllClients()
+        
+        // Stop monitor thread
         this.monitorThread?.let {
             this.monitorThread = null
             it.interrupt()

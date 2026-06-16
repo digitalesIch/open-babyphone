@@ -47,15 +47,15 @@ privacy, and modernization before larger feature work.
 - ✅ Integration with existing ChaCha20-Poly1305 encryption.
 - ✅ ~27 bytes overhead per frame (11 header + 16 auth tag).
 
-## 6. Implement Multi-Client Listening
+## 6. Implement Multi-Client Listening ✅
 
-- Use pull request #17 as a technical reference, not as a direct merge.
-- Keep one microphone recording pipeline on the child device.
-- Fan out encoded audio frames to multiple parent clients.
-- Use non-blocking I/O or bounded per-client queues so one slow parent does not block others.
-- Add a maximum client limit.
-- Drop or disconnect slow clients when their buffers fall behind.
-- Show the number of connected parent devices in the child UI.
+- ✅ Keep one microphone recording pipeline on the child device (audio producer thread).
+- ✅ Fan out encoded audio frames to multiple parent clients (ClientManager.broadcastFrame).
+- ✅ Use bounded per-client queues (ArrayBlockingQueue, 100 frames = ~200ms) so slow parents don't block others.
+- ✅ Maximum client limit of 5 (configurable in ClientManager.MAX_CLIENTS).
+- ✅ Drop or disconnect slow clients when their buffers fall behind (MAX_DROPPED_FRAMES = 50).
+- ✅ Show the number of connected parent devices in the child UI ("Connected: X parents").
+- ✅ NSD unregisters only when max clients reached (new clients can connect until then).
 
 ## 7. Improve Parent Playback
 
