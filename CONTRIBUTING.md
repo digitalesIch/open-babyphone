@@ -1,18 +1,27 @@
-How to Submit Patches to the Child Monitor Project
+How to Submit Patches to the Open Babyphone Project
 ===============================================================================
-https://github.com/enguerrand/child-monitor
+https://github.com/digitalesIch/open-babyphone
 
 This document is intended to act as a guide to help you contribute to the
-Child Monitor project.  It is not perfect, and there will always be exceptions
+Open Babyphone project. It is not perfect, and there will always be exceptions
 to the rules described here, but by following the instructions below you
-should have a much easier time getting your work merged with the upstream
-project.
+should have a much easier time getting your work merged.
+
+Open Babyphone is an independent fork of Child Monitor (which itself is a fork
+of Protect Baby Monitor). We maintain attribution to the original projects
+while developing Open Babyphone as a separate project focused on no-cloud,
+LAN/VPN-based baby monitoring.
+
+## Build Requirements
+
+Use JDK 21 when building the project. The Android app emits Java 17 bytecode
+for Android tool compatibility.
 
 ## Test Your Code
 
-There are four possible tests you can run to verify your code.  The first
-is unit tests, which check the basic functionality of the application, and
-can be run by gradle using:
+There are three possible checks you can run while developing. The first is
+unit tests, which check the basic functionality of the application, and can be
+run by gradle using:
 
     # ./gradlew testReleaseUnitTest
 
@@ -21,9 +30,12 @@ This is the Android lint checker, run using:
 
     # ./gradlew lintRelease
 
-
 The final check is by testing the application on a live device and verifying
 the basic functionality works as expected.
+
+The release-grade verification command that runs all checks is:
+
+    # ./gradlew assembleRelease testReleaseUnitTest lintRelease
 
 ## Explain Your Work
 
@@ -75,13 +87,15 @@ your real name, saying:
 ## Submit Patch(es) for Review
 
 Finally, you will need to submit your patches so that they can be reviewed
-and potentially merged into the main Child Monitor repository. The preferred
-way to do this is to submit a Pull Request to the Child Monitor project.
+and potentially merged into the Open Babyphone repository. The preferred
+way to do this is to submit a Pull Request to the Open Babyphone project.
 Changes need to apply cleanly onto the master branch and pass all
 unit tests and produce no errors during static analysis.
 
-## Translations
+## Language
 
-I decided to stop accepting any PRs for translations except for languages that I speak well enough to ensure a minimum quality level.
-These would be english, german, french.
-For all other languages I will neither accept new strings.xml nor guarantee to keep the present ones around.
+The app is English-only. All user-facing strings must be in English.
+Do not add or maintain translations in other languages.
+
+All PR titles, PR descriptions, commit messages, and code comments must
+be written in English, regardless of the language used in conversation.
