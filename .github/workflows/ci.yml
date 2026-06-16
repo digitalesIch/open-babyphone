@@ -20,22 +20,11 @@ jobs:
           java-version: "21"
           distribution: "temurin"
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: "platform-tools;platforms;android-34;build-tools;34.0.0"
-
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build with Gradle
-        run: ./gradlew assembleRelease
-
-      - name: Run Lint
-        run: ./gradlew lintRelease
-
-      - name: Run Unit Tests
-        run: ./gradlew testReleaseUnitTest
+      - name: Build, test and lint release
+        run: ./gradlew assembleRelease testReleaseUnitTest lintRelease
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
