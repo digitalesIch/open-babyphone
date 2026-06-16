@@ -10,8 +10,8 @@
     <string name="childDevice">Child Device</string>
     <string name="serviceTitle">Service:</string>
     <string name="serviceDescription">Name of the service that parent must pair to</string>
-    <string name="pairingPinTitle">Pairing PIN:</string>
-    <string name="pairingPinDescription">Enter this PIN on the parent device before connecting.</string>
+    <string name="pairingCodeTitle">Pairing code:</string>
+    <string name="pairingCodeDescription">Optional. Leave empty to allow connections without a code. Use the same code on parent devices.</string>
     <string name="loading">Loading...</string>
     <string name="stopped">Stopped</string>
     <string name="streaming">Streaming...</string>
@@ -29,10 +29,10 @@
     <string name="connect">Connect</string>
     <string name="exampleAddress">192.168.1.2</string>
     <string name="examplePort">10000</string>
-    <string name="examplePairingPin">123456</string>
+    <string name="examplePairingCode">babyroom42</string>
     <string name="invalidPort">Either no port was entered or it is invalid</string>
     <string name="invalidAddress">The address field needs to be filled out</string>
-    <string name="invalidPairingPin">Enter the 6-digit pairing PIN shown on the child device</string>
+    <string name="invalidPairingCode">Use 1 to 64 letters and numbers for the pairing code, or leave it empty</string>
     <string name="discoverChild">Discover Child on Network</string>
     <string name="discoverChildDescription">Select child from a list of discovered children on the network</string>
     <string name="enterChildAddress">Select Child by Address</string>

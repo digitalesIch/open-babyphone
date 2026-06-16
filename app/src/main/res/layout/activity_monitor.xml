@@ -61,24 +61,29 @@
                 android:layout_height="15dip" />
 
             <TextView
-                android:id="@+id/pairingPinTitle"
+                android:id="@+id/pairingCodeTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/pairingPinTitle"
+                android:labelFor="@id/pairingCodeField"
+                android:text="@string/pairingCodeTitle"
+                android:textSize="20sp" />
+
+            <EditText
+                android:id="@+id/pairingCodeField"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:digits="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+                android:ems="10"
+                android:hint="@string/examplePairingCode"
+                android:inputType="textVisiblePassword"
+                android:maxLength="64"
                 android:textSize="20sp" />
 
             <TextView
-                android:id="@+id/pairingPin"
+                android:id="@+id/pairingCodeDescription"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/loading"
-                android:textSize="20sp" />
-
-            <TextView
-                android:id="@+id/pairingPinDescription"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/pairingPinDescription" />
+                android:text="@string/pairingCodeDescription" />
 
             <Space
                 android:layout_width="match_parent"

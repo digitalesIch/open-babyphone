@@ -69,24 +69,25 @@
         android:inputType="number"
         android:maxLength="5"
         android:hint="@string/examplePort"
-        android:nextFocusForward="@+id/pinField"/>
+        android:nextFocusForward="@+id/pairingCodeField"/>
 
     <TextView
-        android:id="@+id/pairingPinTitle"
+        android:id="@+id/pairingCodeTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:labelFor="@id/pinField"
+        android:labelFor="@id/pairingCodeField"
         android:textSize="20sp"
-        android:text="@string/pairingPinTitle" />
+        android:text="@string/pairingCodeTitle" />
 
     <EditText
-        android:id="@+id/pinField"
+        android:id="@+id/pairingCodeField"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:digits="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
         android:ems="10"
-        android:hint="@string/examplePairingPin"
-        android:inputType="numberPassword"
-        android:maxLength="6"
+        android:hint="@string/examplePairingCode"
+        android:inputType="textVisiblePassword"
+        android:maxLength="64"
         android:textSize="20sp"
         android:nextFocusForward="@+id/connectViaAddressButton" />
 

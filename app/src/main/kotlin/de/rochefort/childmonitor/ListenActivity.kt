@@ -69,7 +69,7 @@ class ListenActivity : Activity() {
             intent.putExtra("name", it.getString("name"))
             intent.putExtra("address", it.getString("address"))
             intent.putExtra("port", it.getInt("port"))
-            intent.putExtra("pairingPin", it.getString("pairingPin"))
+            intent.putExtra("pairingCode", it.getString("pairingCode"))
             ContextCompat.startForegroundService(context, intent)
         }
         // Attempts to establish a connection with the service.  We use an

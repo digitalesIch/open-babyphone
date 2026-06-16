@@ -38,8 +38,6 @@ import androidx.core.app.ServiceCompat
 import java.io.IOException
 import java.net.ServerSocket
 import java.net.Socket
-import java.security.SecureRandom
-import java.util.Locale
 
 class MonitorService : Service() {
     private val binder: IBinder = MonitorBinder()
@@ -50,24 +48,31 @@ class MonitorService : Service() {
     private var currentPort = 0
     private lateinit var notificationManager: NotificationManager
     private var monitorThread: Thread? = null
-    private lateinit var pairingPin: String
     var monitorActivity: MonitorActivity? = null
+
+    private val pairingCode: String
+        get() = getSharedPreferences(PAIRING_PREFS_NAME, MODE_PRIVATE)
+                .getString(PREF_KEY_PAIRING_CODE, "") ?: ""
 
     fun updateMonitorActivity() {
         val ma = this.monitorActivity ?: return
         ma.runOnUiThread {
-            val pairingPinText = ma.findViewById<TextView>(R.id.pairingPin)
-            pairingPinText.text = pairingPin
+            val pairingCodeText = ma.findViewById<TextView>(R.id.pairingCodeField)
+            pairingCodeText.text = pairingCode
         }
     }
 
     private fun authenticateParent(socket: Socket): Boolean {
+        val expectedCode = pairingCode.trim()
+        if (expectedCode.isEmpty()) {
+            return true
+        }
         return try {
             socket.soTimeout = AUTH_TIMEOUT_MS
-            val providedPin = socket.getInputStream().bufferedReader(Charsets.US_ASCII).readLine()?.trim()
-            val authenticated = providedPin == pairingPin
+            val providedCode = socket.getInputStream().bufferedReader(Charsets.US_ASCII).readLine()?.trim()
+            val authenticated = providedCode == expectedCode
             if (!authenticated) {
-                Log.w(TAG, "Rejected parent connection with invalid pairing PIN")
+                Log.w(TAG, "Rejected parent connection with invalid pairing code")
             }
             authenticated
         } catch (e: IOException) {
@@ -131,7 +136,6 @@ class MonitorService : Service() {
         this.nsdManager = this.getSystemService(NSD_SERVICE) as NsdManager
         this.currentPort = 10000
         this.currentSocket = null
-        this.pairingPin = generatePairingPin()
     }
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
@@ -213,8 +217,8 @@ class MonitorService : Service() {
                             serviceText.text = serviceName
                             val portText = ma.findViewById<TextView>(R.id.port)
                             portText.text = port.toString()
-                            val pairingPinText = ma.findViewById<TextView>(R.id.pairingPin)
-                            pairingPinText.text = pairingPin
+                            val pairingCodeText = ma.findViewById<TextView>(R.id.pairingCodeField)
+                            pairingCodeText.text = pairingCode
                         }
                     }
                 }
@@ -307,11 +311,8 @@ class MonitorService : Service() {
         const val TAG = "MonitorService"
         const val CHANNEL_ID = TAG
         const val ID = 1338
+        const val PAIRING_PREFS_NAME = "pairing"
+        const val PREF_KEY_PAIRING_CODE = "pairingCode"
         private const val AUTH_TIMEOUT_MS = 10_000
-        private val PIN_RANDOM = SecureRandom()
-
-        private fun generatePairingPin(): String {
-            return String.format(Locale.US, "%06d", PIN_RANDOM.nextInt(1_000_000))
-        }
     }
 }

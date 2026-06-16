@@ -24,7 +24,10 @@ import android.content.ServiceConnection
 import android.net.ConnectivityManager
 import android.os.Bundle
 import android.os.IBinder
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
+import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
@@ -57,6 +60,22 @@ class MonitorActivity : Activity() {
         Log.i(TAG, "ChildMonitor start")
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_monitor)
+        val pairingCodePreferences = getSharedPreferences(MonitorService.PAIRING_PREFS_NAME, MODE_PRIVATE)
+        val pairingCodeField = findViewById<EditText>(R.id.pairingCodeField)
+        pairingCodeField.setText(pairingCodePreferences.getString(MonitorService.PREF_KEY_PAIRING_CODE, ""))
+        pairingCodeField.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+            }
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+            }
+
+            override fun afterTextChanged(s: Editable?) {
+                pairingCodePreferences.edit()
+                        .putString(MonitorService.PREF_KEY_PAIRING_CODE, s?.toString()?.trim() ?: "")
+                        .apply()
+            }
+        })
         val addressText = findViewById<TextView>(R.id.address)
         val listenAddresses = listenAddresses
         if (listenAddresses.isNotEmpty()) {
