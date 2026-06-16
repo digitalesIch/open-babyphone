@@ -17,13 +17,14 @@ privacy, and modernization before larger feature work.
 - Plan encrypted transport for the audio stream (see point 3).
 - Avoid exposing the device model in the advertised service name.
 
-## 3. Add Transport Encryption with Pairing Code
+## 3. Add Transport Encryption with Pairing Code ✅
 
-- Derive a 256-bit encryption key from the pairing code using a KDF (e.g., Argon2id).
-- Use symmetric encryption with ChaCha20-Poly1305 (libsodium/NaCl) for the audio stream.
-- Keep implementation lightweight: no certificates, no complex PKI.
-- Ensure encryption only applies when a pairing code is configured (empty code = no auth, no encryption).
-- Add a simple handshake to confirm both sides have the same pairing code before streaming.
+- ✅ Derive a 256-bit encryption key from the pairing code using a KDF (Argon2i).
+- ✅ Use symmetric encryption with ChaCha20-Poly1305 (libsodium/NaCl) for the audio stream.
+- ✅ Keep implementation lightweight: no certificates, no complex PKI.
+- ✅ Ensure encryption only applies when a pairing code is configured (empty code = no auth, no encryption).
+- ✅ Use 2-byte length prefix per chunk for robust TCP framing.
+- ✅ Use 64-bit counter as nonce (big-endian, zero-padded to 12 bytes).
 
 ## 4. Harden Audio and Foreground Services
 
