@@ -1,9 +1,11 @@
 Branden Archer:
-   Initial concept and implementation
-Naofumi Fukue:
+   Initial concept and implementation (Protect Baby Monitor)
+Naofuma Fukue:
    Added Japanese translation
-Enguerrand de Rochefort
-   Continuation of implementation
+Enguerrand de Rochefort:
+   Continuation of implementation (Child Monitor)
+digitalesIch:
+   Open Babyphone fork, pairing code, CI modernization
 
-Anybody who has contributed code to Child Monitor (or Protect Baby Monitor) is considered
-an author. Send pull requests to this project for additions to this file.
+Anybody who has contributed code to Open Babyphone (or Child Monitor, or Protect Baby Monitor)
+is considered an author. Send pull requests to this project for additions to this file.

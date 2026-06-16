@@ -1,3 +1,17 @@
+Open Babyphone (fork of Child Monitor)
+=======================================
+
+June 2026: Initial fork release
+
+  * Project renamed to Open Babyphone
+  * Added optional persistent pairing code for authentication
+  * Modernized CI with GitHub Actions (JDK 21, Android SDK 34)
+  * English-only app (removed translations)
+  * Focus on no-cloud, LAN/VPN-based baby monitoring
+
+Child Monitor (original project)
+=================================
+
 Sun Jan 3, 2016: Release 0.2
 
   * Improve and simplify audio playback to reduce dropped

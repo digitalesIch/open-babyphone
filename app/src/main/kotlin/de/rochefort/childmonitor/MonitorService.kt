@@ -50,6 +50,43 @@ class MonitorService : Service() {
     private var monitorThread: Thread? = null
     var monitorActivity: MonitorActivity? = null
 
+    private val pairingCode: String
+        get() = getSharedPreferences(PAIRING_PREFS_NAME, MODE_PRIVATE)
+                .getString(PREF_KEY_PAIRING_CODE, "") ?: ""
+
+    fun updateMonitorActivity() {
+        val ma = this.monitorActivity ?: return
+        ma.runOnUiThread {
+            val pairingCodeText = ma.findViewById<TextView>(R.id.pairingCodeField)
+            pairingCodeText.text = pairingCode
+        }
+    }
+
+    private fun authenticateParent(socket: Socket): Boolean {
+        val expectedCode = pairingCode.trim()
+        if (expectedCode.isEmpty()) {
+            return true
+        }
+        return try {
+            socket.soTimeout = AUTH_TIMEOUT_MS
+            val providedCode = socket.getInputStream().bufferedReader(Charsets.US_ASCII).readLine()?.trim()
+            val authenticated = providedCode == expectedCode
+            if (!authenticated) {
+                Log.w(TAG, "Rejected parent connection with invalid pairing code")
+            }
+            authenticated
+        } catch (e: IOException) {
+            Log.w(TAG, "Failed to authenticate parent connection", e)
+            false
+        } finally {
+            try {
+                socket.soTimeout = 0
+            } catch (e: IOException) {
+                Log.d(TAG, "Failed to reset socket timeout after authentication", e)
+            }
+        }
+    }
+
     private fun serviceConnection(socket: Socket) {
         val ma = this.monitorActivity
         ma?.runOnUiThread {
@@ -130,14 +167,21 @@ class MonitorService : Service() {
                         // Register the service so that parent devices can
                         // locate the child device
                         registerService(localPort)
-                        serverSocket.accept().use { socket ->
-                            Log.i(TAG, "Connection from parent device received")
+                        var authenticatedConnectionHandled = false
+                        while (!authenticatedConnectionHandled &&
+                                this.connectionToken == currentToken &&
+                                !Thread.currentThread().isInterrupted) {
+                            serverSocket.accept().use { socket ->
+                                Log.i(TAG, "Connection from parent device received")
 
-                            // We now have a client connection.
-                            // Unregister so no other clients will
-                            // attempt to connect
-                            unregisterService()
-                            serviceConnection(socket)
+                                if (authenticateParent(socket)) {
+                                    // We now have an authenticated client connection.
+                                    // Unregister so no other clients will attempt to connect.
+                                    unregisterService()
+                                    serviceConnection(socket)
+                                    authenticatedConnectionHandled = true
+                                }
+                            }
                         }
                     }
                 } catch (e: Exception) {
@@ -173,6 +217,8 @@ class MonitorService : Service() {
                             serviceText.text = serviceName
                             val portText = ma.findViewById<TextView>(R.id.port)
                             portText.text = port.toString()
+                            val pairingCodeText = ma.findViewById<TextView>(R.id.pairingCodeField)
+                            pairingCodeText.text = pairingCode
                         }
                     }
                 }
@@ -265,5 +311,8 @@ class MonitorService : Service() {
         const val TAG = "MonitorService"
         const val CHANNEL_ID = TAG
         const val ID = 1338
+        const val PAIRING_PREFS_NAME = "pairing"
+        const val PREF_KEY_PAIRING_CODE = "pairingCode"
+        private const val AUTH_TIMEOUT_MS = 10_000
     }
 }

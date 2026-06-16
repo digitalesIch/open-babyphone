@@ -1,6 +1,6 @@
-# PRIVACY POLICY FOR CHILD MONITOR
+# PRIVACY POLICY FOR OPEN BABYPHONE
 
-This privacy policy governs your use of the software application Child Monitor (“Application”) for mobile devices.
+This privacy policy governs your use of the software application Open Babyphone (“Application”) for mobile devices.
 The Application is a simple network based baby monitor.
 
 # What information does the Application obtain and how is it used?

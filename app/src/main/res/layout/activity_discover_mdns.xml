@@ -29,6 +29,25 @@
         android:text="@string/selectChildDevice"
         android:textSize="20sp" />
 
+    <TextView
+        android:id="@+id/pairingCodeTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:labelFor="@id/pairingCodeField"
+        android:text="@string/pairingCodeTitle"
+        android:textSize="20sp" />
+
+    <EditText
+        android:id="@+id/pairingCodeField"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:digits="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        android:ems="10"
+        android:hint="@string/examplePairingCode"
+        android:inputType="textVisiblePassword"
+        android:maxLength="64"
+        android:textSize="20sp" />
+
     <ListView
         android:id="@+id/ServiceTable"
         android:scrollbars="vertical"

@@ -1,1 +1,1 @@
-Child Monitor allows two Android devices to act as a baby monitor. 
+No-cloud Android baby monitor for LAN and VPN use.
