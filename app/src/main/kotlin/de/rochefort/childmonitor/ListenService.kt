@@ -33,6 +33,8 @@ import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
+import de.rochefort.childmonitor.audio.FrameCodec
+import de.rochefort.childmonitor.audio.FrameHeader
 import java.io.IOException
 import java.net.Socket
 
@@ -195,46 +197,65 @@ class ListenService : Service() {
         } else {
             null
         }
-        var receiveCounter = 0L
+        var expectedSeqNum = 0
+        var lastFrameTime = System.currentTimeMillis()
+        var heartbeatCheckTime = System.currentTimeMillis()
 
         val decodedBuffer = ShortArray(byteBufferSize * 2)
         try {
             while (!Thread.currentThread().isInterrupted) {
-                val lengthBuffer = ByteArray(2)
-                val lenResult = inputStream.read(lengthBuffer)
-                if (lenResult < 0) {
-                    return Thread.currentThread().isInterrupted
+                val currentTime = System.currentTimeMillis()
+                if (currentTime - heartbeatCheckTime > 2000) {
+                    if (currentTime - lastFrameTime > AudioCodecDefines.HEARTBEAT_TIMEOUT_MS) {
+                        Log.e(TAG, "No heartbeat for ${AudioCodecDefines.HEARTBEAT_TIMEOUT_MS}ms, connection dead")
+                        return false
+                    }
+                    heartbeatCheckTime = currentTime
                 }
-                if (lenResult < 2) {
-                    Log.e(TAG, "Incomplete length prefix")
-                    return false
-                }
-                val ciphertextLen = ((lengthBuffer[0].toInt() and 0xFF) shl 8) or (lengthBuffer[1].toInt() and 0xFF)
+                val header = FrameHeader.readFrom(inputStream)
+                    ?: run {
+                        Log.e(TAG, "Failed to read frame header")
+                        return false
+                    }
+                
+                lastFrameTime = System.currentTimeMillis()
 
-                val ciphertext = ByteArray(ciphertextLen)
+                if (header.seqNum != expectedSeqNum) {
+                    Log.w(TAG, "Frame gap: expected $expectedSeqNum, got ${header.seqNum}")
+                    expectedSeqNum = header.seqNum + 1
+                } else {
+                    expectedSeqNum++
+                }
+
+                if (header.flags == FrameCodec.FLAG_HEARTBEAT) {
+                    Log.d(TAG, "Received heartbeat frame")
+                    continue
+                }
+
+                val payload = ByteArray(header.payloadLength)
                 var bytesRead = 0
-                while (bytesRead < ciphertextLen) {
-                    val chunk = inputStream.read(ciphertext, bytesRead, ciphertextLen - bytesRead)
+                while (bytesRead < header.payloadLength) {
+                    val chunk = inputStream.read(payload, bytesRead, header.payloadLength - bytesRead)
                     if (chunk < 0) {
-                        Log.e(TAG, "Incomplete ciphertext read")
+                        Log.e(TAG, "Incomplete payload read")
                         return false
                     }
                     bytesRead += chunk
                 }
 
-                val ulawBuffer: ByteArray
-                if (key != null) {
-                    val decrypted = CryptoHelper.decryptChunk(ciphertext, key, receiveCounter++)
-                        ?: run {
-                            Log.e(TAG, "Decryption failed - auth tag mismatch")
-                            return false
-                        }
-                    ulawBuffer = decrypted
-                } else {
-                    ulawBuffer = ciphertext
+                val frame = FrameCodec.decodeFrame(header, payload, key)
+                    ?: run {
+                        Log.e(TAG, "Failed to decode frame")
+                        return false
+                    }
+
+                val frameAge = System.currentTimeMillis() - frame.timestampMs
+                if (frameAge > AudioCodecDefines.MAX_FRAME_AGE_MS) {
+                    Log.d(TAG, "Dropping stale frame: ${frameAge}ms old")
+                    continue
                 }
 
-                val decoded: Int = AudioCodecDefines.CODEC.decode(decodedBuffer, ulawBuffer, ulawBuffer.size, 0)
+                val decoded: Int = AudioCodecDefines.CODEC.decode(decodedBuffer, frame.ulawData, frame.ulawData.size, 0)
                 if (decoded > 0) {
                     val written = audioTrack.write(decodedBuffer, 0, decoded)
                     if (written < 0) {

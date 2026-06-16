@@ -35,6 +35,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
+import de.rochefort.childmonitor.audio.FrameCodec
 import java.io.IOException
 import java.net.ServerSocket
 import java.net.Socket
@@ -142,7 +143,9 @@ class MonitorService : Service() {
         } else {
             null
         }
-        var sendCounter = 0L
+        var seqNum = 0
+        val sessionStartTime = System.currentTimeMillis()
+        var lastHeartbeatTime = 0L
         
         try {
             audioRecord.startRecording()
@@ -158,19 +161,17 @@ class MonitorService : Service() {
                 }
                 val encoded: Int = AudioCodecDefines.CODEC.encode(pcmBuffer, read, ulawBuffer, 0)
                 
-                val outBytes: ByteArray
-                if (key != null) {
-                    val encrypted = CryptoHelper.encryptChunk(ulawBuffer.copyOf(encoded), key, sendCounter++)
-                    val lengthPrefix = byteArrayOf(
-                        ((encrypted.size ushr 8) and 0xFF).toByte(),
-                        (encrypted.size and 0xFF).toByte()
-                    )
-                    outBytes = lengthPrefix + encrypted
-                } else {
-                    outBytes = ulawBuffer.copyOf(encoded)
-                }
+                val timestampMs = (System.currentTimeMillis() - sessionStartTime).toInt()
+                val frame = FrameCodec.encodeFrame(ulawBuffer.copyOf(encoded), seqNum++, timestampMs, key)
+                out.write(frame)
                 
-                out.write(outBytes)
+                val currentTime = System.currentTimeMillis()
+                if (currentTime - lastHeartbeatTime >= AudioCodecDefines.HEARTBEAT_INTERVAL_MS) {
+                    val heartbeat = FrameCodec.encodeHeartbeat(seqNum++, timestampMs)
+                    out.write(heartbeat)
+                    lastHeartbeatTime = currentTime
+                    Log.d(TAG, "Sent heartbeat frame")
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Connection failed", e)
