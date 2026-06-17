@@ -6,9 +6,14 @@ on:
   pull_request:
     branches: ["main"]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
@@ -20,11 +25,11 @@ jobs:
           java-version: "21"
           distribution: "temurin"
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-
       - name: Build, test and lint release
-        run: ./gradlew assembleRelease testReleaseUnitTest lintRelease
+        uses: gradle/gradle-build-action@v3
+        with:
+          gradle-version: wrapper
+          arguments: assembleRelease testReleaseUnitTest lintRelease
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
