@@ -17,7 +17,6 @@
 package de.rochefort.childmonitor
 
 import android.Manifest
-import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -25,10 +24,11 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.Button
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 
-class StartActivity : Activity() {
+class StartActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         Log.i(TAG, "ChildMonitor launched")
         super.onCreate(savedInstanceState)
@@ -51,6 +51,11 @@ class StartActivity : Activity() {
             } else {
                 requestDiscoverPermissions()
             }
+        }
+        val settingsButton = findViewById<Button>(R.id.settingsButton)
+        settingsButton.setOnClickListener { _: View? ->
+            Log.i(TAG, "Opening settings")
+            startActivity(Intent(applicationContext, SettingsActivity::class.java))
         }
     }
 
@@ -106,6 +111,7 @@ class StartActivity : Activity() {
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == PERMISSIONS_REQUEST_RECORD_AUDIO && grantResults.size > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             startActivity(Intent(applicationContext, MonitorActivity::class.java))
         } else if (requestCode == PERMISSIONS_REQUEST_MULTICAST) {

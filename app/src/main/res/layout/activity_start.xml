@@ -1,46 +1,80 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/LinearLayout1"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:paddingBottom="@dimen/activity_vertical_margin"
-    android:paddingLeft="@dimen/activity_horizontal_margin"
-    android:paddingRight="@dimen/activity_horizontal_margin"
-    android:paddingTop="@dimen/activity_vertical_margin"
+    android:padding="16dp"
     tools:context="de.rochefort.childmonitor.StartActivity" >
 
-    <Button
+    <TextView
+        android:id="@+id/appTitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="@string/app_name"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="32dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/useChildDevice"
-        style="?android:attr/buttonStyleSmall"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:text="@string/useAsChildDevice"
-        android:textSize="17sp" />
+        android:textSize="16sp"
+        style="@style/Widget.Material3.Button.ElevatedButton"
+        app:layout_constraintTop_toBottomOf="@id/appTitle"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
-    <TextView
+    <com.google.android.material.textview.MaterialTextView
         android:id="@+id/childDescription"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:text="@string/childDescription"
-        android:textSize="14sp" />
+        style="@style/TextAppearance.Material3.BodyMedium"
+        android:layout_marginTop="8dp"
+        app:layout_constraintTop_toBottomOf="@id/useChildDevice"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
-	<Space
-	   android:layout_width="match_parent"
-	   android:layout_height="15dip" />
-
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/useParentDevice"
-        style="?android:attr/buttonStyleSmall"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:text="@string/useAsParentDevice"
-        android:textSize="17sp" />
+        android:textSize="16sp"
+        style="@style/Widget.Material3.Button.ElevatedButton"
+        android:layout_marginTop="24dp"
+        app:layout_constraintTop_toBottomOf="@id/childDescription"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
-    <TextView
+    <com.google.android.material.textview.MaterialTextView
         android:id="@+id/parentDescription"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="@string/parentDescription"
+        style="@style/TextAppearance.Material3.BodyMedium"
+        android:layout_marginTop="8dp"
+        app:layout_constraintTop_toBottomOf="@id/useParentDevice"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/settingsButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/parentDescription" />
+        android:text="@string/settings"
+        style="@style/Widget.Material3.Button.TextButton"
+        android:layout_marginTop="32dp"
+        app:layout_constraintTop_toBottomOf="@id/parentDescription"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
-</LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

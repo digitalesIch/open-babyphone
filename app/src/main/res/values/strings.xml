@@ -37,4 +37,7 @@
     <string name="discoverChildDescription">Select child from a list of discovered children on the network</string>
     <string name="enterChildAddress">Select Child by Address</string>
     <string name="enterChildAddressDescription">Enter the address and port of the child</string>
+    <string name="settings">Settings</string>
+    <string name="theme_mode">Theme</string>
+    <string name="connected_clients">Connected: %d parents</string>
 </resources>

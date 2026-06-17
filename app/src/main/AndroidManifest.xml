@@ -29,10 +29,11 @@
         android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
 
     <application
+        android:name=".OpenBabyphoneApplication"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:theme="@android:style/Theme.Holo"
+        android:theme="@style/AppTheme"
         tools:replace="android:allowBackup">
 
         <service
@@ -69,5 +70,9 @@
             android:name=".ListenActivity"
             android:configChanges="orientation|screenSize"
             android:parentActivityName=".DiscoverActivity" />
+        <activity
+            android:name=".SettingsActivity"
+            android:label="@string/settings"
+            android:parentActivityName=".StartActivity" />
     </application>
 </manifest>
