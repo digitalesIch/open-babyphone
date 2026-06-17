@@ -100,9 +100,9 @@ class MonitorActivity : Activity() {
             val listenAddresses: MutableList<String> = ArrayList()
             for (network in cm.allNetworks) {
                 val networkInfo = cm.getNetworkInfo(network)
-                val connected = networkInfo?.isConnected?: return emptyList()
+                val connected = networkInfo?.isConnected ?: continue
                 if (connected) {
-                    val linkAddresses = cm.getLinkProperties(network)?.linkAddresses ?: return emptyList()
+                    val linkAddresses = cm.getLinkProperties(network)?.linkAddresses ?: continue
                     for (linkAddress in linkAddresses) {
                         val address = linkAddress.address
                         val hostAddress = address.hostAddress
