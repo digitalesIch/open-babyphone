@@ -15,9 +15,6 @@ _Protect Baby Monitor_. The original projects remain credited and licensed under
 
 _Open Babyphone_ works on Android 5.0 (Lollipop) and newer, i.e. Android SDK 21.
 
-At the time this project was originally forked from _Protect Baby Monitor_ there was no obvious open source
-solution for a baby monitor for Android in F-Droid.
-
 # Advanced: Trusted VPNs
 
 Open Babyphone is designed for devices on the same Wi-Fi or local network. Advanced users
