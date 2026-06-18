@@ -16,11 +16,8 @@
  */
 package de.rochefort.childmonitor.audio
 
-import de.rochefort.childmonitor.CryptoHelper
 import org.junit.Assert.*
-import org.junit.Ignore
 import org.junit.Test
-import java.io.ByteArrayInputStream
 
 class FrameCodecTest {
 
@@ -30,17 +27,6 @@ class FrameCodecTest {
         val frame = FrameCodec.encodeFrame(ulawData, 0, 1000, null)
 
         assertEquals(FrameCodec.HEADER_SIZE + ulawData.size, frame.size)
-        assertEquals(FrameCodec.FLAG_AUDIO, frame[0])
-    }
-
-    @Ignore("Requires native libsodium library - run as androidTest instead")
-    @Test
-    fun encodeFrame_WithEncryption() {
-        val key = CryptoHelper.deriveKey("test123")
-        val ulawData = byteArrayOf(1, 2, 3, 4, 5)
-        val frame = FrameCodec.encodeFrame(ulawData, 0, 1000, key)
-
-        assertEquals(FrameCodec.HEADER_SIZE + ulawData.size + 16, frame.size)
         assertEquals(FrameCodec.FLAG_AUDIO, frame[0])
     }
 

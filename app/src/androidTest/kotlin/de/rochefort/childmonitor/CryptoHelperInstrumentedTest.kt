@@ -16,13 +16,10 @@
  */
 package de.rochefort.childmonitor
 
-import de.rochefort.childmonitor.CryptoHelper
 import org.junit.Assert.*
-import org.junit.Ignore
 import org.junit.Test
 
-@Ignore("Requires native libsodium library - run as androidTest instead")
-class CryptoHelperTest {
+class CryptoHelperInstrumentedTest {
 
     @Test
     fun deriveKey_SameInput_SameOutput() {
@@ -43,8 +40,7 @@ class CryptoHelperTest {
 
     @Test
     fun encryptDecrypt_RoundTrip() {
-        val pairingCode = "test123"
-        val key = CryptoHelper.deriveKey(pairingCode)
+        val key = CryptoHelper.deriveKey("test123")
         val plaintext = byteArrayOf(1, 2, 3, 4, 5, 6, 7, 8)
         val counter = 0L
 
