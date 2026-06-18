@@ -22,11 +22,13 @@ import org.junit.Test
 
 class FrameCodecCryptoInstrumentedTest {
 
+    private val testSessionId = ByteArray(8) { 0x42 }
+
     @Test
     fun encodeFrame_WithEncryption() {
         val key = CryptoHelper.deriveKey("test123")
         val ulawData = byteArrayOf(1, 2, 3, 4, 5)
-        val frame = FrameCodec.encodeFrame(ulawData, 0, 1000, key)
+        val frame = FrameCodec.encodeFrame(ulawData, 0, 1000, key, testSessionId)
 
         assertEquals(FrameCodec.HEADER_SIZE + ulawData.size + 16, frame.size)
         assertEquals(FrameCodec.FLAG_AUDIO, frame[0])
@@ -36,7 +38,7 @@ class FrameCodecCryptoInstrumentedTest {
     fun decodeFrame_WithEncryption_RoundTrip() {
         val key = CryptoHelper.deriveKey("test123")
         val ulawData = byteArrayOf(10, 20, 30, 40, 50)
-        val frame = FrameCodec.encodeFrame(ulawData, 7, 1500, key)
+        val frame = FrameCodec.encodeFrame(ulawData, 7, 1500, key, testSessionId)
         val inputStream = frame.inputStream()
         val header = FrameHeader.readFrom(inputStream)
 
@@ -44,7 +46,7 @@ class FrameCodecCryptoInstrumentedTest {
         val payload = ByteArray(header!!.payloadLength)
         inputStream.read(payload)
 
-        val decodedFrame = FrameCodec.decodeFrame(header, payload, key)
+        val decodedFrame = FrameCodec.decodeFrame(header, payload, key, testSessionId)
 
         assertNotNull(decodedFrame)
         assertFalse(decodedFrame!!.isHeartbeat)

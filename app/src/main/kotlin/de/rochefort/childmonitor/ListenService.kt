@@ -138,9 +138,15 @@ class ListenService : Service() {
                 try {
                     val socket = Socket(address, port)
                     socket.soTimeout = SOCKET_READ_TIMEOUT_MS
-                    sendPairingCode(socket, pairingCode)
+                    val sessionInfo = performHandshake(socket, pairingCode)
                     reconnectAttempts = 0
-                    shouldReconnect = !streamAudio(socket, pairingCode)
+                    if (sessionInfo == null) {
+                        Log.e(TAG, "Handshake failed")
+                        socket.close()
+                        shouldReconnect = reconnectAttempts < MAX_RECONNECT_ATTEMPTS
+                    } else {
+                        shouldReconnect = !streamAudio(socket, sessionInfo.key, sessionInfo.sessionId)
+                    }
                     
                     if (shouldReconnect && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
                         reconnectAttempts++
@@ -153,6 +159,7 @@ class ListenService : Service() {
                         onError?.invoke()
                     }
                 } catch (e: IOException) {
+                    shouldReconnect = true
                     if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
                         reconnectAttempts++
                         Log.w(TAG, "Connection error, reconnecting (${reconnectAttempts}/$MAX_RECONNECT_ATTEMPTS)", e)
@@ -171,6 +178,37 @@ class ListenService : Service() {
         lt.start()
     }
 
+    private data class SessionInfo(val sessionId: ByteArray, val key: ByteArray?)
+
+    private fun performHandshake(socket: Socket, pairingCode: String?): SessionInfo? {
+        return try {
+            socket.soTimeout = AUTH_TIMEOUT_MS
+            val handshake = Handshake.readHandshake(socket.getInputStream())
+                ?: run {
+                    Log.e(TAG, "Failed to read handshake from child device")
+                    return null
+                }
+            if (handshake.authRequired) {
+                val code = pairingCode?.trim() ?: ""
+                if (code.isEmpty()) {
+                    Log.e(TAG, "Child requires pairing code but none provided")
+                    return null
+                }
+                val key = CryptoHelper.deriveKey(code)
+                val encryptedChallenge = CryptoHelper.encryptChallenge(handshake.challenge!!, key, handshake.sessionId)
+                Handshake.writeAuthResponse(socket.getOutputStream(), encryptedChallenge)
+                socket.soTimeout = SOCKET_READ_TIMEOUT_MS
+                SessionInfo(handshake.sessionId, key)
+            } else {
+                socket.soTimeout = SOCKET_READ_TIMEOUT_MS
+                SessionInfo(handshake.sessionId, null)
+            }
+        } catch (e: IOException) {
+            Log.e(TAG, "Handshake failed", e)
+            null
+        }
+    }
+
     private fun postStatus(status: String) {
         onStatusChange?.let { callback ->
             android.os.Handler(android.os.Looper.getMainLooper()).post {
@@ -179,13 +217,7 @@ class ListenService : Service() {
         }
     }
 
-    private fun sendPairingCode(socket: Socket, pairingCode: String?) {
-        val out = socket.getOutputStream()
-        out.write(((pairingCode ?: "").trim() + "\n").toByteArray(Charsets.US_ASCII))
-        out.flush()
-    }
-
-    private fun streamAudio(socket: Socket, pairingCode: String?): Boolean {
+    private fun streamAudio(socket: Socket, key: ByteArray?, sessionId: ByteArray): Boolean {
         Log.i(TAG, "Setting up stream")
         val audioTrack = try {
             AudioTrack(AudioManager.STREAM_MUSIC,
@@ -224,11 +256,6 @@ class ListenService : Service() {
             return false
         }
 
-        val key: ByteArray? = if (!pairingCode.isNullOrBlank()) {
-            CryptoHelper.deriveKey(pairingCode)
-        } else {
-            null
-        }
         var expectedSeqNum = 0
         var lastFrameTime = System.currentTimeMillis()
         var streamDisruptedTime: Long? = null
@@ -315,7 +342,7 @@ class ListenService : Service() {
                     bytesRead += chunk
                 }
 
-                val frame = FrameCodec.decodeFrame(header, payload, key)
+                val frame = FrameCodec.decodeFrame(header, payload, key, sessionId)
                     ?: run {
                         Log.e(TAG, "Failed to decode frame")
                         return false
@@ -386,6 +413,7 @@ class ListenService : Service() {
         private const val MAX_RECONNECT_ATTEMPTS = 5
         private const val RECONNECT_DELAY_MS = 2000L
         private const val SOCKET_READ_TIMEOUT_MS = 1000
+        private const val AUTH_TIMEOUT_MS = 10_000
         private const val STREAM_DISRUPTED_MS = 5000L
         private const val STREAM_LOST_MS = 10000L
     }

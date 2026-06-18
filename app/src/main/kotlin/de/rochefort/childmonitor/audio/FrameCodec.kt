@@ -33,12 +33,12 @@ object FrameCodec {
         val isHeartbeat: Boolean
     )
 
-    fun encodeFrame(ulawData: ByteArray, seqNum: Int, timestampMs: Int, key: ByteArray?): ByteArray {
+    fun encodeFrame(ulawData: ByteArray, seqNum: Int, timestampMs: Int, key: ByteArray?, sessionId: ByteArray): ByteArray {
         val isHeartbeat = ulawData.isEmpty()
         val flags = if (isHeartbeat) FLAG_HEARTBEAT else FLAG_AUDIO
         
         if (key != null && !isHeartbeat) {
-            val encrypted = CryptoHelper.encryptChunk(ulawData, key, seqNum.toLong())
+            val encrypted = CryptoHelper.encryptChunk(ulawData, key, sessionId, seqNum.toLong())
             val frameSize = HEADER_SIZE + encrypted.size
             val frame = ByteArray(frameSize)
             
@@ -98,7 +98,7 @@ object FrameCodec {
         return frame
     }
 
-    fun decodeFrame(header: FrameHeader, payload: ByteArray, key: ByteArray?): DecodedFrame? {
+    fun decodeFrame(header: FrameHeader, payload: ByteArray, key: ByteArray?, sessionId: ByteArray): DecodedFrame? {
         val isHeartbeat = header.flags == FLAG_HEARTBEAT
         
         if (isHeartbeat) {
@@ -107,7 +107,7 @@ object FrameCodec {
         
         val ulawData: ByteArray
         if (key != null) {
-            val decrypted = CryptoHelper.decryptChunk(payload, key, header.seqNum.toLong())
+            val decrypted = CryptoHelper.decryptChunk(payload, key, sessionId, header.seqNum.toLong())
                 ?: run {
                     Log.e(TAG, "Decryption failed for frame ${header.seqNum}")
                     return null

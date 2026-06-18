@@ -21,10 +21,12 @@ import org.junit.Test
 
 class FrameCodecTest {
 
+    private val testSessionId = ByteArray(8) { 0x42 }
+
     @Test
     fun encodeFrame_WithoutEncryption() {
         val ulawData = byteArrayOf(1, 2, 3, 4, 5)
-        val frame = FrameCodec.encodeFrame(ulawData, 0, 1000, null)
+        val frame = FrameCodec.encodeFrame(ulawData, 0, 1000, null, testSessionId)
 
         assertEquals(FrameCodec.HEADER_SIZE + ulawData.size, frame.size)
         assertEquals(FrameCodec.FLAG_AUDIO, frame[0])
@@ -45,7 +47,7 @@ class FrameCodecTest {
     @Test
     fun encodeFrame_CorrectSeqNum() {
         val ulawData = ByteArray(10)
-        val frame = FrameCodec.encodeFrame(ulawData, 42, 5000, null)
+        val frame = FrameCodec.encodeFrame(ulawData, 42, 5000, null, testSessionId)
         val header = FrameHeader.readFrom(frame.inputStream())
 
         assertNotNull(header)
@@ -56,7 +58,7 @@ class FrameCodecTest {
     @Test
     fun decodeFrame_RoundTrip() {
         val ulawData = byteArrayOf(10, 20, 30, 40, 50)
-        val frame = FrameCodec.encodeFrame(ulawData, 1, 1500, null)
+        val frame = FrameCodec.encodeFrame(ulawData, 1, 1500, null, testSessionId)
         val header = FrameHeader.readFrom(frame.inputStream())
         
         assertNotNull(header)
@@ -65,7 +67,7 @@ class FrameCodecTest {
         inputStream.read(ByteArray(FrameHeader.SIZE))
         inputStream.read(payload)
         
-        val decodedFrame = FrameCodec.decodeFrame(header, payload, null)
+        val decodedFrame = FrameCodec.decodeFrame(header, payload, null, testSessionId)
         assertNotNull(decodedFrame)
         assertArrayEquals(ulawData, decodedFrame!!.ulawData)
     }

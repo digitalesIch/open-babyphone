@@ -21,6 +21,8 @@ import org.junit.Test
 
 class CryptoHelperInstrumentedTest {
 
+    private val testSessionId = ByteArray(8) { 0x42 }
+
     @Test
     fun deriveKey_SameInput_SameOutput() {
         val pairingCode = "test123"
@@ -44,8 +46,8 @@ class CryptoHelperInstrumentedTest {
         val plaintext = byteArrayOf(1, 2, 3, 4, 5, 6, 7, 8)
         val counter = 0L
 
-        val encrypted = CryptoHelper.encryptChunk(plaintext, key, counter)
-        val decrypted = CryptoHelper.decryptChunk(encrypted, key, counter)
+        val encrypted = CryptoHelper.encryptChunk(plaintext, key, testSessionId, counter)
+        val decrypted = CryptoHelper.decryptChunk(encrypted, key, testSessionId, counter)
 
         assertNotNull(decrypted)
         assertArrayEquals(plaintext, decrypted)
@@ -58,8 +60,8 @@ class CryptoHelperInstrumentedTest {
         val plaintext = byteArrayOf(1, 2, 3, 4, 5)
         val counter = 0L
 
-        val encrypted = CryptoHelper.encryptChunk(plaintext, key1, counter)
-        val decrypted = CryptoHelper.decryptChunk(encrypted, key2, counter)
+        val encrypted = CryptoHelper.encryptChunk(plaintext, key1, testSessionId, counter)
+        val decrypted = CryptoHelper.decryptChunk(encrypted, key2, testSessionId, counter)
 
         assertNull(decrypted)
     }
@@ -69,8 +71,8 @@ class CryptoHelperInstrumentedTest {
         val key = CryptoHelper.deriveKey("test123")
         val plaintext = byteArrayOf(1, 2, 3, 4, 5)
 
-        val encrypted = CryptoHelper.encryptChunk(plaintext, key, 0L)
-        val decrypted = CryptoHelper.decryptChunk(encrypted, key, 1L)
+        val encrypted = CryptoHelper.encryptChunk(plaintext, key, testSessionId, 0L)
+        val decrypted = CryptoHelper.decryptChunk(encrypted, key, testSessionId, 1L)
 
         assertNull(decrypted)
     }
@@ -79,8 +81,81 @@ class CryptoHelperInstrumentedTest {
     fun encryptChunk_IncreasesSize() {
         val key = CryptoHelper.deriveKey("test")
         val plaintext = ByteArray(100)
-        val encrypted = CryptoHelper.encryptChunk(plaintext, key, 0L)
+        val encrypted = CryptoHelper.encryptChunk(plaintext, key, testSessionId, 0L)
 
         assertEquals(plaintext.size + 16, encrypted.size)
+    }
+
+    @Test
+    fun nonce_differentSessions_differentNonces() {
+        val key = CryptoHelper.deriveKey("test123")
+        val plaintext = byteArrayOf(1, 2, 3)
+        val sessionId1 = CryptoHelper.generateSessionId()
+        val sessionId2 = CryptoHelper.generateSessionId()
+
+        val encrypted1 = CryptoHelper.encryptChunk(plaintext, key, sessionId1, 0L)
+        val encrypted2 = CryptoHelper.encryptChunk(plaintext, key, sessionId2, 0L)
+
+        assertFalse(encrypted1.contentEquals(encrypted2))
+    }
+
+    @Test
+    fun nonce_differentCounters_sameSession_differentNonces() {
+        val key = CryptoHelper.deriveKey("test123")
+        val plaintext = byteArrayOf(1, 2, 3)
+        val sessionId = CryptoHelper.generateSessionId()
+
+        val encrypted0 = CryptoHelper.encryptChunk(plaintext, key, sessionId, 0L)
+        val encrypted1 = CryptoHelper.encryptChunk(plaintext, key, sessionId, 1L)
+
+        assertFalse(encrypted0.contentEquals(encrypted1))
+    }
+
+    @Test
+    fun generateSessionId_DifferentCalls_DifferentValues() {
+        val sessionId1 = CryptoHelper.generateSessionId()
+        val sessionId2 = CryptoHelper.generateSessionId()
+
+        assertEquals(8, sessionId1.size)
+        assertEquals(8, sessionId2.size)
+        assertFalse(sessionId1.contentEquals(sessionId2))
+    }
+
+    @Test
+    fun encryptChallenge_VerifyChallenge_RoundTrip() {
+        val key = CryptoHelper.deriveKey("test123")
+        val sessionId = CryptoHelper.generateSessionId()
+        val challenge = CryptoHelper.generateChallenge()
+
+        val encrypted = CryptoHelper.encryptChallenge(challenge, key, sessionId)
+        val verified = CryptoHelper.verifyChallenge(encrypted, challenge, key, sessionId)
+
+        assertTrue(verified)
+    }
+
+    @Test
+    fun verifyChallenge_WrongCode_ReturnsFalse() {
+        val key1 = CryptoHelper.deriveKey("test123")
+        val key2 = CryptoHelper.deriveKey("test456")
+        val sessionId = CryptoHelper.generateSessionId()
+        val challenge = CryptoHelper.generateChallenge()
+
+        val encrypted = CryptoHelper.encryptChallenge(challenge, key1, sessionId)
+        val verified = CryptoHelper.verifyChallenge(encrypted, challenge, key2, sessionId)
+
+        assertFalse(verified)
+    }
+
+    @Test
+    fun verifyChallenge_WrongSessionId_ReturnsFalse() {
+        val key = CryptoHelper.deriveKey("test123")
+        val sessionId1 = CryptoHelper.generateSessionId()
+        val sessionId2 = CryptoHelper.generateSessionId()
+        val challenge = CryptoHelper.generateChallenge()
+
+        val encrypted = CryptoHelper.encryptChallenge(challenge, key, sessionId1)
+        val verified = CryptoHelper.verifyChallenge(encrypted, challenge, key, sessionId2)
+
+        assertFalse(verified)
     }
 }
