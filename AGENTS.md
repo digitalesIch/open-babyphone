@@ -18,7 +18,7 @@
 
 ## Android Config Gotchas
 - `compileSdk`/`targetSdk` are 34; `minSdkVersion` is 30 and README promises Android 11+.
-- Gradle `defaultConfig` has the effective release version (`versionCode 15`, `versionName "1.0.0"`); the manifest does not define version fields.
+- Gradle `defaultConfig` has the effective release version (`versionCode 16`, `versionName "1.1.0"`); the manifest does not define version fields.
 - `project.properties` is a generated legacy Android Tools file targeting `android-25`; do not edit it for Gradle behavior.
 - `gradle.properties` enables AndroidX, disables Jetifier, enables configuration cache, and uses non-transitive/non-final R classes.
 

@@ -39,7 +39,7 @@ internet-based discovery.
 Known limitations in the current implementation:
 - Audio streaming is encrypted with ChaCha20-Poly1305 only when a non-empty pairing code is configured
 - Empty pairing code means no authentication and no transport encryption
-- Pairing codes are transmitted in plaintext during connection setup
+- Pairing uses challenge-response authentication; the pairing code itself is not sent over the connection
 - Pairing codes are stored in SharedPreferences and are excluded from Android backups
 
 The project direction is to make pairing and encrypted transport the safe default
