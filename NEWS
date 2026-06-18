@@ -9,7 +9,8 @@ June 2026: Initial fork release
   * English-only app (removed translations)
   * Added unit tests for codec, framing, jitter buffer, crypto, and client management
   * Added optional ChaCha20-Poly1305 stream encryption when a pairing code is configured
-  * Focus on no-cloud, LAN/VPN-based baby monitoring
+  * Focus on no-cloud, local-network-first baby monitoring
+  * Trusted VPN use is treated as an advanced manual setup note, not a remote-access feature
 
 Child Monitor (original project)
 =================================

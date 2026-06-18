@@ -1,1 +1,1 @@
-No-cloud Android baby monitor for LAN and VPN use.
+Local-network Android baby monitor without cloud accounts.

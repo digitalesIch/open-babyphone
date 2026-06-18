@@ -21,6 +21,7 @@ Add any other context or screenshots about the feature request here.
 
 **Constraints**
 Please confirm that your proposal:
-- [ ] Does not require a central server, relay, or paid SaaS infrastructure
-- [ ] Works on LAN or via VPN (no-cloud approach)
+- [ ] Does not require a central server, relay, cloud account, remote-access service, or paid SaaS infrastructure
+- [ ] Works on the same Wi-Fi or local network
+- [ ] Treats trusted VPN use only as an advanced manual setup, not as a remote-access product goal
 - [ ] Is compatible with Android 5.0+ (SDK 21)

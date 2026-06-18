@@ -1,99 +1,123 @@
-# Roadmap
+# Roadmap 2.0
 
-This roadmap is based on the current project audit and prioritizes reliability,
-privacy, and modernization before larger feature work.
+This roadmap reflects the current product direction for Open Babyphone: a modern,
+open source, local-only Android baby monitor for use at home.
 
-## 1. Fix the Build and CI Baseline
+## Product Vision
 
-- Ensure local and CI builds use JDK 21.
-- Replace the obsolete Travis setup with a current CI workflow.
-- Run `./gradlew assembleRelease testReleaseUnitTest lintRelease` as the release-grade check.
-- Verify and fix the current `DiscoverActivity.kt` resolver call if the placeholder-like call is present in the actual source.
+Open Babyphone should become a trustworthy local baby monitor that:
 
-## 2. Add a Security Baseline Before New Features
+- Works reliably overnight on real Android devices
+- Streams audio directly between devices on the same Wi-Fi or local network
+- Uses safe pairing and encrypted transport by default
+- Is understandable for non-technical parents and caregivers
+- Is transparent, auditable, and suitable for F-Droid distribution
+- Avoids cloud services, accounts, relay servers, tracking, and recurring infrastructure
 
-- ✅ Add pairing/authentication before expanding connection support.
-- ✅ Use a persistent alphanumeric pairing code so only approved parent devices can listen.
-- Plan encrypted transport for the audio stream (see point 3).
-- Avoid exposing the device model in the advertised service name.
+Trusted VPN use remains an advanced manual setup note. It is not the normal setup
+flow and not a remote-access product goal.
 
-## 3. Add Transport Encryption with Pairing Code ✅
+## Non-Goals
 
-- ✅ Derive a 256-bit encryption key from the pairing code using a KDF (Argon2i).
-- ✅ Use symmetric encryption with ChaCha20-Poly1305 (libsodium/NaCl) for the audio stream.
-- ✅ Keep implementation lightweight: no certificates, no complex PKI.
-- ✅ Ensure encryption only applies when a pairing code is configured (empty code = no auth, no encryption).
-- ✅ Use 2-byte length prefix per chunk for robust TCP framing.
-- ✅ Use 64-bit counter as nonce (big-endian, zero-padded to 12 bytes).
+- No internet-based remote listening feature
+- No cloud relay, hosted backend, user accounts, push service, or paid SaaS dependency
+- No WebRTC/STUN/TURN infrastructure unless explicitly revisited as a separate product
+  direction, which is currently not planned
+- No video feature before audio reliability, privacy, and release quality are solved
+- No AI, sleep tracking, or extra sensors before the core baby monitor experience is stable
 
-## 4. Harden Audio and Foreground Services ✅
+## Current Baseline
 
-- ✅ Validate `AudioRecord` and `AudioTrack` buffer sizes and initialization state.
-- ✅ Handle negative `read()`/`write()` return values and audio device failures.
-- ✅ Always stop and release audio resources safely (`release()` calls added).
-- ✅ Rework foreground service behavior for modern Android versions.
-- ✅ Add/request `POST_NOTIFICATIONS` for Android 13+.
-- ✅ Changed `START_REDELIVER_INTENT` to `START_NOT_STICKY` for explicit user control.
-- ✅ Socket timeout set to 20 seconds for timely stream-loss detection.
+The fork already has several important foundations:
 
-## 5. Modernize the Network Protocol ✅
+- GitHub Actions CI for release build, unit tests, and lint
+- Optional persistent pairing code for parent authentication
+- Optional ChaCha20-Poly1305 transport encryption when a pairing code is configured
+- Frame-based audio protocol with sequence numbers, timestamps, and heartbeats
+- Jitter buffer and parent-side reconnect behavior
+- Multi-client audio fan-out from one microphone pipeline
+- Initial Material 3 theme work and day/night support
+- Unit tests for codec, framing, jitter buffer, crypto, and client management
 
-- ✅ Implement frame-based audio streaming (11-byte header + payload).
-- ✅ Sequence numbers (uint32) for gap detection and logging.
-- ✅ Timestamps (uint32, ms since session start) for stale frame detection.
-- ✅ Heartbeat frames every 5 seconds for connection monitoring.
-- ✅ 10-second heartbeat timeout for faster dead connection detection (was 20-30s).
-- ✅ Drop frames older than 200ms (prefer current audio over buffered old audio).
-- ✅ Integration with existing ChaCha20-Poly1305 encryption.
-- ✅ ~27 bytes overhead per frame (11 header + 16 auth tag).
+The remaining work is mostly product hardening: safe defaults, real-device reliability,
+clear UX, release readiness, and removing stale fork-era assumptions.
 
-## 6. Implement Multi-Client Listening ✅
+## 1. Open Beta Basis
 
-- ✅ Keep one microphone recording pipeline on the child device (audio producer thread).
-- ✅ Fan out encoded audio frames to multiple parent clients (ClientManager.broadcastFrame).
-- ✅ Use bounded per-client queues (ArrayBlockingQueue, 100 frames = ~200ms) so slow parents don't block others.
-- ✅ Maximum client limit of 5 (configurable in ClientManager.MAX_CLIENTS).
-- ✅ Drop or disconnect slow clients when their buffers fall behind (MAX_DROPPED_FRAMES = 50).
-- ✅ Show the number of connected parent devices in the child UI ("Connected: X parents").
-- ✅ NSD unregisters only when max clients reached (new clients can connect until then).
+Goal: make the fork coherent, safe by default, and honest in its public materials.
 
-## 7. Improve Parent Playback ✅
+- Decide whether to migrate the `applicationId` before public release
+- Remove or contain user-visible legacy `ChildMonitor` naming in code paths, logs, and NSD
+- Stop exposing the Android device model in the advertised NSD service name
+- Keep README, privacy policy, security policy, store metadata, and roadmap aligned with
+  the local-only product direction
+- Make pairing the normal safe path: generate a strong child pairing code automatically
+- Avoid presenting an empty pairing code as the normal configuration
+- Add a simple QR/code-based parent setup path before treating manual address entry as normal
+- Add protocol versioning and capability negotiation before further protocol changes
+- Keep manual address entry as an advanced fallback for trusted VPN or unusual LAN setups
 
-- ✅ Add 100ms jitter buffer for smooth playback (smooths network jitter).
-- ✅ Two-stage stream loss detection: 5s "disrupted" (UI feedback) + 10s "lost" (alert).
-- ✅ Auto-reconnect: 5 attempts, 2s delay between each (10s total recovery time).
-- ✅ Alert plays ONLY when stream is truly lost (after reconnect exhausted or 10s timeout).
-- ✅ Status updates: "Connected" → "Connection disrupted..." → "Reconnecting (X/5)..." → "Disconnected".
-- ✅ Separate receive and playback loops (receive fills buffer, playback consumes from buffer).
+## 2. Reliability Release
 
-## 8. Refresh the UI and UX ◐
+Goal: prove the app can run through the night on real devices.
 
-- ✅ Replace Holo theme with Material 3 design system.
-- ✅ Full Day/Night support with automatic system-follow.
-- ✅ Manual theme override in Settings (System/Light/Dark).
-- ✅ Blue primary color (calming for nighttime), orange accent (visible alerts).
-- ◐ ConstraintLayout for responsive, robust layouts (start screen complete; remaining screens still use legacy XML layouts).
-- ◐ Material components where currently migrated (start screen complete; remaining screens still use platform widgets).
-- ✅ Accessibility improvements: content descriptions, label associations.
-- ✅ Settings Activity for theme preferences.
-- ✅ OpenBabyphoneApplication for theme persistence across restarts.
+- Test child and parent mode with screen off, locked screen, and charger connected/disconnected
+- Define a clear WakeLock/Wi-Fi lock strategy or document why it is not needed
+- Handle Android Doze, OEM battery restrictions, and foreground service edge cases
+- Reconnect cleanly after Wi-Fi loss, network changes, router sleep, and child restarts
+- Make parent-side alert behavior reliable and understandable
+- Review audio focus, volume stream, Bluetooth, headphones, and Do Not Disturb limitations
+- Harden multi-client handling when the max client count is reached or clients disconnect
+- Add focused unit or instrumentation tests for service lifecycle, reconnect, and failure states
+- Maintain a real-device test matrix across old and modern Android versions
 
-## 9. Revisit the GSM Idea
+## 3. UX Release
 
-- Reconsider the README item about using GSM when no internet connectivity is available.
-- Android apps generally cannot use the GSM voice channel as a practical data transport.
-- Prefer documenting VPN use for different networks.
-- Treat WebRTC, STUN/TURN, or a relay server as a separate large feature if remote use becomes a goal.
+Goal: make normal use simple enough for tired parents at night.
 
-## 10. Add Tests and Release Hardening
+- Build the default flow around "Start child device" and "Pair parent device"
+- Make discovery the normal path and manual IP/port entry clearly advanced
+- Replace remaining legacy XML/platform-widget screens with consistent Material components
+- Show large, calm status states: connected, waiting, disrupted, reconnecting, lost
+- Show child-side essentials: microphone active, parents connected, network, battery, address fallback
+- Improve parent-side essentials: connected child, stream health, alert state, volume visualization
+- Reduce Toast-based feedback for important states and prefer persistent UI state
+- Improve accessibility labels, text scaling, contrast, and landscape/tablet behavior
 
-- Add tests for codec behavior, port validation, pairing, protocol framing, and frame dropping.
-- Add integration or instrumentation tests for service startup and connection states where feasible.
-- Test on real devices across older and newer Android versions.
-- Cover screen-off behavior, background behavior, network loss, reconnects, and multiple parent devices.
+## 4. F-Droid Release
 
-## Suggested Order
+Goal: make the project installable and maintainable as an open source Android app.
 
-Build and CI baseline first, then security and pairing, then transport encryption,
-then audio/service stability, then the frame-based protocol, then multi-client support,
-then parent playback, then the UI refresh, then README cleanup and broader test coverage.
+- Finalize F-Droid metadata, screenshots, icon assets, privacy policy, and release notes
+- Audit native and crypto dependencies for F-Droid build compatibility
+- Document release signing and local verification without committing secrets
+- Decide minification/R8 posture and keep rules before enabling release optimizations
+- Tag releases with clear version names and changelogs
+- Ensure `./gradlew assembleRelease testReleaseUnitTest lintRelease` remains the release-grade check
+- Keep Android 5.0+ compatibility unless a future product decision changes the minimum SDK
+
+## 5. Future Local-Only Improvements
+
+Goal: improve the in-home baby monitor without expanding into remote infrastructure.
+
+- Improve local discovery diagnostics for routers that block multicast/mDNS
+- Add local-only audio quality improvements after reliability is stable
+- Consider configurable sensitivity or noise-gate features only if they do not compromise safety
+- Improve local troubleshooting guidance for trusted VPN users without making VPN the main flow
+- Revisit larger features only if they preserve the local-only, no-cloud product promise
+
+## Immediate Technical Risk Backlog
+
+These items are tracked as GitHub issues and should be handled before a public beta:
+
+- #2 Remove or guard production logs containing local network details
+- #13 Centralize service type, default port, and discovery naming constants
+- #19 Harden the max-client accept loop and NSD re-registration behavior
+- #20 Fix TCP frame reads so partial headers and payload reads are handled correctly
+- #21 Decide and migrate `applicationId` before public release if the fork should be a distinct app
+- #22 Finish the Material UX refresh for monitor, discovery, and listen screens
+- #23 Stop exposing device model and legacy `ChildMonitor` name in NSD
+- #24 Define and run an overnight reliability test matrix on real devices
+- #25 Add protocol versioning and capability negotiation
+- #26 Update the privacy policy and security model whenever pairing/encryption defaults change
+- #27 Make pairing default-safe with generated codes and a QR/code parent flow
