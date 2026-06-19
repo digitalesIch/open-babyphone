@@ -48,6 +48,13 @@
 - Bug reports, security issues, feature requests, and roadmap items **must** be created in the fork's issue tracker.
 - The only exception for upstream interaction: small maintenance fixes (typos, build warnings) after explicit user request.
 
+## Repository Settings Policy
+- This is currently a solo-maintainer repository where the human maintainer and coding agents may operate through the same GitHub account.
+- Recommended `main` branch protection: require pull requests, require the `build` status check, require branches to be up to date, prevent force pushes, and prevent branch deletion.
+- Do not require approving reviews until a second maintainer with write access exists, because GitHub does not allow self-approval and shared-account agent workflows cannot satisfy that rule.
+- Admin/maintainer bypass may remain available for solo-maintainer operation, but use it only after CI is green and the change has been reviewed locally.
+- If a second maintainer is added, enable one required approving review and stop routine bypass usage.
+
 ## Documentation Synchronization
 
 **Rule:** Whenever `README.md`, `CONTRIBUTING.md`, `NEWS`, or `ROADMAP.md` are modified, review this file for consistency.
