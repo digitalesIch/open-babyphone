@@ -1,5 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Light Theme Colors (Material 3 Token System) -->
+    <color name="md_theme_primary">#1976D2</color>
+    <color name="md_theme_onPrimary">#FFFFFF</color>
+    <color name="md_theme_primaryContainer">#BBDEFB</color>
+    <color name="md_theme_onPrimaryContainer">#0D47A1</color>
+    <color name="md_theme_secondary">#FFA726</color>
+    <color name="md_theme_onSecondary">#000000</color>
+    <color name="md_theme_secondaryContainer">#FFECB3</color>
+    <color name="md_theme_onSecondaryContainer">#E65100</color>
+    <color name="md_theme_tertiary">#66BB6A</color>
+    <color name="md_theme_onTertiary">#000000</color>
+    <color name="md_theme_tertiaryContainer">#C8E6C9</color>
+    <color name="md_theme_onTertiaryContainer">#1B5E20</color>
+    <color name="md_theme_error">#BA1A1A</color>
+    <color name="md_theme_onError">#FFFFFF</color>
+    <color name="md_theme_errorContainer">#FFDAD6</color>
+    <color name="md_theme_onErrorContainer">#410002</color>
+    <color name="md_theme_background">#FAFAFA</color>
+    <color name="md_theme_onBackground">#191C1E</color>
+    <color name="md_theme_surface">#FAFAFA</color>
+    <color name="md_theme_onSurface">#191C1E</color>
+    <color name="md_theme_surfaceVariant">#DEE4E9</color>
+    <color name="md_theme_onSurfaceVariant">#42474C</color>
+    <color name="md_theme_outline">#72787D</color>
+    <color name="ic_launcher_background">#1976D2</color>
+
     <color name="primary">#1976D2</color>
     <color name="primary_dark">#1565C0</color>
     <color name="primary_light">#BBDEFB</color>

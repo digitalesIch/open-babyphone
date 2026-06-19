@@ -1,76 +1,53 @@
-# PRIVACY POLICY FOR OPEN BABYPHONE
+# Privacy Policy for Open Babyphone
 
-This privacy policy governs your use of the software application Open Babyphone (“Application”) for mobile devices.
-The Application is a simple network based baby monitor.
+This privacy policy applies to Open Babyphone, an Android application that turns two Android devices into a local baby monitor.
 
-# What information does the Application obtain and how is it used?
+Open Babyphone is an independent fork of Child Monitor and is maintained at https://github.com/digitalesIch/open-babyphone.
 
-The Application allows one device (a parent device) to listen to the microphone of a second device
-(a child device). Both devices must pair for the connection to be established. The audio data recorded
-from the child device and transmitted to the parent device is sent directly between devices and is not
-tranmitted to a third party. Any data produced by the application is only stored on the mobile device
-or transmitted to a paired device and is not transmitted of off the device to the developer or a
-third-party.
+## Product Scope
 
-If a crash occurs, a dialog may appear with crash details and a suggestion to transmit the details
-to the developer. A user has the option to not send the crash details; a user must 'opt-in' to
-sending such details.
+Open Babyphone is designed for devices on the same Wi-Fi or local network. Advanced users may connect across a trusted VPN by entering the child device address manually. The app does not provide remote access, relay servers, cloud connectivity, user accounts, or internet-based discovery.
 
-# User Provided Information 
+## Information Processed by the App
 
-The Application does not have a registration option. The only information which is obtained
-is (1) crash details which a user intentionally send to the developer via the app, and 
-(2) any information provided by the App Store that the application was downloaded from.
+The app records microphone audio on the child device while child mode is active. That audio is streamed directly from the child device to paired parent devices over the local network.
 
-# Automatically Collected Information 
+The app may store the following information locally on the device:
 
-No information is automatically collected from the Application and transmitted off of the mobile device, 
-either automatically or manually.
+- Pairing code
+- Last manually entered child device address and port
+- Theme preference
 
-# Does the Application collect precise real time location information of the device?
+This information is stored on the device and is not sent to the developers.
 
-No.
+## Network Transmission
 
-# Do third parties see and/or have access to information obtained by the Application?
+Audio is transmitted directly between the child and parent devices. Open Babyphone does not route audio through project-operated servers or third-party relay services.
 
-Any crash data which is intentionally submitted by a user to the developer is stored on an email server
-which is not owned by the developer. Crash details may be uploaded to a third-party development tool
-such as GitHub. In such a case the email address of the user is not uploaded, unless specifically requested
-by the user. Besides this, no other data is transmitted off of the mobile device by the Application.
+In the current implementation, audio transport is encrypted with ChaCha20-Poly1305 when a non-empty pairing code is configured. An empty pairing code means no authentication and no transport encryption. The project direction is to make pairing and encrypted transport the safe default before public release.
 
-# What are my opt-out rights?
+## Data Collection by the Developers
 
-The only data collection is that of crash details, and submitting these to the developer is only opt-in. To
-opt-out, a user would have to not submit crash details via the app.
+Open Babyphone does not include analytics, advertising SDKs, telemetry, or automatic crash reporting. The developers do not automatically receive audio, pairing codes, IP addresses, device identifiers, or usage data from the app.
 
-# Data Retention Policy, Managing Your Information
+If you voluntarily report a bug or security issue through GitHub or another communication channel, the information you provide in that report will be processed for project maintenance.
 
-Crash details submitted by a user are stored on a third-party email service, and the retention policy is to
-not delete such emails.
+## Third Parties
 
-# Children
+Open Babyphone does not intentionally share app data with third parties. If you install the app through an app store or package repository, that distributor may process download or account information under its own privacy policy.
 
-This Application is not used to knowingly solicit data from or market to children under the age of 13. If a parent or
-guardian becomes aware that his or her child has provided us with information without their consent, he or she should
-contact me at github@rochefort.de. I will delete such information from my files within a reasonable time.
+## Backups
 
-# Security
+Android app backup is disabled for Open Babyphone. Pairing information should not be copied through Android app backup.
 
-I am concerned about safeguarding the confidentiality of your information. The only information which could
-be sent to the developer is crash details, and these are opt-in. If a user is presented with the option to
-submit details on a crash, all the information which would be submitted is presented to the user. The only
-personally identifiable information is the email address of the user which is used to send the crash details.
+## Children
 
-The data transferred between two paired devices is transmitted unencrypted. It is the responsiblity of the user to
-only transfer data through otherwise secured channels.
+Open Babyphone is intended to be operated by parents, guardians, or caregivers. The app is not used to knowingly collect information from children, and it does not provide registration or account features.
 
-# Changes
+## Changes
 
-This Privacy Policy may be updated from time to time for any reason. I will notify you of any changes to this
-Privacy Policy by posting the new Privacy Policy here. You are advised to consult this Privacy Policy regularly
-for any changes, as continued use is deemed approval of all changes. You can check the history of this policy by
-checking this history of this file in GitHub.
+This policy may be updated when the app changes. The current version is available in the project repository at https://github.com/digitalesIch/open-babyphone.
 
-# Contact me
-If you have any questions regarding privacy while using the Application, or have questions about our practices,
-please contact me via email at github@rochefort.de.
+## Contact
+
+For privacy questions, contact the project maintainers through the GitHub repository.

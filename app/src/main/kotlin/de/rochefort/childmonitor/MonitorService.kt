@@ -35,9 +35,9 @@ import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
+import de.rochefort.childmonitor.audio.FrameCodec
 import de.rochefort.childmonitor.service.MonitorServiceRepository
 import java.io.IOException
-import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
 
@@ -51,10 +51,16 @@ class MonitorService : Service() {
     private var currentPort = 0
     private lateinit var notificationManager: NotificationManager
     private var monitorThread: Thread? = null
+    private var audioProducerThread: Thread? = null
+    private val clientManager = ClientManager()
+    @Volatile private var isStreaming = false
+
+    private var pairingCodeSnapshot: String = ""
+    private var streamSessionId: ByteArray? = null
+    private var streamKey: ByteArray? = null
 
     private val pairingCode: String
-        get() = getSharedPreferences(PAIRING_PREFS_NAME, MODE_PRIVATE)
-                .getString(PREF_KEY_PAIRING_CODE, "") ?: ""
+        get() = pairingCodeSnapshot
 
     private val listenAddresses: List<String>
         get() {
@@ -81,18 +87,26 @@ class MonitorService : Service() {
         }
 
     private fun authenticateParent(socket: Socket): Boolean {
-        val expectedCode = pairingCode.trim()
-        if (expectedCode.isEmpty()) {
-            return true
-        }
+        val sessionId = streamSessionId ?: return false
+        val key = streamKey
+        val authRequired = key != null
         return try {
             socket.soTimeout = AUTH_TIMEOUT_MS
-            val providedCode = socket.getInputStream().bufferedReader(Charsets.US_ASCII).readLine()?.trim()
-            val authenticated = providedCode == expectedCode
-            if (!authenticated) {
+            val challenge = if (authRequired) CryptoHelper.generateChallenge() else null
+            Handshake.writeHandshake(socket.getOutputStream(), sessionId, authRequired, challenge)
+            if (!authRequired) {
+                return true
+            }
+            val encryptedChallenge = Handshake.readAuthResponse(socket.getInputStream())
+                ?: run {
+                    Log.w(TAG, "Parent did not send auth response")
+                    return false
+                }
+            val verified = CryptoHelper.verifyChallenge(encryptedChallenge, challenge!!, key!!, sessionId)
+            if (!verified) {
                 Log.w(TAG, "Rejected parent connection with invalid pairing code")
             }
-            authenticated
+            verified
         } catch (e: IOException) {
             Log.w(TAG, "Failed to authenticate parent connection", e)
             false
@@ -105,41 +119,116 @@ class MonitorService : Service() {
         }
     }
 
-    private fun serviceConnection(socket: Socket) {
+    private fun handleClient(socket: Socket): Boolean {
+        if (!authenticateParent(socket)) {
+            Log.w(TAG, "Client authentication failed")
+            return false
+        }
+
+        val client = clientManager.addClient(socket, pairingCode)
+        if (client == null) {
+            Log.w(TAG, "Rejected client - max clients reached")
+            socket.close()
+            return false
+        }
+
+        MonitorServiceRepository.updateStatus(getString(R.string.connected_clients, clientManager.getClientCount()))
+
+        if (!clientManager.canAcceptMoreClients()) {
+            unregisterService()
+            Log.i(TAG, "Max clients reached, unregistering NSD")
+        }
+
+        return true
+    }
+
+    private fun startAudioProducer() {
+        if (isStreaming) {
+            Log.w(TAG, "Audio producer already running")
+            return
+        }
+
+        val sessionId = streamSessionId ?: run {
+            Log.e(TAG, "Cannot start audio producer without session ID")
+            return
+        }
+        val key = streamKey
+
+        isStreaming = true
         MonitorServiceRepository.updateStatus(getString(R.string.streaming))
-        val frequency: Int = AudioCodecDefines.FREQUENCY
-        val channelConfiguration: Int = AudioCodecDefines.CHANNEL_CONFIGURATION_IN
-        val audioEncoding: Int = AudioCodecDefines.ENCODING
-        val bufferSize = AudioRecord.getMinBufferSize(frequency, channelConfiguration, audioEncoding)
-        val audioRecord: AudioRecord = try {
-            AudioRecord(
-                    MediaRecorder.AudioSource.MIC,
-                    frequency,
-                    channelConfiguration,
-                    audioEncoding,
-                    bufferSize
-            )
-        } catch (e: SecurityException) {
-            throw RuntimeException(e)
-        }
-        val pcmBufferSize = bufferSize * 2
-        val pcmBuffer = ShortArray(pcmBufferSize)
-        val ulawBuffer = ByteArray(pcmBufferSize)
-        try {
-            audioRecord.startRecording()
-            val out = socket.getOutputStream()
-            socket.sendBufferSize = pcmBufferSize
-            Log.d(TAG, "Socket send buffer size: " + socket.sendBufferSize)
-            while (socket.isConnected && (this.currentSocket != null) && !Thread.currentThread().isInterrupted) {
-                val read = audioRecord.read(pcmBuffer, 0, bufferSize)
-                val encoded: Int = AudioCodecDefines.CODEC.encode(pcmBuffer, read, ulawBuffer, 0)
-                out.write(ulawBuffer, 0, encoded)
+
+        audioProducerThread = Thread {
+            val frequency: Int = AudioCodecDefines.FREQUENCY
+            val channelConfiguration: Int = AudioCodecDefines.CHANNEL_CONFIGURATION_IN
+            val audioEncoding: Int = AudioCodecDefines.ENCODING
+            val bufferSize = AudioRecord.getMinBufferSize(frequency, channelConfiguration, audioEncoding)
+
+            if (bufferSize <= 0) {
+                Log.e(TAG, "Invalid audio buffer size: $bufferSize")
+                isStreaming = false
+                return@Thread
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Connection failed", e)
-        } finally {
-            audioRecord.stop()
+
+            val audioRecord: AudioRecord = try {
+                AudioRecord(MediaRecorder.AudioSource.MIC, frequency, channelConfiguration, audioEncoding, bufferSize)
+            } catch (e: SecurityException) {
+                Log.e(TAG, "AudioRecord permission denied", e)
+                isStreaming = false
+                return@Thread
+            } catch (e: IllegalStateException) {
+                Log.e(TAG, "AudioRecord initialization failed", e)
+                isStreaming = false
+                return@Thread
+            }
+
+            if (audioRecord.state != AudioRecord.STATE_INITIALIZED) {
+                Log.e(TAG, "AudioRecord not initialized properly")
+                audioRecord.release()
+                isStreaming = false
+                return@Thread
+            }
+
+            val pcmBufferSize = bufferSize * 2
+            val pcmBuffer = ShortArray(pcmBufferSize)
+            val ulawBuffer = ByteArray(pcmBufferSize)
+            var seqNum = 0
+            val sessionStartTime = System.currentTimeMillis()
+            var lastHeartbeatTime = 0L
+
+            try {
+                audioRecord.startRecording()
+                while (isStreaming && !Thread.currentThread().isInterrupted) {
+                    val read = audioRecord.read(pcmBuffer, 0, bufferSize)
+                    if (read < 0) {
+                        Log.e(TAG, "AudioRecord read error: $read")
+                        break
+                    }
+                    val encoded = AudioCodecDefines.CODEC.encode(pcmBuffer, read, ulawBuffer, 0)
+                    val timestampMs = (System.currentTimeMillis() - sessionStartTime).toInt()
+                    val frame = FrameCodec.encodeFrame(ulawBuffer.copyOf(encoded), seqNum++, timestampMs, key, sessionId)
+                    clientManager.broadcastFrame(frame)
+
+                    val currentTime = System.currentTimeMillis()
+                    if (currentTime - lastHeartbeatTime >= AudioCodecDefines.HEARTBEAT_INTERVAL_MS) {
+                        val heartbeat = FrameCodec.encodeHeartbeat(seqNum++, timestampMs)
+                        clientManager.broadcastFrame(heartbeat)
+                        lastHeartbeatTime = currentTime
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Audio producer failed", e)
+            } finally {
+                try {
+                    audioRecord.stop()
+                } catch (e: IllegalStateException) {
+                    Log.d(TAG, "AudioRecord already stopped")
+                }
+                audioRecord.release()
+                isStreaming = false
+            }
         }
+        audioProducerThread?.start()
+        Log.i(TAG, "Audio producer started")
     }
 
     override fun onCreate() {
@@ -154,13 +243,14 @@ class MonitorService : Service() {
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
         Log.i(TAG, "Received start id $startId: $intent")
-        // Display a notification about us starting.  We put an icon in the status bar.
+        pairingCodeSnapshot = getSharedPreferences(PAIRING_PREFS_NAME, MODE_PRIVATE)
+            .getString(PREF_KEY_PAIRING_CODE, "") ?: ""
         createNotificationChannel()
         val n = buildNotification()
-        val foregroundServiceType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else 0 // Keep the linter happy
+        val foregroundServiceType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else 0
         ServiceCompat.startForeground(this, ID, n, foregroundServiceType)
         ensureMonitorThread()
-        return START_REDELIVER_INTENT
+        return START_NOT_STICKY
     }
 
     private fun ensureMonitorThread() {
@@ -168,6 +258,8 @@ class MonitorService : Service() {
         if (mt != null && mt.isAlive) {
             return
         }
+        streamSessionId = CryptoHelper.generateSessionId()
+        streamKey = if (pairingCodeSnapshot.isNotEmpty()) CryptoHelper.deriveKey(pairingCodeSnapshot) else null
         val currentToken = Any()
         this.connectionToken = currentToken
         mt = Thread {
@@ -175,32 +267,28 @@ class MonitorService : Service() {
                 try {
                     ServerSocket(this.currentPort).use { serverSocket ->
                         this.currentSocket = serverSocket
-                        // Store the chosen port.
                         val localPort = serverSocket.localPort
-
-                        // Register the service so that parent devices can
-                        // locate the child device
                         registerService(localPort)
-                        var authenticatedConnectionHandled = false
-                        while (!authenticatedConnectionHandled &&
-                                this.connectionToken == currentToken &&
-                                !Thread.currentThread().isInterrupted) {
-                            serverSocket.accept().use { socket ->
-                                Log.i(TAG, "Connection from parent device received")
+                        startAudioProducer()
 
-                                if (authenticateParent(socket)) {
-                                    // We now have an authenticated client connection.
-                                    // Unregister so no other clients will attempt to connect.
-                                    unregisterService()
-                                    serviceConnection(socket)
-                                    authenticatedConnectionHandled = true
+                        while (clientManager.canAcceptMoreClients() && this.connectionToken == currentToken && !Thread.currentThread().isInterrupted) {
+                            val socket = serverSocket.accept()
+                            Log.i(TAG, "Connection from parent device received")
+                            if (!handleClient(socket)) {
+                                try {
+                                    socket.close()
+                                } catch (e: IOException) {
+                                    Log.d(TAG, "Failed to close rejected parent socket", e)
                                 }
                             }
+                        }
+
+                        if (!clientManager.canAcceptMoreClients()) {
+                            Log.i(TAG, "Max clients reached, waiting for disconnect")
                         }
                     }
                 } catch (e: Exception) {
                     if (this.connectionToken == currentToken) {
-                        // Just in case
                         this.currentPort++
                         Log.e(TAG, "Failed to open server socket. Port increased to $currentPort", e)
                     }
@@ -220,30 +308,24 @@ class MonitorService : Service() {
             override fun onServiceRegistered(nsdServiceInfo: NsdServiceInfo) {
                 nsdServiceInfo.serviceName.let { serviceName ->
                     Log.i(TAG, "Service name: $serviceName")
-                    val addresses = listenAddresses
-                    MonitorServiceRepository.updateServiceInfo(serviceName, port, addresses)
+                    MonitorServiceRepository.updateServiceInfo(serviceName, port, listenAddresses)
                     MonitorServiceRepository.updateStatus(getString(R.string.waitingForParent))
                 }
             }
 
             override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-                // Registration failed!  Put debugging code here to determine why.
                 Log.e(TAG, "Registration failed: $errorCode")
             }
 
             override fun onServiceUnregistered(arg0: NsdServiceInfo) {
-                // Service has been unregistered.  This only happens when you call
-                // NsdManager.unregisterService() and pass in this listener.
                 Log.i(TAG, "Unregistering service")
             }
 
             override fun onUnregistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-                // Unregistration failed.  Put debugging code here to determine why.
                 Log.e(TAG, "Unregistration failed: $errorCode")
             }
         }
-        nsdManager.registerService(
-                serviceInfo, NsdManager.PROTOCOL_DNS_SD, registrationListener)
+        nsdManager.registerService(serviceInfo, NsdManager.PROTOCOL_DNS_SD, registrationListener)
     }
 
     private fun unregisterService() {
@@ -257,26 +339,38 @@ class MonitorService : Service() {
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val serviceChannel = NotificationChannel(
-                    CHANNEL_ID,
-                    "Foreground Service Channel",
-                    NotificationManager.IMPORTANCE_DEFAULT
+                CHANNEL_ID,
+                getString(R.string.foreground_service_channel),
+                NotificationManager.IMPORTANCE_DEFAULT
             )
             this.notificationManager.createNotificationChannel(serviceChannel)
         }
     }
 
     private fun buildNotification(): Notification {
-        val text: CharSequence = "Child Device"
-        // Set the info for the views that show in the notification panel.
-        val b = NotificationCompat.Builder(this, CHANNEL_ID)
-        b.setSmallIcon(R.drawable.listening_notification) // the status icon
-                .setOngoing(true)
-                .setTicker(text) // the status text
-                .setContentTitle(text) // the label of the entry
-        return b.build()
+        val text: CharSequence = getText(R.string.childDevice)
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.drawable.listening_notification)
+            .setOngoing(true)
+            .setTicker(text)
+            .setContentTitle(text)
+            .build()
     }
 
     override fun onDestroy() {
+        isStreaming = false
+        this.audioProducerThread?.let {
+            it.interrupt()
+            try {
+                it.join(1000)
+            } catch (e: InterruptedException) {
+                Log.d(TAG, "Interrupted while waiting for audio producer to stop")
+                Thread.currentThread().interrupt()
+            }
+        }
+        this.audioProducerThread = null
+        clientManager.removeAllClients()
+
         this.monitorThread?.let {
             this.monitorThread = null
             it.interrupt()
@@ -291,18 +385,14 @@ class MonitorService : Service() {
             }
         }
         this.currentSocket = null
+        MonitorServiceRepository.updateStatus(getString(R.string.stopped))
 
-        // Cancel the persistent notification.
-        this.notificationManager.cancel(R.string.listening)
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
-        // Tell the user we stopped.
         Toast.makeText(this, R.string.stopped, Toast.LENGTH_SHORT).show()
         super.onDestroy()
     }
 
-    override fun onBind(intent: Intent): IBinder {
-        return binder
-    }
+    override fun onBind(intent: Intent): IBinder = binder
 
     inner class MonitorBinder : Binder() {
         val service: MonitorService

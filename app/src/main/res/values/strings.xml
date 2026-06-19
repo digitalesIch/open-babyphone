@@ -12,6 +12,7 @@
     <string name="serviceDescription">Name of the service that parent must pair to</string>
     <string name="pairingCodeTitle">Pairing code:</string>
     <string name="pairingCodeDescription">Optional. Leave empty to allow connections without a code. Use the same code on parent devices.</string>
+    <string name="pairing_code_locked">Pairing code is locked while monitoring. Stop monitoring to change it.</string>
     <string name="loading">Loading...</string>
     <string name="stopped">Stopped</string>
     <string name="streaming">Streaming...</string>
@@ -38,10 +39,9 @@
     <string name="enterChildAddress">Select Child by Address</string>
     <string name="enterChildAddressDescription">Enter the address and port of the child</string>
 
-    <!-- New strings for Compose UI -->
     <string name="navigate_back">Back</string>
     <string name="pairing_code_optional">Pairing code (optional)</string>
-    <string name="search_running">Searching…</string>
+    <string name="search_running">Searching...</string>
     <string name="enter_address_title">Enter Address</string>
     <string name="ip_address">IP Address</string>
     <string name="unknown_device">Unknown</string>
@@ -49,4 +49,9 @@
     <string name="discovery_stopped">Stop discovery</string>
     <string name="connection_lost">Connection lost</string>
     <string name="retry">Retry</string>
+    <string name="settings">Settings</string>
+    <string name="theme_mode">Theme</string>
+    <string name="connected_clients">Connected: %d parents</string>
+    <string name="connected_clients_initial">Connected: 0 parents</string>
+    <string name="foreground_service_channel">Foreground Service Channel</string>
 </resources>

@@ -9,8 +9,8 @@ android {
         applicationId "de.rochefort.childmonitor"
         minSdkVersion 30
         targetSdkVersion 34
-        versionCode 14
-        versionName "1.4"
+        versionCode 16
+        versionName "1.1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -29,15 +29,13 @@ android {
         kotlinCompilerExtensionVersion '1.5.8'
     }
 
+    repositories {
+        mavenCentral()
+    }
+
     packagingOptions {
         resources {
             excludes += '/META-INF/{AL2.0,LGPL2.1}'
-        }
-    }
-
-    testOptions {
-        unitTests {
-            includeAndroidResources = true
         }
     }
 
@@ -47,19 +45,35 @@ android {
         warning 'MissingTranslation'
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_21
-        targetCompatibility JavaVersion.VERSION_21
+        // AGP 8.2 lint cannot analyze Java 21 class files reliably.
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
     kotlin {
         jvmToolchain(21)
     }
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+            returnDefaultValues = true
+        }
+    }
 }
 
 dependencies {
+    implementation 'com.github.joshjdevl.libsodiumjni:libsodium-jni-aar:2.0.2'
+    implementation 'androidx.core:core:1.12.0'
     implementation 'androidx.core:core-ktx:1.12.0'
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.0'
     implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.8.0'
     implementation 'androidx.activity:activity-compose:1.9.0'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'com.google.android.material:material:1.12.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.preference:preference-ktx:1.2.1'
 
     implementation platform('androidx.compose:compose-bom:2024.05.00')
     implementation 'androidx.compose.ui:ui'
@@ -67,6 +81,7 @@ dependencies {
     implementation 'androidx.compose.ui:ui-tooling-preview'
     implementation 'androidx.compose.material3:material3'
     implementation 'androidx.compose.material3:material3-window-size-class'
+    implementation 'androidx.compose.material:material-icons-extended'
     implementation 'androidx.navigation:navigation-compose:2.8.0-beta05'
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3'
 
@@ -79,14 +94,15 @@ dependencies {
     testImplementation 'androidx.test.ext:junit:1.1.5'
     testImplementation 'androidx.test:runner:1.5.2'
     testImplementation 'androidx.test:rules:1.5.0'
+    testImplementation 'org.mockito:mockito-core:5.7.0'
     testImplementation platform('androidx.compose:compose-bom:2024.05.00')
     testImplementation 'androidx.compose.ui:ui-test-junit4'
     testImplementation 'androidx.compose.ui:ui-test-manifest'
     testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0'
 
+    androidTestImplementation 'androidx.test:runner:1.5.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
-    androidTestImplementation 'androidx.test:runner:1.5.2'
     androidTestImplementation 'androidx.test:rules:1.5.0'
     androidTestImplementation platform('androidx.compose:compose-bom:2024.05.00')
     androidTestImplementation 'androidx.compose.ui:ui-test-junit4'

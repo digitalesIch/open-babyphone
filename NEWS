@@ -7,7 +7,13 @@ June 2026: Initial fork release
   * Added optional persistent pairing code for authentication
   * Modernized CI with GitHub Actions (JDK 21, Android SDK 34)
   * English-only app (removed translations)
-  * Focus on no-cloud, LAN/VPN-based baby monitoring
+  * Added unit tests for codec, framing, jitter buffer, crypto, and client management
+  * Added optional ChaCha20-Poly1305 stream encryption when a pairing code is configured
+  * Replaced plaintext pairing code transmission with challenge-response authentication
+  * Added per-session random nonces to prevent AEAD nonce reuse across sessions
+  * Froze pairing code during active monitoring sessions to prevent key mismatches
+  * Focus on no-cloud, local-network-first baby monitoring
+  * Trusted VPN use is treated as an advanced manual setup note, not a remote-access feature
 
 Child Monitor (original project)
 =================================

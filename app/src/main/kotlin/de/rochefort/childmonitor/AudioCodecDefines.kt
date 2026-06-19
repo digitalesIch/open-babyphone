@@ -25,4 +25,8 @@ object AudioCodecDefines {
     val CODEC = G711UCodec()
     const val CHANNEL_CONFIGURATION_IN = AudioFormat.CHANNEL_IN_MONO
     const val CHANNEL_CONFIGURATION_OUT = AudioFormat.CHANNEL_OUT_MONO
+    
+    const val MAX_FRAME_AGE_MS = 200
+    const val HEARTBEAT_INTERVAL_MS = 5000
+    const val HEARTBEAT_TIMEOUT_MS = 10000
 }
