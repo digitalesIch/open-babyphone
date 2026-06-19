@@ -37,4 +37,16 @@
     <string name="discoverChildDescription">Select child from a list of discovered children on the network</string>
     <string name="enterChildAddress">Select Child by Address</string>
     <string name="enterChildAddressDescription">Enter the address and port of the child</string>
+
+    <!-- New strings for Compose UI -->
+    <string name="navigate_back">Back</string>
+    <string name="pairing_code_optional">Pairing code (optional)</string>
+    <string name="search_running">Searching…</string>
+    <string name="enter_address_title">Enter Address</string>
+    <string name="ip_address">IP Address</string>
+    <string name="unknown_device">Unknown</string>
+    <string name="discovery_no_devices">No devices found</string>
+    <string name="discovery_stopped">Stop discovery</string>
+    <string name="connection_lost">Connection lost</string>
+    <string name="retry">Retry</string>
 </resources>

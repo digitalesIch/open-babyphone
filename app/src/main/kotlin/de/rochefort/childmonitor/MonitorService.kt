@@ -24,6 +24,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.net.ConnectivityManager
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdManager.RegistrationListener
 import android.net.nsd.NsdServiceInfo
@@ -31,36 +32,53 @@ import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
-import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
+import de.rochefort.childmonitor.service.MonitorServiceRepository
 import java.io.IOException
+import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
 
 class MonitorService : Service() {
     private val binder: IBinder = MonitorBinder()
     private lateinit var nsdManager: NsdManager
+    private lateinit var connectivityManager: ConnectivityManager
     private var registrationListener: RegistrationListener? = null
     private var currentSocket: ServerSocket? = null
     private var connectionToken: Any? = null
     private var currentPort = 0
     private lateinit var notificationManager: NotificationManager
     private var monitorThread: Thread? = null
-    var monitorActivity: MonitorActivity? = null
 
     private val pairingCode: String
         get() = getSharedPreferences(PAIRING_PREFS_NAME, MODE_PRIVATE)
                 .getString(PREF_KEY_PAIRING_CODE, "") ?: ""
 
-    fun updateMonitorActivity() {
-        val ma = this.monitorActivity ?: return
-        ma.runOnUiThread {
-            val pairingCodeText = ma.findViewById<TextView>(R.id.pairingCodeField)
-            pairingCodeText.text = pairingCode
+    private val listenAddresses: List<String>
+        get() {
+            val addresses: MutableList<String> = ArrayList()
+            try {
+                val networks = connectivityManager.allNetworks
+                for (network in networks) {
+                    val networkInfo = connectivityManager.getNetworkInfo(network)
+                    if (networkInfo?.isConnected == true) {
+                        val linkProperties = connectivityManager.getLinkProperties(network)
+                        linkProperties?.linkAddresses?.forEach { linkAddress ->
+                            val address = linkAddress.address
+                            val hostAddress = address.hostAddress
+                            if (!address.isLinkLocalAddress && !address.isLoopbackAddress && hostAddress != null) {
+                                addresses.add("$hostAddress (${networkInfo.typeName})")
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to get network addresses", e)
+            }
+            return addresses
         }
-    }
 
     private fun authenticateParent(socket: Socket): Boolean {
         val expectedCode = pairingCode.trim()
@@ -88,11 +106,7 @@ class MonitorService : Service() {
     }
 
     private fun serviceConnection(socket: Socket) {
-        val ma = this.monitorActivity
-        ma?.runOnUiThread {
-            val statusText = ma.findViewById<TextView>(R.id.textStatus)
-            statusText.setText(R.string.streaming)
-        }
+        MonitorServiceRepository.updateStatus(getString(R.string.streaming))
         val frequency: Int = AudioCodecDefines.FREQUENCY
         val channelConfiguration: Int = AudioCodecDefines.CHANNEL_CONFIGURATION_IN
         val audioEncoding: Int = AudioCodecDefines.ENCODING
@@ -106,7 +120,6 @@ class MonitorService : Service() {
                     bufferSize
             )
         } catch (e: SecurityException) {
-            // This should never happen, we asked for permission before
             throw RuntimeException(e)
         }
         val pcmBufferSize = bufferSize * 2
@@ -134,6 +147,7 @@ class MonitorService : Service() {
         super.onCreate()
         this.notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         this.nsdManager = this.getSystemService(NSD_SERVICE) as NsdManager
+        this.connectivityManager = this.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
         this.currentPort = 10000
         this.currentSocket = null
     }
@@ -204,23 +218,11 @@ class MonitorService : Service() {
         serviceInfo.port = port
         this.registrationListener = object : RegistrationListener {
             override fun onServiceRegistered(nsdServiceInfo: NsdServiceInfo) {
-                // Save the service name.  Android may have changed it in order to
-                // resolve a conflict, so update the name you initially requested
-                // with the name Android actually used.
                 nsdServiceInfo.serviceName.let { serviceName ->
                     Log.i(TAG, "Service name: $serviceName")
-                    monitorActivity?.let { ma ->
-                        ma.runOnUiThread {
-                            val statusText = ma.findViewById<TextView>(R.id.textStatus)
-                            statusText.setText(R.string.waitingForParent)
-                            val serviceText = ma.findViewById<TextView>(R.id.textService)
-                            serviceText.text = serviceName
-                            val portText = ma.findViewById<TextView>(R.id.port)
-                            portText.text = port.toString()
-                            val pairingCodeText = ma.findViewById<TextView>(R.id.pairingCodeField)
-                            pairingCodeText.text = pairingCode
-                        }
-                    }
+                    val addresses = listenAddresses
+                    MonitorServiceRepository.updateServiceInfo(serviceName, port, addresses)
+                    MonitorServiceRepository.updateStatus(getString(R.string.waitingForParent))
                 }
             }
 

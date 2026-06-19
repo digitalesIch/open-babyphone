@@ -33,6 +33,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
+import de.rochefort.childmonitor.service.ListenServiceRepository
 import java.io.IOException
 import java.net.Socket
 
@@ -56,13 +57,13 @@ class ListenService : Service() {
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
         Log.i(TAG, "Received start id $startId: $intent")
-        // Display a notification about us starting.  We put an icon in the status bar.
         createNotificationChannel()
         intent.extras?.let {
             val name = it.getString("name")
             childDeviceName = name
+            ListenServiceRepository.updateChildDeviceName(name ?: "")
             val n = buildNotification(name)
-            val foregroundServiceType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK else 0 // Keep the linter happy
+            val foregroundServiceType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK else 0
             ServiceCompat.startForeground(this, ID, n, foregroundServiceType)
             val address = it.getString("address")
             val port = it.getInt("port")
@@ -71,6 +72,8 @@ class ListenService : Service() {
         }
         return START_REDELIVER_INTENT
     }
+
+
 
     override fun onDestroy() {
         this.listenThread?.interrupt()
@@ -88,20 +91,25 @@ class ListenService : Service() {
     }
 
     private fun buildNotification(name: String?): Notification {
-        // In this sample, we'll use the same text for the ticker and the expanded notification
         val text = getText(R.string.listening)
 
-        // The PendingIntent to launch our activity if the user selects this notification
-        val contentIntent = PendingIntent.getActivity(this, 0,
-                Intent(this, ListenActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
+        val deepLinkIntent = Intent(Intent.ACTION_VIEW).apply {
+            setClassName(this@ListenService, "de.rochefort.childmonitor.MainActivity")
+            data = android.net.Uri.parse("quiet-engine://listen")
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
 
-        // Set the info for the views that show in the notification panel.
+        val contentIntent = PendingIntent.getActivity(
+            this, 0, deepLinkIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
         val b = NotificationCompat.Builder(this, CHANNEL_ID)
-        b.setSmallIcon(R.drawable.listening_notification) // the status icon
+        b.setSmallIcon(R.drawable.listening_notification)
                 .setOngoing(true)
-                .setTicker(text) // the status text
-                .setContentTitle(text) // the label of the entry
-                .setContentText(name) // the contents of the entry
+                .setTicker(text)
+                .setContentTitle(text)
+                .setContentText(name)
                 .setContentIntent(contentIntent)
         return b.build()
     }
@@ -124,19 +132,23 @@ class ListenService : Service() {
 
     var onError: (() -> Unit)? = null
     var onUpdate: (() -> Unit)? = null
+
     private fun doListen(address: String?, port: Int, pairingCode: String?) {
         val lt = Thread {
             try {
                 val socket = Socket(address, port)
                 socket.soTimeout = 30_000
                 sendPairingCode(socket, pairingCode)
+                ListenServiceRepository.updateConnected(true)
                 val success = streamAudio(socket)
                 if (!success) {
+                    ListenServiceRepository.updateError()
                     playAlert()
                     onError?.invoke()
                 }
             } catch (e : IOException) {
                 Log.e(TAG, "Error opening socket to $address on port $port", e)
+                ListenServiceRepository.updateError()
                 playAlert()
                 onError?.invoke()
             }
@@ -179,7 +191,6 @@ class ListenService : Service() {
             while (!Thread.currentThread().isInterrupted) {
                 val len = inputStream.read(readBuffer)
                 if (len < 0) {
-                    // If the current thread was not interrupted this means the remote stopped streaming
                     return Thread.currentThread().isInterrupted
                 }
                 val decoded: Int = AudioCodecDefines.CODEC.decode(decodedBuffer, readBuffer, len, 0)
