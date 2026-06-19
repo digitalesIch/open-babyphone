@@ -20,6 +20,21 @@ import org.junit.Assert.*
 import org.junit.Test
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.InputStream
+
+private class ChunkedInputStream(private val data: ByteArray, private val chunkSize: Int = 1) : InputStream() {
+    private var pos = 0
+    override fun read(): Int {
+        return if (pos < data.size) data[pos++].toInt() and 0xFF else -1
+    }
+    override fun read(b: ByteArray, off: Int, len: Int): Int {
+        if (pos >= data.size) return -1
+        val n = minOf(chunkSize, len, data.size - pos)
+        System.arraycopy(data, pos, b, off, n)
+        pos += n
+        return n
+    }
+}
 
 class FrameHeaderTest {
 
@@ -97,5 +112,45 @@ class FrameHeaderTest {
         assertEquals(Int.MAX_VALUE, readHeader!!.seqNum)
         assertEquals(Int.MAX_VALUE, readHeader.timestampMs)
         assertEquals(65535, readHeader.payloadLength)
+    }
+
+    @Test
+    fun readFrom_ChunkedInputStream_ReassemblesHeader() {
+        val header = FrameHeader(0x01.toByte(), 0x12345678, 0x9ABCDEF0.toInt(), 1000)
+        val outputStream = ByteArrayOutputStream()
+        FrameHeader.writeTo(header, outputStream)
+
+        val inputStream = ChunkedInputStream(outputStream.toByteArray(), 1)
+        val readHeader = FrameHeader.readFrom(inputStream)
+
+        assertNotNull(readHeader)
+        assertEquals(header.flags, readHeader!!.flags)
+        assertEquals(header.seqNum, readHeader.seqNum)
+        assertEquals(header.timestampMs, readHeader.timestampMs)
+        assertEquals(header.payloadLength, readHeader.payloadLength)
+    }
+
+    @Test
+    fun readFrom_PartialThenEOF_ReturnsNull() {
+        val bytes = ByteArray(FrameHeader.SIZE - 1) { 0x42 }
+        val inputStream = ChunkedInputStream(bytes, 1)
+        val header = FrameHeader.readFrom(inputStream)
+
+        assertNull(header)
+    }
+
+    @Test
+    fun readFrom_ChunkedThreeBytes_ReassemblesHeader() {
+        val header = FrameHeader(0x02.toByte(), 42, 9999, 500)
+        val outputStream = ByteArrayOutputStream()
+        FrameHeader.writeTo(header, outputStream)
+
+        val inputStream = ChunkedInputStream(outputStream.toByteArray(), 3)
+        val readHeader = FrameHeader.readFrom(inputStream)
+
+        assertNotNull(readHeader)
+        assertEquals(header.seqNum, readHeader!!.seqNum)
+        assertEquals(header.timestampMs, readHeader.timestampMs)
+        assertEquals(header.payloadLength, readHeader.payloadLength)
     }
 }

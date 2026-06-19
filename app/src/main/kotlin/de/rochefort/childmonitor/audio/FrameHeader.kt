@@ -33,9 +33,13 @@ data class FrameHeader(
 
         fun readFrom(input: InputStream): FrameHeader? {
             val buffer = ByteArray(SIZE)
-            val read = input.read(buffer)
-            if (read < SIZE) {
-                return null
+            var bytesRead = 0
+            while (bytesRead < SIZE) {
+                val read = input.read(buffer, bytesRead, SIZE - bytesRead)
+                if (read < 0) {
+                    return null
+                }
+                bytesRead += read
             }
             val flags = buffer[0]
             val seqNum = ((buffer[1].toInt() and 0xFF) shl 24) or
