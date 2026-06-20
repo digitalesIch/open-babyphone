@@ -35,7 +35,7 @@ class SettingsActivity : AppCompatActivity() {
     class SettingsFragment : PreferenceFragmentCompat() {
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             setPreferencesFromResource(R.xml.settings, rootKey)
-            findPreference<ListPreference>("theme_mode")?.setOnPreferenceChangeListener { _, newValue ->
+            findPreference<ListPreference>(OpenBabyphoneApplication.SETTINGS_PREFS_NAME)?.setOnPreferenceChangeListener { _, newValue ->
                 applyTheme(newValue.toString())
                 true
             }
