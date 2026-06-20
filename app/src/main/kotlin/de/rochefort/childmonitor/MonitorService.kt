@@ -54,9 +54,12 @@ class MonitorService : Service() {
     @Volatile private var isStreaming = false
     var monitorActivity: MonitorActivity? = null
 
+    private var pairingCodeSnapshot: String = ""
+    private var streamSessionId: ByteArray? = null
+    private var streamKey: ByteArray? = null
+
     private val pairingCode: String
-        get() = getSharedPreferences(PAIRING_PREFS_NAME, MODE_PRIVATE)
-                .getString(PREF_KEY_PAIRING_CODE, "") ?: ""
+        get() = pairingCodeSnapshot
 
     fun updateMonitorActivity() {
         val ma = this.monitorActivity ?: return
@@ -64,23 +67,31 @@ class MonitorService : Service() {
             val pairingCodeText = ma.findViewById<TextView>(R.id.pairingCodeField)
             pairingCodeText.text = pairingCode
             val clientCountText = ma.findViewById<TextView>(R.id.clientCount)
-            clientCountText.text = "Connected: ${clientManager.getClientCount()} parents"
+            clientCountText.text = ma.getString(R.string.connected_clients, clientManager.getClientCount())
         }
     }
 
     private fun authenticateParent(socket: Socket): Boolean {
-        val expectedCode = pairingCode.trim()
-        if (expectedCode.isEmpty()) {
-            return true
-        }
+        val sessionId = streamSessionId ?: return false
+        val key = streamKey
+        val authRequired = key != null
         return try {
             socket.soTimeout = AUTH_TIMEOUT_MS
-            val providedCode = socket.getInputStream().bufferedReader(Charsets.US_ASCII).readLine()?.trim()
-            val authenticated = providedCode == expectedCode
-            if (!authenticated) {
+            val challenge = if (authRequired) CryptoHelper.generateChallenge() else null
+            Handshake.writeHandshake(socket.getOutputStream(), sessionId, authRequired, challenge)
+            if (!authRequired) {
+                return true
+            }
+            val encryptedChallenge = Handshake.readAuthResponse(socket.getInputStream())
+                ?: run {
+                    Log.w(TAG, "Parent did not send auth response")
+                    return false
+                }
+            val verified = CryptoHelper.verifyChallenge(encryptedChallenge, challenge!!, key!!, sessionId)
+            if (!verified) {
                 Log.w(TAG, "Rejected parent connection with invalid pairing code")
             }
-            authenticated
+            verified
         } catch (e: IOException) {
             Log.w(TAG, "Failed to authenticate parent connection", e)
             false
@@ -122,6 +133,12 @@ class MonitorService : Service() {
             return
         }
         
+        val sessionId = streamSessionId ?: run {
+            Log.e(TAG, "Cannot start audio producer without session ID")
+            return
+        }
+        val key = streamKey
+        
         isStreaming = true
         val ma = this.monitorActivity
         ma?.runOnUiThread {
@@ -150,7 +167,9 @@ class MonitorService : Service() {
                         bufferSize
                 )
             } catch (e: SecurityException) {
-                throw RuntimeException(e)
+                Log.e(TAG, "AudioRecord permission denied", e)
+                isStreaming = false
+                return@Thread
             } catch (e: IllegalStateException) {
                 Log.e(TAG, "AudioRecord initialization failed", e)
                 isStreaming = false
@@ -168,11 +187,6 @@ class MonitorService : Service() {
             val pcmBuffer = ShortArray(pcmBufferSize)
             val ulawBuffer = ByteArray(pcmBufferSize)
             
-            val key: ByteArray? = if (pairingCode.isNotEmpty()) {
-                CryptoHelper.deriveKey(pairingCode)
-            } else {
-                null
-            }
             var seqNum = 0
             val sessionStartTime = System.currentTimeMillis()
             var lastHeartbeatTime = 0L
@@ -188,7 +202,7 @@ class MonitorService : Service() {
                     val encoded: Int = AudioCodecDefines.CODEC.encode(pcmBuffer, read, ulawBuffer, 0)
                     
                     val timestampMs = (System.currentTimeMillis() - sessionStartTime).toInt()
-                    val frame = FrameCodec.encodeFrame(ulawBuffer.copyOf(encoded), seqNum++, timestampMs, key)
+                    val frame = FrameCodec.encodeFrame(ulawBuffer.copyOf(encoded), seqNum++, timestampMs, key, sessionId)
                     clientManager.broadcastFrame(frame)
                     
                     val currentTime = System.currentTimeMillis()
@@ -225,10 +239,11 @@ class MonitorService : Service() {
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
         Log.i(TAG, "Received start id $startId: $intent")
-        // Display a notification about us starting.  We put an icon in the status bar.
+        pairingCodeSnapshot = getSharedPreferences(PAIRING_PREFS_NAME, MODE_PRIVATE)
+                .getString(PREF_KEY_PAIRING_CODE, "") ?: ""
         createNotificationChannel()
         val n = buildNotification()
-        val foregroundServiceType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else 0 // Keep the linter happy
+        val foregroundServiceType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else 0
         ServiceCompat.startForeground(this, ID, n, foregroundServiceType)
         ensureMonitorThread()
         return START_NOT_STICKY
@@ -238,6 +253,12 @@ class MonitorService : Service() {
         var mt = this.monitorThread
         if (mt != null && mt.isAlive) {
             return
+        }
+        streamSessionId = CryptoHelper.generateSessionId()
+        streamKey = if (pairingCodeSnapshot.isNotEmpty()) {
+            CryptoHelper.deriveKey(pairingCodeSnapshot)
+        } else {
+            null
         }
         val currentToken = Any()
         this.connectionToken = currentToken
@@ -260,9 +281,14 @@ class MonitorService : Service() {
                         while (clientManager.canAcceptMoreClients() &&
                                 this.connectionToken == currentToken &&
                                 !Thread.currentThread().isInterrupted) {
-                            serverSocket.accept().use { socket ->
-                                Log.i(TAG, "Connection from parent device received")
-                                handleClient(socket)
+                            val socket = serverSocket.accept()
+                            Log.i(TAG, "Connection from parent device received")
+                            if (!handleClient(socket)) {
+                                try {
+                                    socket.close()
+                                } catch (e: IOException) {
+                                    Log.d(TAG, "Failed to close rejected parent socket", e)
+                                }
                             }
                         }
                         
@@ -341,7 +367,7 @@ class MonitorService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val serviceChannel = NotificationChannel(
                     CHANNEL_ID,
-                    "Foreground Service Channel",
+                    getString(R.string.foreground_service_channel),
                     NotificationManager.IMPORTANCE_DEFAULT
             )
             this.notificationManager.createNotificationChannel(serviceChannel)
@@ -349,7 +375,7 @@ class MonitorService : Service() {
     }
 
     private fun buildNotification(): Notification {
-        val text: CharSequence = "Child Device"
+        val text: CharSequence = getText(R.string.childDevice)
         // Set the info for the views that show in the notification panel.
         val b = NotificationCompat.Builder(this, CHANNEL_ID)
         b.setSmallIcon(R.drawable.listening_notification) // the status icon
@@ -391,8 +417,6 @@ class MonitorService : Service() {
         }
         this.currentSocket = null
 
-        // Cancel the persistent notification.
-        this.notificationManager.cancel(R.string.listening)
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         // Tell the user we stopped.
         Toast.makeText(this, R.string.stopped, Toast.LENGTH_SHORT).show()

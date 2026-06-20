@@ -1,0 +1,3 @@
+# Project-specific R8/ProGuard rules.
+# Minification is currently disabled for release builds; keep this file present
+# because app/build.gradle references it.

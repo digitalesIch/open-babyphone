@@ -25,6 +25,12 @@ object CryptoHelper {
     private const val ARGON2_MEM_LIMIT = 64 * 1024 * 1024
     private val ARGON2_SALT = "openbabyphone.argon2id.salt.v1".toByteArray(Charsets.UTF_8)
 
+    const val SESSION_ID_SIZE = 8
+    const val CHALLENGE_SIZE = 32
+    const val AUTH_TAG_SIZE = 16
+    const val NONCE_SIZE = 12
+    private const val AUTH_COUNTER: Long = 0xFFFFFFFFL
+
     init {
         NaCl.sodium()
     }
@@ -32,7 +38,7 @@ object CryptoHelper {
     fun deriveKey(pairingCode: String): ByteArray {
         val codeBytes = pairingCode.toByteArray(Charsets.UTF_8)
         val key = ByteArray(32)
-        Sodium.crypto_pwhash(
+        val result = Sodium.crypto_pwhash(
             key,
             key.size,
             codeBytes,
@@ -42,12 +48,27 @@ object CryptoHelper {
             ARGON2_MEM_LIMIT,
             Sodium.crypto_pwhash_alg_argon2i13()
         )
+        if (result != 0) {
+            throw IllegalStateException("crypto_pwhash failed with code $result")
+        }
         return key
     }
 
-    fun encryptChunk(plaintext: ByteArray, key: ByteArray, counter: Long): ByteArray {
-        val nonce = buildNonce(counter)
-        val ciphertext = ByteArray(plaintext.size + 16)
+    fun generateSessionId(): ByteArray {
+        val sessionId = ByteArray(SESSION_ID_SIZE)
+        Sodium.randombytes_buf(sessionId, SESSION_ID_SIZE)
+        return sessionId
+    }
+
+    fun generateChallenge(): ByteArray {
+        val challenge = ByteArray(CHALLENGE_SIZE)
+        Sodium.randombytes_buf(challenge, CHALLENGE_SIZE)
+        return challenge
+    }
+
+    fun encryptChunk(plaintext: ByteArray, key: ByteArray, sessionId: ByteArray, counter: Long): ByteArray {
+        val nonce = buildNonce(sessionId, counter)
+        val ciphertext = ByteArray(plaintext.size + AUTH_TAG_SIZE)
         val clen = intArrayOf(ciphertext.size)
         Sodium.crypto_aead_chacha20poly1305_ietf_encrypt(
             ciphertext,
@@ -63,9 +84,9 @@ object CryptoHelper {
         return ciphertext
     }
 
-    fun decryptChunk(ciphertext: ByteArray, key: ByteArray, counter: Long): ByteArray? {
-        val nonce = buildNonce(counter)
-        val plaintext = ByteArray(ciphertext.size - 16)
+    fun decryptChunk(ciphertext: ByteArray, key: ByteArray, sessionId: ByteArray, counter: Long): ByteArray? {
+        val nonce = buildNonce(sessionId, counter)
+        val plaintext = ByteArray(ciphertext.size - AUTH_TAG_SIZE)
         val mlen = intArrayOf(plaintext.size)
         val result = Sodium.crypto_aead_chacha20poly1305_ietf_decrypt(
             plaintext,
@@ -81,9 +102,20 @@ object CryptoHelper {
         return if (result == 0) plaintext else null
     }
 
-    private fun buildNonce(counter: Long): ByteArray {
-        val nonce = ByteArray(12)
-        for (i in 0 until 8) {
+    fun encryptChallenge(challenge: ByteArray, key: ByteArray, sessionId: ByteArray): ByteArray {
+        return encryptChunk(challenge, key, sessionId, AUTH_COUNTER)
+    }
+
+    fun verifyChallenge(encryptedChallenge: ByteArray, expectedChallenge: ByteArray, key: ByteArray, sessionId: ByteArray): Boolean {
+        val decrypted = decryptChunk(encryptedChallenge, key, sessionId, AUTH_COUNTER) ?: return false
+        return decrypted.contentEquals(expectedChallenge)
+    }
+
+    private fun buildNonce(sessionId: ByteArray, counter: Long): ByteArray {
+        require(sessionId.size == SESSION_ID_SIZE) { "sessionId must be $SESSION_ID_SIZE bytes" }
+        val nonce = ByteArray(NONCE_SIZE)
+        System.arraycopy(sessionId, 0, nonce, 0, SESSION_ID_SIZE)
+        for (i in 0 until 4) {
             nonce[11 - i] = ((counter shr (i * 8)) and 0xFF).toByte()
         }
         return nonce

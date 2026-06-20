@@ -1,4 +1,5 @@
-<p>No-cloud Android baby monitor for LAN and VPN use.</p>
-<p>Open Babyphone allows two Android devices to act as a baby monitor. The first device, left in the room with the baby, advertises itself on the network and streams audio to a connected client. The second device, with the parent, connects to the monitoring device and receives the audio stream.</p>
+<p>Local-network Android baby monitor without cloud accounts or remote access.</p>
+<p>Open Babyphone allows two Android devices to act as a baby monitor. The first device, left in the room with the baby, advertises itself on the local network and streams audio directly to paired parent devices. The second device, with the parent, connects on the same Wi-Fi or local network and plays the received audio stream.</p>
+<p>The app is intentionally local-only: no cloud service, no accounts, no relay servers, and no remote listening feature. Advanced users may connect across a trusted VPN by entering the child device address manually, but VPN use is not the normal setup flow.</p>
 <p>The project is an independent fork of Child Monitor, which itself is a fork of Protect Baby Monitor.</p>
-<p>Open Babyphone works on Android 5.0 (Lollipop) and newer, i.e. Android SDK 21.</p>
+<p>Open Babyphone works on Android 11 (R) and newer, i.e. Android SDK 30.</p>

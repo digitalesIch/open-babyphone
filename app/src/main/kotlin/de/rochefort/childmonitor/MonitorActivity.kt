@@ -36,21 +36,18 @@ import de.rochefort.childmonitor.MonitorService.MonitorBinder
 class MonitorActivity : Activity() {
     private val connection: ServiceConnection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
-            // This is called when the connection with the service has been
-            // established, giving us the service object we can use to
-            // interact with the service. Because we have bound to an explicit
-            // service that we know is running in our own process, we can
-            // cast its IBinder to a concrete class and directly access it.
             val bs = (service as MonitorBinder).service
             bs.monitorActivity = this@MonitorActivity
             bs.updateMonitorActivity()
+            runOnUiThread {
+                val pairingCodeField = findViewById<EditText>(R.id.pairingCodeField)
+                pairingCodeField.isEnabled = false
+                Toast.makeText(this@MonitorActivity, R.string.pairing_code_locked,
+                        Toast.LENGTH_SHORT).show()
+            }
         }
 
         override fun onServiceDisconnected(className: ComponentName) {
-            // This is called when the connection with the service has been
-            // unexpectedly disconnected -- that is, its process crashed.
-            // Because it is running in our same process, we should never
-            // see this happen.
             Toast.makeText(this@MonitorActivity, R.string.disconnected,
                     Toast.LENGTH_SHORT).show()
         }
@@ -100,9 +97,9 @@ class MonitorActivity : Activity() {
             val listenAddresses: MutableList<String> = ArrayList()
             for (network in cm.allNetworks) {
                 val networkInfo = cm.getNetworkInfo(network)
-                val connected = networkInfo?.isConnected?: return emptyList()
+                val connected = networkInfo?.isConnected ?: continue
                 if (connected) {
-                    val linkAddresses = cm.getLinkProperties(network)?.linkAddresses ?: return emptyList()
+                    val linkAddresses = cm.getLinkProperties(network)?.linkAddresses ?: continue
                     for (linkAddress in linkAddresses) {
                         val address = linkAddress.address
                         val hostAddress = address.hostAddress

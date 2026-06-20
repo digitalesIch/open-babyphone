@@ -144,7 +144,7 @@
                 android:id="@+id/clientCount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Connected: 0 parents"
+                android:text="@string/connected_clients_initial"
                 android:textSize="18sp" />
         </LinearLayout>
 
