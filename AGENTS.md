@@ -4,6 +4,10 @@
 - Single-module Android app: root `settings.gradle` includes only `:app`; application ID, Android namespace, and Kotlin package are all `org.openbabyphone`.
 - Kotlin sources live under `app/src/main/kotlin/org/openbabyphone`; the current UI is Jetpack Compose with platform `Service` classes for long-running child/parent audio work.
 - `MainActivity` is the launcher. Child mode uses `MonitorScreen`/`MonitorViewModel` -> `MonitorService`; parent mode uses `DiscoverScreen`/`DiscoverViewModel`, `DiscoverAddressScreen`, and `ListenScreen`/`ListenViewModel` -> `ListenService`.
+- `SettingsActivity` is the only non-Compose screen; it is an XML `PreferenceActivity` for theme selection.
+- Services communicate with ViewModels through singleton `StateFlow` repositories in `service/ServiceRepository.kt` (`MonitorServiceRepository`, `ListenServiceRepository`), not through data binding or LiveData.
+- Navigation uses type-safe `@Serializable` routes defined in `navigation/NavRoutes.kt` and wired in `MainActivity.kt` via `NavHost`. To add a screen, add a route object/data class in `NavRoutes.kt` and a `composable<Route>` block in `MainActivity.kt`.
+- A deep link `quiet-engine://listen?...` is registered in the manifest and `MainActivity` for resuming the listen session.
 - Audio/networking is service-driven: `MonitorService` advertises `_childmonitor._tcp.` with Android NSD, binds from TCP port `10000` upward, optionally authenticates parents with a persistent alphanumeric pairing code, records mic audio, and streams G.711 u-law; `ListenService` performs the parent-side handshake, decodes, and plays the stream.
 - Manual parent connection exists for advanced trusted VPN or unusual local-network setups; the product direction is same Wi-Fi/LAN first, and NSD discovery is LAN-only.
 
@@ -11,11 +15,13 @@
 - Use the checked-in wrapper: `./gradlew ...`.
 - Before any write operation (commit, push, branch creation), always sync the local repository first: `git fetch origin` then `git pull --ff-only origin main` (or the current base branch). This prevents stale local branches when multiple agent sessions work on the same repository. If the pull fails, stop and inform the user.
 - Gradle wrapper is 8.6; Android Gradle Plugin is 8.2.2; Kotlin is 1.9.22.
-- Use JDK 21; Gradle emits Java 17 bytecode (`sourceCompatibility`, `targetCompatibility`, Kotlin `jvmTarget`) and sets `jvmToolchain(21)`.
+- Use JDK 21; Gradle emits Java 17 bytecode (`sourceCompatibility`, `targetCompatibility`, Kotlin `jvmTarget`) and sets `jvmToolchain(21)`. The comment in `build.gradle` explains that AGP 8.2 lint cannot analyze Java 21 class files reliably.
 - CI builds a debug APK artifact, then runs the release-grade verification `./gradlew assembleRelease testReleaseUnitTest lintRelease`.
 - Useful focused checks are `./gradlew testReleaseUnitTest`, `./gradlew assembleDebugAndroidTest`, `./gradlew lintRelease`, and `./gradlew assembleRelease`.
-- Local JVM/Robolectric/Compose behavior tests live under `app/src/test/kotlin`; Android instrumentation tests live under `app/src/androidTest/kotlin` for Android/JNI runtime coverage such as libsodium crypto and selected Compose UI checks.
+- Local JVM/Robolectric/Compose behavior tests live under `app/src/test/kotlin`; Android instrumentation tests live under `app/src/androidTest/kotlin` for Android/JNI runtime coverage such as libsodium crypto and selected Compose UI checks. Run instrumentation tests with `./gradlew connectedDebugAndroidTest`.
 - Lint aborts on errors; `MissingTranslation` is downgraded to a warning in `app/build.gradle`.
+- Release signing is conditional on a `keystore.properties` file at the project root (gitignored). When present, `build.gradle` loads it and signs the release APK. When absent, the build produces an unsigned APK. See `CONTRIBUTING.md` for setup instructions. Never commit keystore files or passwords.
+- `proguard-rules.txt` is referenced in `build.gradle` but does not exist in the repository. `minifyEnabled` is currently `false`, so this is harmless. If you enable minification, create the file first.
 
 ## Android Config Gotchas
 - `compileSdk`/`targetSdk` are 34; `minSdkVersion` is 30 and README promises Android 11+.
@@ -32,22 +38,10 @@
 - **App Language**: The app is English-only. All user-facing strings must be in English. Do not add or maintain translations in other languages.
 
 ## Fork Direction
-- This repository is now developed as an independent fork named `Open Babyphone` under `digitalesIch/open-babyphone`.
-- Treat `origin` as the active repository (`digitalesIch/open-babyphone`) and `upstream`/`enguerrand/child-monitor` as reference-only.
+- This repository is developed as an independent fork named `Open Babyphone` under `digitalesIch/open-babyphone`. `origin` is the active repository; `upstream` (`enguerrand/child-monitor`) is reference-only and its local fetch/push URLs are already set to `DISABLED`.
 - **CRITICAL: Never create, edit, close, or comment on GitHub issues, PRs, or discussions in `enguerrand/child-monitor` unless explicitly requested.**
-- Upstream PRs to `enguerrand/child-monitor` should be limited to small maintenance fixes after explicit user request.
-- Larger roadmap work, product decisions, UI changes, authentication, reconnect behavior, multi-client support, and releases belong in this fork.
 - Keep upstream attribution and GPLv3 license notices intact.
-
-## Repository Rules
-- **All new issues and PRs go to the fork** (`digitalesIch/open-babyphone`), never to upstream.
-- **All `gh` commands that read or write issues, PRs, releases, workflow runs, checks, discussions, or repository settings MUST explicitly target `digitalesIch/open-babyphone` using `--repo digitalesIch/open-babyphone` or the `digitalesIch/open-babyphone` repository argument when a command does not support `--repo`, except `gh repo set-default` itself.**
-- Do not rely on the implicit `gh` default repository. GitHub CLI can resolve forked workspaces to the parent repository unless `gh repo set-default digitalesIch/open-babyphone` is set locally.
-- Before creating, editing, closing, or commenting on an issue/PR, verify that the target URL starts with `https://github.com/digitalesIch/open-babyphone/`.
-- If an upstream issue/PR was already closed or redirected by mistake, do not add more comments there unless the user explicitly asks.
-- Git fetch/push to upstream should be disabled locally (`git remote set-url upstream DISABLED` and `git remote set-url --push upstream DISABLED`) unless the user explicitly requests upstream maintenance work.
-- Bug reports, security issues, feature requests, and roadmap items **must** be created in the fork's issue tracker.
-- The only exception for upstream interaction: small maintenance fixes (typos, build warnings) after explicit user request.
+- Full `gh` targeting rules, upstream safety checklist, and git sync policy are in `.opencode/instructions.md`; follow them.
 
 ## Repository Settings Policy
 - This is currently a solo-maintainer repository where the human maintainer and coding agents may operate through the same GitHub account.
@@ -68,7 +62,3 @@ Specifically verify:
 - Translation policy references the actual remaining `values-*/` directories.
 
 This file describes the project shape for AI agents; it must not contradict user-facing documentation.
-
-## Known Stale References
-
-No intentionally stale references are currently tracked here. When an issue is completed, update this file in the same patch if its guidance changes.
