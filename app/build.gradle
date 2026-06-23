@@ -24,7 +24,7 @@ android {
         mavenCentral()
     }
 
-    namespace 'de.rochefort.childmonitor'
+    namespace 'org.openbabyphone'
     lint {
         abortOnError true
         warning 'MissingTranslation'

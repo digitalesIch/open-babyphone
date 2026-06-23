@@ -46,7 +46,7 @@ clear UX, release readiness, and removing stale fork-era assumptions.
 
 Goal: make the fork coherent, safe by default, and honest in its public materials.
 
-- Keep the public Android application ID on `org.openbabyphone` before release
+- Keep the Android application ID, namespace, and internal package aligned on `org.openbabyphone` before release
 - Remove or contain user-visible legacy `ChildMonitor` naming in code paths, logs, and NSD
 - Stop exposing the Android device model in the advertised NSD service name
 - Keep README, privacy policy, security policy, store metadata, and roadmap aligned with
@@ -114,7 +114,7 @@ These items are tracked as GitHub issues and should be handled before a public b
 - #13 Centralize service type, default port, and discovery naming constants
 - #19 Harden the max-client accept loop and NSD re-registration behavior
 - #20 Fix TCP frame reads so partial headers and payload reads are handled correctly
-- #21 Keep the public Android application ID on `org.openbabyphone` before release
+- #21 Keep the Android application ID, namespace, and internal package aligned on `org.openbabyphone` before release
 - #22 Finish the Material UX refresh for monitor, discovery, and listen screens
 - #23 Stop exposing device model and legacy `ChildMonitor` name in NSD
 - #24 Define and run an overnight reliability test matrix on real devices
