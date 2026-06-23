@@ -119,10 +119,52 @@ Goal: make the project installable and maintainable as an open source Android ap
 Goal: improve the in-home baby monitor without expanding into remote infrastructure.
 
 - Improve local discovery diagnostics for routers that block multicast/mDNS
-- Add local-only audio quality improvements after reliability is stable
 - Consider configurable sensitivity or noise-gate features only if they do not compromise safety
 - Improve local troubleshooting guidance for trusted VPN users without making VPN the main flow
 - Revisit larger features only if they preserve the local-only, no-cloud product promise
+
+### 5a. Migrate Audio Codec from G.711 u-law to Opus
+
+Goal: replace the legacy 8 kHz G.711 u-law codec with Opus for better audio quality,
+lower bandwidth, and broader frequency response.
+
+Depends on: #25 (protocol versioning and capability negotiation).
+
+The current G.711 u-law codec at 8 kHz limits the audio to about 3.4 kHz usable
+bandwidth and 64 kbps. Opus at 16-24 kbps delivers clearly better voice quality
+and supports up to 48 kHz full-band audio. This migration is a prerequisite for
+meaningful noise suppression because DSP and ML-based filters need broader
+spectrum than G.711 provides.
+
+- Replace `G711UCodec` with Opus via Android `MediaCodec`
+- Raise sample rate from 8000 Hz to 16000 or 24000 Hz
+- Adapt frame sizes, jitter buffer timing, and heartbeat intervals to Opus frame durations
+- Rename `ulawData` to a codec-agnostic name throughout the codebase
+- Use protocol versioning from #25 to negotiate codec between child and parent
+- Test on OnePlus 3T (LineageOS 18.1) and modern devices
+- Keep bandwidth and latency within limits for multi-parent fan-out
+
+### 5b. White Noise on Child Device with Noise Suppression on Parent Device
+
+Goal: let the child device play soothing white noise for the baby while the parent
+device filters it out so parents hear the baby clearly.
+
+Depends on: Opus migration (5a), because noise suppression needs broader spectrum
+than G.711 8 kHz provides.
+
+White noise without suppression is not practical: parents would hear constant noise
+and might turn down volume, missing the baby. These two features must ship together
+as a coupled package.
+
+- Child device plays white noise (or similar soothing sounds) via `AudioTrack`
+- Microphone continues recording and streaming to parents
+- Parent device applies noise suppression to remove the white noise from the stream
+- Consider spectral subtraction, Wiener filter, or ML-based suppression
+- Learn noise profile from a short silence calibration or from known white-noise spectrum
+- Ensure suppression does not muffle or remove baby cries
+- Add UI controls on child device: start/stop white noise, volume, sound type
+- Add UI indicator on parent device: noise suppression active
+- Test: baby audibility with white noise running and suppression active
 
 ## Immediate Technical Risk Backlog
 
@@ -145,3 +187,5 @@ These items are tracked as GitHub issues and should be handled before a public b
 - #47 Avoid AEAD nonce reuse when multiple parents authenticate in the same session
 - #51 Add multi-parent integration test
 - #52 Document multi-parent support in README and UI
+- #69 Migrate audio codec from G.711 u-law to Opus (depends on #25)
+- #70 Add white noise on child device with noise suppression on parent device (depends on #69)
