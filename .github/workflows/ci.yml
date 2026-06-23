@@ -26,17 +26,14 @@ jobs:
           java-version: "21"
           distribution: "temurin"
 
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Build debug APK for testing
-        uses: gradle/gradle-build-action@v3
-        with:
-          gradle-version: wrapper
-          arguments: assembleDebug
+        run: ./gradlew assembleDebug
 
       - name: Build, test and lint release
-        uses: gradle/gradle-build-action@v3
-        with:
-          gradle-version: wrapper
-          arguments: assembleRelease testReleaseUnitTest lintRelease
+        run: ./gradlew assembleRelease testReleaseUnitTest lintRelease
 
       - name: Upload debug APK artifact
         uses: actions/upload-artifact@v4

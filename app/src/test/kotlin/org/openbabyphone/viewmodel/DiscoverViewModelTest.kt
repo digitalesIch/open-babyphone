@@ -36,9 +36,32 @@ class DiscoverViewModelTest {
     }
 
     @Test
+    fun `updatePairingCode trims whitespace`() {
+        viewModel.updatePairingCode("  myCode  ")
+        assertEquals("myCode", viewModel.uiState.value.pairingCode)
+    }
+
+    @Test
+    fun `updatePairingCode ignores invalid characters`() {
+        viewModel.updatePairingCode("valid123")
+        viewModel.updatePairingCode("invalid-code")
+        assertEquals("valid123", viewModel.uiState.value.pairingCode)
+    }
+
+    @Test
     fun `updatePairingCode persists to SharedPreferences`() {
         val context = RuntimeEnvironment.getApplication() as Application
         viewModel.updatePairingCode("persisted")
+
+        val prefs = context.getSharedPreferences("DiscoverPrefs", Application.MODE_PRIVATE)
+        assertEquals("persisted", prefs.getString("pairingCode", ""))
+    }
+
+    @Test
+    fun `invalid pairing code is not persisted`() {
+        val context = RuntimeEnvironment.getApplication() as Application
+        viewModel.updatePairingCode("persisted")
+        viewModel.updatePairingCode("invalid code")
 
         val prefs = context.getSharedPreferences("DiscoverPrefs", Application.MODE_PRIVATE)
         assertEquals("persisted", prefs.getString("pairingCode", ""))

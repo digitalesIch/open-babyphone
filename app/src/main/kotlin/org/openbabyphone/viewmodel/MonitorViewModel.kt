@@ -3,6 +3,7 @@ package org.openbabyphone.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import org.openbabyphone.PairingCode
 import org.openbabyphone.MonitorService
 import org.openbabyphone.service.MonitorServiceRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -60,13 +61,17 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun updatePairingCode(code: String) {
-        _pairingCode.value = code.trim()
+        if (!PairingCode.isValid(code)) {
+            return
+        }
+        val normalizedCode = PairingCode.normalize(code)
+        _pairingCode.value = normalizedCode
         val prefs = getApplication<Application>().getSharedPreferences(
             MonitorService.PAIRING_PREFS_NAME,
             Application.MODE_PRIVATE
         )
         prefs.edit()
-            .putString(MonitorService.PREF_KEY_PAIRING_CODE, code.trim())
+            .putString(MonitorService.PREF_KEY_PAIRING_CODE, normalizedCode)
             .apply()
     }
 }
