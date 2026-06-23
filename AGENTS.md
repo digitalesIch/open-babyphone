@@ -1,8 +1,8 @@
 # AGENTS.md
 
 ## Project Shape
-- Single-module Android app: root `settings.gradle` includes only `:app`; application ID is `org.openbabyphone`; Kotlin package/Android namespace currently remain `de.rochefort.childmonitor`.
-- Kotlin sources live under `app/src/main/kotlin/de/rochefort/childmonitor`; UI is XML layouts plus platform `Activity`/`Service`, not Compose/AppCompat. Material Components are used for migrated screens, but several layouts still use platform widgets.
+- Single-module Android app: root `settings.gradle` includes only `:app`; application ID, Android namespace, and Kotlin package are all `org.openbabyphone`.
+- Kotlin sources live under `app/src/main/kotlin/org/openbabyphone`; UI is XML layouts plus platform `Activity`/`Service`, not Compose/AppCompat. Material Components are used for migrated screens, but several layouts still use platform widgets.
 - `StartActivity` is the launcher. Child mode is `MonitorActivity` -> `MonitorService`; parent mode is `DiscoverActivity` -> `ListenActivity` -> `ListenService`.
 - Audio/networking is service-driven: `MonitorService` advertises `_childmonitor._tcp.` with Android NSD, binds from TCP port `10000` upward, optionally authenticates parents with a persistent alphanumeric pairing code, records mic audio, and streams G.711 u-law; `ListenService` performs the parent-side handshake, decodes, and plays the stream.
 - Manual parent connection exists for advanced trusted VPN or unusual local-network setups; the product direction is same Wi-Fi/LAN first, and NSD discovery is LAN-only.
