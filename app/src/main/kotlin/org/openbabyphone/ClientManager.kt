@@ -27,6 +27,11 @@ class ClientManager {
 
     private val clients = mutableListOf<Client>()
     private var nextClientId = 0
+    private var clientCountListener: ((Int) -> Unit)? = null
+
+    fun setClientCountListener(listener: ((Int) -> Unit)?) {
+        clientCountListener = listener
+    }
 
     @Synchronized
     fun addClient(socket: Socket, pairingCode: String): Client? {
@@ -38,14 +43,17 @@ class ClientManager {
         clients.add(client)
         client.startSending()
         Log.i(TAG, "Client ${client.id} added, total: ${clients.size}/$MAX_CLIENTS")
+        clientCountListener?.invoke(clients.size)
         return client
     }
 
     @Synchronized
     fun removeClient(client: Client) {
-        clients.remove(client)
-        client.stop()
-        Log.i(TAG, "Client ${client.id} removed, total: ${clients.size}/$MAX_CLIENTS")
+        if (clients.remove(client)) {
+            client.stop()
+            Log.i(TAG, "Client ${client.id} removed, total: ${clients.size}/$MAX_CLIENTS")
+            clientCountListener?.invoke(clients.size)
+        }
     }
 
     @Synchronized
@@ -58,6 +66,8 @@ class ClientManager {
                     Log.w(TAG, "Disconnecting client ${client.id} - too many dropped frames")
                     iterator.remove()
                     client.stop()
+                    Log.i(TAG, "Client ${client.id} removed, total: ${clients.size}/$MAX_CLIENTS")
+                    clientCountListener?.invoke(clients.size)
                 }
             }
         }
@@ -74,5 +84,6 @@ class ClientManager {
         clients.forEach { it.stop() }
         clients.clear()
         Log.i(TAG, "All clients removed")
+        clientCountListener?.invoke(0)
     }
 }

@@ -40,6 +40,7 @@ import org.openbabyphone.service.MonitorServiceRepository
 import java.io.IOException
 import java.net.ServerSocket
 import java.net.Socket
+import java.util.concurrent.locks.ReentrantLock
 
 class MonitorService : Service() {
     private val binder: IBinder = MonitorBinder()
@@ -54,6 +55,8 @@ class MonitorService : Service() {
     private var audioProducerThread: Thread? = null
     private val clientManager = ClientManager()
     @Volatile private var isStreaming = false
+    private val capacityLock = ReentrantLock()
+    private val capacityCondition = capacityLock.newCondition()
 
     private var pairingCodeSnapshot: String = ""
     private var streamSessionId: ByteArray? = null
@@ -250,6 +253,19 @@ class MonitorService : Service() {
         val n = buildNotification()
         val foregroundServiceType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else 0
         ServiceCompat.startForeground(this, ID, n, foregroundServiceType)
+        clientManager.setClientCountListener { count ->
+            MonitorServiceRepository.updateStatus(getString(R.string.connected_clients, count))
+            if (clientManager.canAcceptMoreClients() && registrationListener == null && connectionToken != null) {
+                Log.i(TAG, "Capacity available again, re-registering NSD")
+                currentSocket?.localPort?.let { registerService(it) }
+            }
+            capacityLock.lock()
+            try {
+                capacityCondition.signalAll()
+            } finally {
+                capacityLock.unlock()
+            }
+        }
         ensureMonitorThread()
         return START_NOT_STICKY
     }
@@ -272,7 +288,22 @@ class MonitorService : Service() {
                         registerService(localPort)
                         startAudioProducer()
 
-                        while (clientManager.canAcceptMoreClients() && this.connectionToken == currentToken && !Thread.currentThread().isInterrupted) {
+                        while (this.connectionToken == currentToken && !Thread.currentThread().isInterrupted) {
+                            if (!clientManager.canAcceptMoreClients()) {
+                                Log.i(TAG, "Max clients reached, waiting for disconnect")
+                                capacityLock.lock()
+                                try {
+                                    while (!clientManager.canAcceptMoreClients() && this.connectionToken == currentToken && !Thread.currentThread().isInterrupted) {
+                                        capacityCondition.await()
+                                    }
+                                } finally {
+                                    capacityLock.unlock()
+                                }
+                                if (this.connectionToken != currentToken || Thread.currentThread().isInterrupted) {
+                                    break
+                                }
+                            }
+
                             val socket = serverSocket.accept()
                             Log.i(TAG, "Connection from parent device received")
                             if (!handleClient(socket)) {
@@ -282,10 +313,6 @@ class MonitorService : Service() {
                                     Log.d(TAG, "Failed to close rejected parent socket", e)
                                 }
                             }
-                        }
-
-                        if (!clientManager.canAcceptMoreClients()) {
-                            Log.i(TAG, "Max clients reached, waiting for disconnect")
                         }
                     }
                 } catch (e: Exception) {
@@ -360,6 +387,7 @@ class MonitorService : Service() {
 
     override fun onDestroy() {
         isStreaming = false
+        clientManager.setClientCountListener(null)
         this.audioProducerThread?.let {
             it.interrupt()
             try {
@@ -372,12 +400,18 @@ class MonitorService : Service() {
         this.audioProducerThread = null
         clientManager.removeAllClients()
 
+        this.connectionToken = null
+        capacityLock.lock()
+        try {
+            capacityCondition.signalAll()
+        } finally {
+            capacityLock.unlock()
+        }
         this.monitorThread?.let {
             this.monitorThread = null
             it.interrupt()
         }
         unregisterService()
-        this.connectionToken = null
         this.currentSocket?.let {
             try {
                 it.close()
