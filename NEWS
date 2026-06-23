@@ -4,6 +4,7 @@ Open Babyphone (fork of Child Monitor)
 June 2026: Initial fork release
 
   * Project renamed to Open Babyphone
+  * Migrated the Android application ID to `org.openbabyphone` before public release
   * Added optional persistent pairing code for authentication
   * Modernized CI with GitHub Actions (JDK 21, Android SDK 34)
   * English-only app (removed translations)
