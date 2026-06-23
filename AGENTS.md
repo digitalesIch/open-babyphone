@@ -51,8 +51,9 @@
 ## Repository Settings Policy
 - This is currently a solo-maintainer repository where the human maintainer and coding agents may operate through the same GitHub account.
 - Recommended `main` branch protection: require pull requests, require the `build` status check, require branches to be up to date, prevent force pushes, and prevent branch deletion.
-- Do not require approving reviews until a second maintainer with write access exists, because GitHub does not allow self-approval and shared-account agent workflows cannot satisfy that rule.
-- Admin/maintainer bypass may remain available for solo-maintainer operation, but use it only after CI is green and the change has been reviewed locally.
+- For the current solo-maintainer/shared-account setup, the required approving review count **must remain 0**. Do not restore required approving reviews unless the user explicitly says that a second maintainer with write access exists.
+- GitHub self-approval is impossible, so requiring approving reviews blocks human/agent workflows that operate through the same GitHub account.
+- Admin/maintainer bypass may remain available for solo-maintainer operation, but use it only after CI is green and the change has been reviewed locally. "Reviewed locally" means manual/local inspection by the maintainer or agent, not a GitHub approving review.
 - If a second maintainer is added, enable one required approving review and stop routine bypass usage.
 
 ## Documentation Synchronization
