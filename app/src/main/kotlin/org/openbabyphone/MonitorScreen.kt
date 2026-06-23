@@ -79,127 +79,127 @@ fun MonitorScreen(
                     .padding(Spacing.space16)
                     .verticalScroll(rememberScrollState())
             ) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("pairing_card"),
-                content = {
-                    Column(modifier = Modifier.padding(Spacing.space16)) {
-                        Text(stringResource(R.string.pairingCodeTitle), style = MaterialTheme.typography.titleLarge)
-                        Spacer(modifier = Modifier.height(Spacing.space8))
-                        OutlinedTextField(
-                            value = uiState.pairingCode,
-                            onValueChange = { viewModel.updatePairingCode(it) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("pairing_code_field"),
-                            enabled = !isMonitoring,
-                            placeholder = { Text(stringResource(R.string.examplePairingCode)) },
-                            singleLine = true,
-                            textStyle = MaterialTheme.typography.bodyLarge
-                        )
-                        Spacer(modifier = Modifier.height(Spacing.space8))
-                        Text(
-                            stringResource(
-                                if (isMonitoring) R.string.pairing_code_locked else R.string.monitoring_setup_hint
-                            ),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
-            )
-
-            Spacer(modifier = Modifier.height(Spacing.space16))
-
-            Button(
-                onClick = { isMonitoring = !isMonitoring },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("monitoring_toggle_button")
-            ) {
-                Text(stringResource(if (isMonitoring) R.string.stop_monitoring else R.string.start_monitoring))
-            }
-
-            Spacer(modifier = Modifier.height(Spacing.space16))
-
-            if (!isMonitoring) {
-                return@Column
-            }
-
-            if (uiState.isLoading) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("loading_card"),
-                    content = {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(Spacing.space24),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                CircularProgressIndicator()
-                                Spacer(modifier = Modifier.height(Spacing.space8))
-                                Text(stringResource(R.string.loading), style = MaterialTheme.typography.bodyMedium)
-                            }
-                        }
-                    }
-                )
-            } else {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("service_info_card")
-                        .semantics { contentDescription = serviceInformationDescription },
+                        .testTag("pairing_card"),
                     content = {
                         Column(modifier = Modifier.padding(Spacing.space16)) {
-                            Text(stringResource(R.string.serviceTitle), style = MaterialTheme.typography.titleLarge)
+                            Text(stringResource(R.string.pairingCodeTitle), style = MaterialTheme.typography.titleLarge)
                             Spacer(modifier = Modifier.height(Spacing.space8))
-                            Text(uiState.serviceName, style = MaterialTheme.typography.bodyLarge)
+                            OutlinedTextField(
+                                value = uiState.pairingCode,
+                                onValueChange = { viewModel.updatePairingCode(it) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("pairing_code_field"),
+                                enabled = !isMonitoring,
+                                placeholder = { Text(stringResource(R.string.examplePairingCode)) },
+                                singleLine = true,
+                                textStyle = MaterialTheme.typography.bodyLarge
+                            )
                             Spacer(modifier = Modifier.height(Spacing.space8))
-                            Text(stringResource(R.string.serviceDescription), style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                stringResource(
+                                    if (isMonitoring) R.string.pairing_code_locked else R.string.monitoring_setup_hint
+                                ),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
                         }
                     }
                 )
 
                 Spacer(modifier = Modifier.height(Spacing.space16))
 
-                Card(
+                Button(
+                    onClick = { isMonitoring = !isMonitoring },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("connection_info_card"),
-                    content = {
-                        Column(modifier = Modifier.padding(Spacing.space16)) {
-                            Text(stringResource(R.string.portTitle), style = MaterialTheme.typography.titleLarge)
-                            Spacer(modifier = Modifier.height(Spacing.space8))
-                            Text(uiState.port.toString(), style = MaterialTheme.typography.bodyLarge)
-                            Spacer(modifier = Modifier.height(Spacing.space16))
-                            Text(stringResource(R.string.addressTitle), style = MaterialTheme.typography.titleLarge)
-                            Spacer(modifier = Modifier.height(Spacing.space8))
-                            if (uiState.addresses.isEmpty()) {
-                                Text(
-                                    stringResource(R.string.notConnected),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            } else {
-                                uiState.addresses.forEach { address ->
-                                    Text(address, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = Spacing.space2))
+                        .testTag("monitoring_toggle_button")
+                ) {
+                    Text(stringResource(if (isMonitoring) R.string.stop_monitoring else R.string.start_monitoring))
+                }
+
+                Spacer(modifier = Modifier.height(Spacing.space16))
+
+                if (!isMonitoring) {
+                    return@Column
+                }
+
+                if (uiState.isLoading) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("loading_card"),
+                        content = {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(Spacing.space24),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    CircularProgressIndicator()
+                                    Spacer(modifier = Modifier.height(Spacing.space8))
+                                    Text(stringResource(R.string.loading), style = MaterialTheme.typography.bodyMedium)
                                 }
                             }
-                            Spacer(modifier = Modifier.height(Spacing.space16))
-                            Text(
-                                uiState.status,
-                                style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.semantics { contentDescription = serviceStatusDescription }
-                            )
                         }
-                    }
-                )
+                    )
+                } else {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("service_info_card")
+                            .semantics { contentDescription = serviceInformationDescription },
+                        content = {
+                            Column(modifier = Modifier.padding(Spacing.space16)) {
+                                Text(stringResource(R.string.serviceTitle), style = MaterialTheme.typography.titleLarge)
+                                Spacer(modifier = Modifier.height(Spacing.space8))
+                                Text(uiState.serviceName, style = MaterialTheme.typography.bodyLarge)
+                                Spacer(modifier = Modifier.height(Spacing.space8))
+                                Text(stringResource(R.string.serviceDescription), style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(Spacing.space16))
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("connection_info_card"),
+                        content = {
+                            Column(modifier = Modifier.padding(Spacing.space16)) {
+                                Text(stringResource(R.string.portTitle), style = MaterialTheme.typography.titleLarge)
+                                Spacer(modifier = Modifier.height(Spacing.space8))
+                                Text(uiState.port.toString(), style = MaterialTheme.typography.bodyLarge)
+                                Spacer(modifier = Modifier.height(Spacing.space16))
+                                Text(stringResource(R.string.addressTitle), style = MaterialTheme.typography.titleLarge)
+                                Spacer(modifier = Modifier.height(Spacing.space8))
+                                if (uiState.addresses.isEmpty()) {
+                                    Text(
+                                        stringResource(R.string.notConnected),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                } else {
+                                    uiState.addresses.forEach { address ->
+                                        Text(address, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = Spacing.space2))
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(Spacing.space16))
+                                Text(
+                                    uiState.status,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.semantics { contentDescription = serviceStatusDescription }
+                                )
+                            }
+                        }
+                    )
+                }
             }
         }
     }
-}
 }

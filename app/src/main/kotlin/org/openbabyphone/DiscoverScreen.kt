@@ -67,151 +67,151 @@ fun DiscoverScreen(
                     .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-            Text(
-                stringResource(R.string.discoverChild),
-                style = MaterialTheme.typography.titleLarge,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(bottom = Spacing.space8)
-            )
+                Text(
+                    stringResource(R.string.discoverChild),
+                    style = MaterialTheme.typography.titleLarge,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(bottom = Spacing.space8)
+                )
 
-            Button(
-                onClick = {
-                    if (uiState.isDiscovering) viewModel.stopDiscovery() else viewModel.startDiscovery()
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("discover_button")
-            ) {
-                Text(if (uiState.isDiscovering) stopLabel else stringResource(R.string.discoverChild))
-            }
-
-            Spacer(modifier = Modifier.height(Spacing.space16))
-            Text(
-                stringResource(R.string.discoverChildDescription),
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(Spacing.space16))
-
-            OutlinedTextField(
-                value = uiState.pairingCode,
-                onValueChange = { viewModel.updatePairingCode(it) },
-                label = { Text(stringResource(R.string.pairing_code_optional)) },
-                placeholder = { Text(stringResource(R.string.examplePairingCode)) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("discover_pairing_code_field"),
-                singleLine = true,
-                textStyle = MaterialTheme.typography.bodyLarge
-            )
-
-            Spacer(modifier = Modifier.height(Spacing.space16))
-
-            when {
-                uiState.isDiscovering && uiState.devices.isEmpty() -> {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        CircularProgressIndicator()
-                        Spacer(modifier = Modifier.height(Spacing.space8))
-                        Text(stringResource(R.string.search_running), style = MaterialTheme.typography.bodyMedium)
-                    }
+                Button(
+                    onClick = {
+                        if (uiState.isDiscovering) viewModel.stopDiscovery() else viewModel.startDiscovery()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("discover_button")
+                ) {
+                    Text(if (uiState.isDiscovering) stopLabel else stringResource(R.string.discoverChild))
                 }
-                uiState.devices.isNotEmpty() -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("device_list"),
-                        verticalArrangement = Arrangement.spacedBy(Spacing.space8)
-                    ) {
-                        uiState.devices.forEach { device ->
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("device_${device.address}")
-                            ) {
-                                Row(
+
+                Spacer(modifier = Modifier.height(Spacing.space16))
+                Text(
+                    stringResource(R.string.discoverChildDescription),
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(Spacing.space16))
+
+                OutlinedTextField(
+                    value = uiState.pairingCode,
+                    onValueChange = { viewModel.updatePairingCode(it) },
+                    label = { Text(stringResource(R.string.pairing_code_optional)) },
+                    placeholder = { Text(stringResource(R.string.examplePairingCode)) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("discover_pairing_code_field"),
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyLarge
+                )
+
+                Spacer(modifier = Modifier.height(Spacing.space16))
+
+                when {
+                    uiState.isDiscovering && uiState.devices.isEmpty() -> {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            CircularProgressIndicator()
+                            Spacer(modifier = Modifier.height(Spacing.space8))
+                            Text(stringResource(R.string.search_running), style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                    uiState.devices.isNotEmpty() -> {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("device_list"),
+                            verticalArrangement = Arrangement.spacedBy(Spacing.space8)
+                        ) {
+                            uiState.devices.forEach { device ->
+                                Card(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(Spacing.space16),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                        .testTag("device_${device.address}")
                                 ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(device.name, style = MaterialTheme.typography.bodyLarge)
-                                        Text("${device.address}:${device.port}", style = MaterialTheme.typography.bodySmall)
-                                    }
-                                    Button(onClick = {
-                                        onNavigateToListen(device.address, device.port, device.name, uiState.pairingCode)
-                                    }) {
-                                        Text(connectLabel)
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(Spacing.space16),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(device.name, style = MaterialTheme.typography.bodyLarge)
+                                            Text("${device.address}:${device.port}", style = MaterialTheme.typography.bodySmall)
+                                        }
+                                        Button(onClick = {
+                                            onNavigateToListen(device.address, device.port, device.name, uiState.pairingCode)
+                                        }) {
+                                            Text(connectLabel)
+                                        }
                                     }
                                 }
                             }
                         }
                     }
-                }
-                uiState.error != null -> {
-                    Text(
-                        text = uiState.error ?: "",
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-                else -> {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("empty_state_card"),
-                        content = {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(Spacing.space24),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Icon(
-                                    Icons.Default.Search,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.height(Spacing.space8))
-                                Text(
-                                    stringResource(R.string.discovery_no_devices),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    textAlign = TextAlign.Center
-                                )
+                    uiState.error != null -> {
+                        Text(
+                            text = uiState.error ?: "",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                    else -> {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("empty_state_card"),
+                            content = {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(Spacing.space24),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(
+                                        Icons.Default.Search,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.height(Spacing.space8))
+                                    Text(
+                                        stringResource(R.string.discovery_no_devices),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(Spacing.space32))
-            Text(
-                stringResource(R.string.enterChildAddress),
-                style = MaterialTheme.typography.titleLarge,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(bottom = Spacing.space8)
-            )
-            OutlinedButton(
-                onClick = onNavigateToAddressInput,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("address_input_button")
-            ) {
-                Text(stringResource(R.string.enterChildAddress))
+                Spacer(modifier = Modifier.height(Spacing.space32))
+                Text(
+                    stringResource(R.string.enterChildAddress),
+                    style = MaterialTheme.typography.titleLarge,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(bottom = Spacing.space8)
+                )
+                OutlinedButton(
+                    onClick = onNavigateToAddressInput,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("address_input_button")
+                ) {
+                    Text(stringResource(R.string.enterChildAddress))
+                }
+                Spacer(modifier = Modifier.height(Spacing.space16))
+                Text(
+                    stringResource(R.string.enterChildAddressDescription),
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
             }
-            Spacer(modifier = Modifier.height(Spacing.space16))
-            Text(
-                stringResource(R.string.enterChildAddressDescription),
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center
-            )
         }
-    }
     }
 }

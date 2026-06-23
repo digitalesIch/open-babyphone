@@ -98,73 +98,73 @@ fun ListenScreen(
                     .fillMaxSize()
                     .padding(Spacing.space16)
             ) {
-            Text(
-                stringResource(R.string.connectedTo),
-                style = MaterialTheme.typography.titleLarge
-            )
+                Text(
+                    stringResource(R.string.connectedTo),
+                    style = MaterialTheme.typography.titleLarge
+                )
 
-            Spacer(modifier = Modifier.height(Spacing.space8))
+                Spacer(modifier = Modifier.height(Spacing.space8))
 
-            Text(
-                text = uiState.childDeviceName.ifEmpty { name.ifEmpty { unknownLabel } },
-                style = MaterialTheme.typography.bodyLarge
-            )
+                Text(
+                    text = uiState.childDeviceName.ifEmpty { name.ifEmpty { unknownLabel } },
+                    style = MaterialTheme.typography.bodyLarge
+                )
 
-            Spacer(modifier = Modifier.height(Spacing.space24))
+                Spacer(modifier = Modifier.height(Spacing.space24))
 
-            Text(
-                stringResource(R.string.status),
-                style = MaterialTheme.typography.titleLarge
-            )
+                Text(
+                    stringResource(R.string.status),
+                    style = MaterialTheme.typography.titleLarge
+                )
 
-            Spacer(modifier = Modifier.height(Spacing.space8))
+                Spacer(modifier = Modifier.height(Spacing.space8))
 
-            Text(
-                uiState.status,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier
-                    .background(statusColor, MaterialTheme.shapes.small)
-                    .padding(horizontal = Spacing.space12, vertical = Spacing.space8)
-                    .semantics {
-                        liveRegion = LiveRegionMode.Polite
-                        contentDescription = uiState.status
-                    }
-            )
-
-            Spacer(modifier = Modifier.height(Spacing.space24))
-
-            if (uiState.isError) {
-                Card(
+                Text(
+                    uiState.status,
+                    style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("error_card"),
-                    content = {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(Spacing.space24),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(
-                                Icons.Default.Warning,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                            Spacer(modifier = Modifier.height(Spacing.space8))
-                            Text(
-                                stringResource(R.string.connection_lost),
-                                style = MaterialTheme.typography.bodyLarge,
-                                textAlign = TextAlign.Center,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                            Spacer(modifier = Modifier.height(Spacing.space16))
-                            Button(onClick = onNavigateBack) {
-                                Text(stringResource(R.string.retry))
+                        .background(statusColor, MaterialTheme.shapes.small)
+                        .padding(horizontal = Spacing.space12, vertical = Spacing.space8)
+                        .semantics {
+                            liveRegion = LiveRegionMode.Polite
+                            contentDescription = uiState.status
+                        }
+                )
+
+                Spacer(modifier = Modifier.height(Spacing.space24))
+
+                if (uiState.isError) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("error_card"),
+                        content = {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(Spacing.space24),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                                Spacer(modifier = Modifier.height(Spacing.space8))
+                                Text(
+                                    stringResource(R.string.connection_lost),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    textAlign = TextAlign.Center,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                                Spacer(modifier = Modifier.height(Spacing.space16))
+                                Button(onClick = onNavigateBack) {
+                                    Text(stringResource(R.string.retry))
+                                }
                             }
                         }
-                    }
-                )
-            } else {
+                    )
+                } else {
                 VolumeCanvas(
                     volumeHistory = uiState.volumeHistory,
                     volumeNorm = uiState.volumeNorm,
@@ -175,7 +175,7 @@ fun ListenScreen(
                         .semantics { contentDescription = volumeVisualizationDescription }
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Spacing.space16))
 
                 Button(
                     onClick = onNavigateBack,
@@ -185,9 +185,9 @@ fun ListenScreen(
                 ) {
                     Text(stringResource(R.string.disconnect))
                 }
+                }
             }
         }
-    }
     }
 }
 
