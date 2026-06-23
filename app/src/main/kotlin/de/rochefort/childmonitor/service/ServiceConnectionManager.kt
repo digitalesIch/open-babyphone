@@ -5,18 +5,21 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.os.IBinder
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.lifecycleScope
+import androidx.core.content.ContextCompat
 import de.rochefort.childmonitor.ListenService
 import de.rochefort.childmonitor.MonitorService
 import de.rochefort.childmonitor.viewmodel.ListenViewModel
-import de.rochefort.childmonitor.viewmodel.MonitorViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 
 object ServiceConnectionManager {
+    data class ServiceBinding(
+        val intent: Intent,
+        val connection: ServiceConnection,
+        val bound: Boolean
+    )
+
     private val _monitorServiceConnected = MutableStateFlow(false)
     val monitorServiceConnected: StateFlow<Boolean> = _monitorServiceConnected.asStateFlow()
 
@@ -24,17 +27,14 @@ object ServiceConnectionManager {
     val listenServiceConnected: StateFlow<Boolean> = _listenServiceConnected.asStateFlow()
 
     fun bindMonitorService(
-        context: Context,
-        lifecycleOwner: LifecycleOwner,
-        viewModel: MonitorViewModel
-    ) {
+        context: Context
+    ): ServiceBinding {
         val intent = Intent(context, MonitorService::class.java)
-        context.startForegroundService(intent)
+        ContextCompat.startForegroundService(context, intent)
 
         val connection = object : ServiceConnection {
             override fun onServiceConnected(className: ComponentName, service: IBinder) {
                 _monitorServiceConnected.value = true
-                // Service is running, Repository will be updated via callbacks in MonitorService
             }
 
             override fun onServiceDisconnected(className: ComponentName) {
@@ -42,29 +42,30 @@ object ServiceConnectionManager {
             }
         }
 
-        context.bindService(intent, connection, Context.BIND_AUTO_CREATE)
-
-        lifecycleOwner.lifecycleScope.launch {
-            // Monitor service updates repository directly
-        }
+        val bound = context.bindService(intent, connection, Context.BIND_AUTO_CREATE)
+        return ServiceBinding(intent, connection, bound)
     }
 
     fun bindListenService(
         context: Context,
-        lifecycleOwner: LifecycleOwner,
         viewModel: ListenViewModel,
         address: String,
         port: Int,
         name: String,
-        pairingCode: String
-    ) {
+        pairingCode: String,
+        resumeOnly: Boolean = false
+    ): ServiceBinding {
         val intent = Intent(context, ListenService::class.java).apply {
-            putExtra("address", address)
-            putExtra("port", port)
-            putExtra("name", name)
-            putExtra("pairingCode", pairingCode)
+            if (!resumeOnly) {
+                putExtra("address", address)
+                putExtra("port", port)
+                putExtra("name", name)
+                putExtra("pairingCode", pairingCode)
+            }
         }
-        context.startForegroundService(intent)
+        if (!resumeOnly) {
+            ContextCompat.startForegroundService(context, intent)
+        }
 
         val connection = object : ServiceConnection {
             override fun onServiceConnected(className: ComponentName, service: IBinder) {
@@ -91,22 +92,29 @@ object ServiceConnectionManager {
             }
         }
 
-        context.bindService(intent, connection, Context.BIND_AUTO_CREATE)
+        val flags = if (resumeOnly) 0 else Context.BIND_AUTO_CREATE
+        val bound = context.bindService(intent, connection, flags)
+        return ServiceBinding(intent, connection, bound)
     }
 
-    fun unbindMonitorService(context: Context, connection: ServiceConnection) {
-        try {
-            context.unbindService(connection)
-        } catch (e: IllegalArgumentException) {
-            // Service not bound
+    fun unbindAndStopService(context: Context, binding: ServiceBinding) {
+        if (binding.bound) {
+            try {
+                context.unbindService(binding.connection)
+            } catch (e: IllegalArgumentException) {
+                // Service was already unbound.
+            }
         }
+        context.stopService(binding.intent)
     }
 
-    fun unbindListenService(context: Context, connection: ServiceConnection) {
-        try {
-            context.unbindService(connection)
-        } catch (e: IllegalArgumentException) {
-            // Service not bound
+    fun unbindService(context: Context, binding: ServiceBinding) {
+        if (binding.bound) {
+            try {
+                context.unbindService(binding.connection)
+            } catch (e: IllegalArgumentException) {
+                // Service was already unbound.
+            }
         }
     }
 }

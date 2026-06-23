@@ -21,9 +21,7 @@ class ListenViewModelTest {
     @Before
     fun setup() {
         val context = RuntimeEnvironment.getApplication() as Application
-        ListenServiceRepository.updateChildDeviceName("")
-        ListenServiceRepository.updateStatus("Connecting...")
-        ListenServiceRepository.updateConnected(false)
+        ListenServiceRepository.startConnecting("")
         viewModel = ListenViewModel(context)
     }
 
@@ -56,6 +54,16 @@ class ListenViewModelTest {
         assertTrue(state.isError)
         assertFalse(state.isConnected)
         assertEquals("Disconnected", state.status)
+    }
+
+    @Test
+    fun `successful reconnect clears previous error`() = runTest {
+        ListenServiceRepository.updateError()
+        ListenServiceRepository.updateConnected(true)
+
+        val state = viewModel.uiState.first { it.isConnected }
+        assertFalse(state.isError)
+        assertEquals("Listening...", state.status)
     }
 
     @Test

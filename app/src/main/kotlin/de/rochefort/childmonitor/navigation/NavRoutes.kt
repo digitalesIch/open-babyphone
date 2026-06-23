@@ -16,8 +16,9 @@ object DiscoverAddress
 
 @Serializable
 data class Listen(
-    val address: String,
-    val port: Int,
-    val name: String,
-    val pairingCode: String
+    val address: String = "",
+    val port: Int = 0,
+    val name: String = "",
+    val pairingCode: String = "",
+    val resumeOnly: Boolean = false
 )

@@ -45,6 +45,13 @@ object ListenServiceRepository {
         _childDeviceName.value = name
     }
 
+    fun startConnecting(name: String) {
+        _childDeviceName.value = name
+        _status.value = "Connecting..."
+        _isConnected.value = false
+        _isError.value = false
+    }
+
     fun updateStatus(status: String) {
         _status.value = status
     }
@@ -52,6 +59,7 @@ object ListenServiceRepository {
     fun updateConnected(connected: Boolean) {
         _isConnected.value = connected
         if (connected) {
+            _isError.value = false
             _status.value = "Listening..."
         }
     }

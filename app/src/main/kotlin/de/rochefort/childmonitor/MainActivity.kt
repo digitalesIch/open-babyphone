@@ -108,7 +108,11 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             composable<Listen>(
-                                deepLinks = listOf(navDeepLink { uriPattern = "quiet-engine://listen" })
+                                deepLinks = listOf(
+                                    navDeepLink {
+                                        uriPattern = "quiet-engine://listen?address={address}&port={port}&name={name}&pairingCode={pairingCode}&resumeOnly={resumeOnly}"
+                                    }
+                                )
                             ) { backStackEntry ->
                                 val route = backStackEntry.toRoute<Listen>()
                                 ListenScreen(
@@ -116,6 +120,7 @@ class MainActivity : ComponentActivity() {
                                     port = route.port,
                                     name = route.name,
                                     pairingCode = route.pairingCode,
+                                    resumeOnly = route.resumeOnly,
                                     onNavigateBack = { navController.popBackStack() }
                                 )
                             }

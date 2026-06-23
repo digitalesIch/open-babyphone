@@ -68,13 +68,13 @@ class ListenService : Service() {
             val name = it.getString("name")
             childDeviceName = name
             ListenServiceRepository.updateChildDeviceName(name ?: "")
-            ListenServiceRepository.updateStatus("Connecting...")
-            val n = buildNotification(name)
-            val foregroundServiceType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK else 0
-            ServiceCompat.startForeground(this, ID, n, foregroundServiceType)
             val address = it.getString("address")
             val port = it.getInt("port")
             val pairingCode = it.getString("pairingCode")
+            ListenServiceRepository.startConnecting(name ?: "")
+            val n = buildNotification(name, address, port, pairingCode)
+            val foregroundServiceType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK else 0
+            ServiceCompat.startForeground(this, ID, n, foregroundServiceType)
             doListen(address, port, pairingCode)
         }
         return START_NOT_STICKY
@@ -91,12 +91,21 @@ class ListenService : Service() {
 
     override fun onBind(intent: Intent): IBinder = binder
 
-    private fun buildNotification(name: String?): Notification {
+    private fun buildNotification(name: String?, address: String?, port: Int, pairingCode: String?): Notification {
         val text = getText(R.string.listening)
+        val listenUri = Uri.Builder()
+            .scheme("quiet-engine")
+            .authority("listen")
+            .appendQueryParameter("address", address ?: "")
+            .appendQueryParameter("port", port.toString())
+            .appendQueryParameter("name", name ?: "")
+            .appendQueryParameter("pairingCode", pairingCode ?: "")
+            .appendQueryParameter("resumeOnly", "true")
+            .build()
         val deepLinkIntent = Intent(Intent.ACTION_VIEW).apply {
             setClassName(this@ListenService, "de.rochefort.childmonitor.MainActivity")
-            data = Uri.parse("quiet-engine://listen")
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            data = listenUri
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
         val contentIntent = PendingIntent.getActivity(
             this,
