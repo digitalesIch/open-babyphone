@@ -18,33 +18,20 @@ package org.openbabyphone
 
 import android.os.Handler
 import android.os.Looper
-import androidx.collection.CircularArray
 
-class VolumeHistory internal constructor(private val maxHistory: Int) {
-    private var maxVolume = 0.25
-    var volumeNorm = 1.0 / this.maxVolume
-        private set
-    private val historyData: CircularArray<Double> = CircularArray(maxHistory)
+class VolumeHistory internal constructor(maxHistory: Int) {
+    private val stats = VolumeStatistics(maxHistory)
     private val uiHandler: Handler = Handler(Looper.getMainLooper())
 
+    val volumeNorm: Double
+        get() = stats.volumeNorm
+
     operator fun get(i: Int): Double {
-        return historyData[i]
+        return stats[i]
     }
 
     fun size(): Int {
-        return historyData.size()
-    }
-
-    private fun addLast(volume: Double) {
-        // schedule editing of member vars on the ui event loop to avoid concurrency problems
-        uiHandler.post {
-            if (volume > this.maxVolume) {
-                this.maxVolume = volume
-                this.volumeNorm = 1.0 / volume
-            }
-            historyData.addLast(volume)
-            historyData.removeFromStart(historyData.size() - maxHistory)
-        }
+        return stats.size()
     }
 
     fun onAudioData(data: ShortArray) {
@@ -58,6 +45,6 @@ class VolumeHistory internal constructor(private val maxHistory: Int) {
             sum += rel * rel
         }
         val volume = sum / data.size
-        addLast(volume)
+        uiHandler.post { stats.addLast(volume) }
     }
 }
