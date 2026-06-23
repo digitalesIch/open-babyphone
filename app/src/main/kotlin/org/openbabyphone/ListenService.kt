@@ -39,6 +39,7 @@ import org.openbabyphone.audio.FrameHeader
 import org.openbabyphone.audio.JitterBuffer
 import org.openbabyphone.service.ListenServiceRepository
 import java.io.IOException
+import java.net.InetSocketAddress
 import java.net.Socket
 import java.net.SocketTimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
@@ -52,6 +53,8 @@ class ListenService : Service() {
     private val binder: IBinder = ListenBinder()
     private lateinit var notificationManager: NotificationManager
     private var listenThread: Thread? = null
+    @Volatile private var currentSocket: Socket? = null
+    @Volatile private var isRunning = false
     val volumeHistory = VolumeHistory(16384)
     var childDeviceName: String? = null
         private set
@@ -75,18 +78,40 @@ class ListenService : Service() {
             val n = buildNotification(name, address, port, pairingCode)
             val foregroundServiceType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK else 0
             ServiceCompat.startForeground(this, ID, n, foregroundServiceType)
+            stopListenThread()
             doListen(address, port, pairingCode)
         }
         return START_NOT_STICKY
     }
 
     override fun onDestroy() {
-        this.listenThread?.interrupt()
-        this.listenThread = null
+        isRunning = false
+        stopListenThread()
         ListenServiceRepository.updateConnected(false)
 
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         Toast.makeText(this, R.string.stopped, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun stopListenThread() {
+        listenThread?.let { lt ->
+            lt.interrupt()
+            currentSocket?.let { socket ->
+                try {
+                    socket.close()
+                } catch (e: IOException) {
+                    Log.d(TAG, "Failed to close socket during stop", e)
+                }
+            }
+            try {
+                lt.join(1000)
+            } catch (e: InterruptedException) {
+                Log.d(TAG, "Interrupted while waiting for listen thread to stop")
+                Thread.currentThread().interrupt()
+            }
+        }
+        listenThread = null
+        currentSocket = null
     }
 
     override fun onBind(intent: Intent): IBinder = binder
@@ -154,49 +179,66 @@ class ListenService : Service() {
             onError?.invoke()
             return
         }
+        isRunning = true
+        reconnectAttempts = 0
         val lt = Thread {
             var shouldReconnect: Boolean
             do {
+                if (!isRunning) break
                 try {
-                    val socket = Socket(address, port)
+                    val socket = Socket()
+                    currentSocket = socket
+                    socket.connect(InetSocketAddress(address, port), CONNECT_TIMEOUT_MS)
                     socket.soTimeout = SOCKET_READ_TIMEOUT_MS
+
                     val sessionInfo = performHandshake(socket, pairingCode)
-                    reconnectAttempts = 0
                     if (sessionInfo == null) {
                         Log.e(TAG, "Handshake failed")
                         socket.close()
-                        shouldReconnect = reconnectAttempts < MAX_RECONNECT_ATTEMPTS
+                        shouldReconnect = false
                     } else {
+                        reconnectAttempts = 0
                         ListenServiceRepository.updateConnected(true)
-                        shouldReconnect = !streamAudio(socket, sessionInfo.key, sessionInfo.sessionId)
+                        val streamResult = streamAudio(socket, sessionInfo.key, sessionInfo.sessionId)
+                        shouldReconnect = !streamResult
                     }
 
-                    if (shouldReconnect && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                    if (shouldReconnect && isRunning) {
                         reconnectAttempts++
-                        val status = "Reconnecting ($reconnectAttempts/$MAX_RECONNECT_ATTEMPTS)..."
-                        Log.i(TAG, status)
-                        postStatus(status)
-                        Thread.sleep(RECONNECT_DELAY_MS)
-                    } else if (shouldReconnect) {
-                        Log.e(TAG, "Max reconnect attempts reached")
-                        ListenServiceRepository.updateError()
-                        playAlert()
-                        onError?.invoke()
+                        if (reconnectAttempts <= MAX_RECONNECT_ATTEMPTS) {
+                            val status = "Reconnecting ($reconnectAttempts/$MAX_RECONNECT_ATTEMPTS)..."
+                            Log.i(TAG, status)
+                            postStatus(status)
+                            Thread.sleep(RECONNECT_DELAY_MS)
+                        } else {
+                            Log.e(TAG, "Max reconnect attempts reached")
+                            ListenServiceRepository.updateError()
+                            playAlert()
+                            onError?.invoke()
+                            shouldReconnect = false
+                        }
                     }
                 } catch (e: IOException) {
-                    shouldReconnect = true
-                    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                    shouldReconnect = isRunning
+                    if (shouldReconnect) {
                         reconnectAttempts++
-                        val status = "Reconnecting ($reconnectAttempts/$MAX_RECONNECT_ATTEMPTS)..."
-                        Log.w(TAG, "Connection error, $status", e)
-                        postStatus(status)
-                        Thread.sleep(RECONNECT_DELAY_MS)
-                    } else {
-                        Log.e(TAG, "Error opening socket to $address on port $port", e)
-                        ListenServiceRepository.updateError()
-                        playAlert()
-                        onError?.invoke()
-                        shouldReconnect = false
+                        if (reconnectAttempts <= MAX_RECONNECT_ATTEMPTS) {
+                            val status = "Reconnecting ($reconnectAttempts/$MAX_RECONNECT_ATTEMPTS)..."
+                            Log.w(TAG, "Connection error, $status", e)
+                            postStatus(status)
+                            try {
+                                Thread.sleep(RECONNECT_DELAY_MS)
+                            } catch (ie: InterruptedException) {
+                                Thread.currentThread().interrupt()
+                                shouldReconnect = false
+                            }
+                        } else {
+                            Log.e(TAG, "Connection failed after $MAX_RECONNECT_ATTEMPTS attempts", e)
+                            ListenServiceRepository.updateError()
+                            playAlert()
+                            onError?.invoke()
+                            shouldReconnect = false
+                        }
                     }
                 } catch (e: IllegalArgumentException) {
                     Log.e(TAG, "Invalid socket parameters", e)
@@ -205,7 +247,7 @@ class ListenService : Service() {
                     onError?.invoke()
                     shouldReconnect = false
                 }
-            } while (shouldReconnect && reconnectAttempts <= MAX_RECONNECT_ATTEMPTS)
+            } while (shouldReconnect && isRunning)
         }
         this.listenThread = lt
         lt.start()
@@ -432,6 +474,7 @@ class ListenService : Service() {
         private const val RECONNECT_DELAY_MS = 2000L
         private const val SOCKET_READ_TIMEOUT_MS = 1000
         private const val AUTH_TIMEOUT_MS = 10_000
+        private const val CONNECT_TIMEOUT_MS = 10_000
         private const val STREAM_DISRUPTED_MS = 5000L
         private const val STREAM_LOST_MS = 10000L
         private val VALID_PORT_RANGE = 1..65535
