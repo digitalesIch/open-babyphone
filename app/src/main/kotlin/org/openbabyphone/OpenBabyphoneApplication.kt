@@ -23,8 +23,8 @@ import androidx.appcompat.app.AppCompatDelegate
 
 class OpenBabyphoneApplication : Application() {
     companion object {
-        private const val SETTINGS_PREFS_NAME = "settings"
-        private const val THEME_MODE_KEY = "theme_mode"
+        const val SETTINGS_PREFS_NAME = "settings"
+        const val THEME_MODE_KEY = "theme_mode"
     }
 
     override fun onCreate() {

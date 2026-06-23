@@ -16,14 +16,10 @@
     <uses-permission
         android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE"
         android:required="true" />
-    <uses-permission
-        android:name="android.permission.POST_NOTIFICATIONS"/>
-    <uses-permission
-        android:name="android.permission.FOREGROUND_SERVICE"/>
-    <uses-permission
-        android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
-    <uses-permission
-        android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
 
     <application
         android:name=".OpenBabyphoneApplication"
@@ -35,40 +31,32 @@
         <service
             android:name=".ListenService"
             android:enabled="true"
-            android:foregroundServiceType="mediaPlayback"
-            android:exported="false"/>
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
         <service
             android:name=".MonitorService"
             android:enabled="true"
-            android:foregroundServiceType="microphone"
-            android:exported="false"/>
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
 
         <activity
-            android:name=".StartActivity"
+            android:name=".MainActivity"
             android:configChanges="orientation|screenSize"
-            android:exported="true">
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="quiet-engine" android:host="listen" />
             </intent-filter>
         </activity>
         <activity
-            android:name=".MonitorActivity"
-            android:configChanges="orientation|screenSize"
-            android:parentActivityName=".StartActivity" />
-        <activity
-            android:name=".DiscoverActivity"
-            android:configChanges="orientation|screenSize"
-            android:parentActivityName=".StartActivity"
-            android:windowSoftInputMode="adjustPan" />
-        <activity
-            android:name=".ListenActivity"
-            android:configChanges="orientation|screenSize"
-            android:parentActivityName=".DiscoverActivity" />
-        <activity
             android:name=".SettingsActivity"
             android:label="@string/settings"
-            android:parentActivityName=".StartActivity" />
+            android:parentActivityName=".MainActivity" />
     </application>
 </manifest>

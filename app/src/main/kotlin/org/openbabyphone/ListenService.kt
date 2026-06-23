@@ -26,6 +26,7 @@ import android.content.pm.ServiceInfo
 import android.media.AudioManager
 import android.media.AudioTrack
 import android.media.MediaPlayer
+import android.net.Uri
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
@@ -36,6 +37,7 @@ import androidx.core.app.ServiceCompat
 import org.openbabyphone.audio.FrameCodec
 import org.openbabyphone.audio.FrameHeader
 import org.openbabyphone.audio.JitterBuffer
+import org.openbabyphone.service.ListenServiceRepository
 import java.io.IOException
 import java.net.Socket
 import java.net.SocketTimeoutException
@@ -61,17 +63,18 @@ class ListenService : Service() {
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
         Log.i(TAG, "Received start id $startId: $intent")
-        // Display a notification about us starting.  We put an icon in the status bar.
         createNotificationChannel()
         intent.extras?.let {
             val name = it.getString("name")
             childDeviceName = name
-            val n = buildNotification(name)
-            val foregroundServiceType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK else 0 // Keep the linter happy
-            ServiceCompat.startForeground(this, ID, n, foregroundServiceType)
+            ListenServiceRepository.updateChildDeviceName(name ?: "")
             val address = it.getString("address")
             val port = it.getInt("port")
             val pairingCode = it.getString("pairingCode")
+            ListenServiceRepository.startConnecting(name ?: "")
+            val n = buildNotification(name, address, port, pairingCode)
+            val foregroundServiceType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK else 0
+            ServiceCompat.startForeground(this, ID, n, foregroundServiceType)
             doListen(address, port, pairingCode)
         }
         return START_NOT_STICKY
@@ -80,41 +83,53 @@ class ListenService : Service() {
     override fun onDestroy() {
         this.listenThread?.interrupt()
         this.listenThread = null
+        ListenServiceRepository.updateConnected(false)
 
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
-        // Tell the user we stopped.
         Toast.makeText(this, R.string.stopped, Toast.LENGTH_SHORT).show()
     }
 
-    override fun onBind(intent: Intent): IBinder {
-        return binder
-    }
+    override fun onBind(intent: Intent): IBinder = binder
 
-    private fun buildNotification(name: String?): Notification {
-        // In this sample, we'll use the same text for the ticker and the expanded notification
+    private fun buildNotification(name: String?, address: String?, port: Int, pairingCode: String?): Notification {
         val text = getText(R.string.listening)
+        val listenUri = Uri.Builder()
+            .scheme("quiet-engine")
+            .authority("listen")
+            .appendQueryParameter("address", address ?: "")
+            .appendQueryParameter("port", port.toString())
+            .appendQueryParameter("name", name ?: "")
+            .appendQueryParameter("pairingCode", pairingCode ?: "")
+            .appendQueryParameter("resumeOnly", "true")
+            .build()
+        val deepLinkIntent = Intent(Intent.ACTION_VIEW).apply {
+            setClassName(this@ListenService, "org.openbabyphone.MainActivity")
+            data = listenUri
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        val contentIntent = PendingIntent.getActivity(
+            this,
+            0,
+            deepLinkIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
 
-        // The PendingIntent to launch our activity if the user selects this notification
-        val contentIntent = PendingIntent.getActivity(this, 0,
-                Intent(this, ListenActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
-
-        // Set the info for the views that show in the notification panel.
-        val b = NotificationCompat.Builder(this, CHANNEL_ID)
-        b.setSmallIcon(R.drawable.listening_notification) // the status icon
-                .setOngoing(true)
-                .setTicker(text) // the status text
-                .setContentTitle(text) // the label of the entry
-                .setContentText(name) // the contents of the entry
-                .setContentIntent(contentIntent)
-        return b.build()
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.drawable.listening_notification)
+            .setOngoing(true)
+            .setTicker(text)
+            .setContentTitle(text)
+            .setContentText(name)
+            .setContentIntent(contentIntent)
+            .build()
     }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val serviceChannel = NotificationChannel(
-                    CHANNEL_ID,
-                    getString(R.string.foreground_service_channel),
-                    NotificationManager.IMPORTANCE_DEFAULT
+                CHANNEL_ID,
+                getString(R.string.foreground_service_channel),
+                NotificationManager.IMPORTANCE_DEFAULT
             )
             notificationManager.createNotificationChannel(serviceChannel)
         }
@@ -132,8 +147,15 @@ class ListenService : Service() {
     private val jitterBuffer = JitterBuffer()
 
     private fun doListen(address: String?, port: Int, pairingCode: String?) {
+        if (port !in VALID_PORT_RANGE) {
+            Log.e(TAG, "Invalid socket port")
+            ListenServiceRepository.updateError()
+            playAlert()
+            onError?.invoke()
+            return
+        }
         val lt = Thread {
-            var shouldReconnect = false
+            var shouldReconnect: Boolean
             do {
                 try {
                     val socket = Socket(address, port)
@@ -145,16 +167,19 @@ class ListenService : Service() {
                         socket.close()
                         shouldReconnect = reconnectAttempts < MAX_RECONNECT_ATTEMPTS
                     } else {
+                        ListenServiceRepository.updateConnected(true)
                         shouldReconnect = !streamAudio(socket, sessionInfo.key, sessionInfo.sessionId)
                     }
-                    
+
                     if (shouldReconnect && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
                         reconnectAttempts++
-                        Log.i(TAG, "Reconnecting (${reconnectAttempts}/$MAX_RECONNECT_ATTEMPTS)...")
-                        postStatus("Reconnecting ($reconnectAttempts/$MAX_RECONNECT_ATTEMPTS)...")
+                        val status = "Reconnecting ($reconnectAttempts/$MAX_RECONNECT_ATTEMPTS)..."
+                        Log.i(TAG, status)
+                        postStatus(status)
                         Thread.sleep(RECONNECT_DELAY_MS)
                     } else if (shouldReconnect) {
                         Log.e(TAG, "Max reconnect attempts reached")
+                        ListenServiceRepository.updateError()
                         playAlert()
                         onError?.invoke()
                     }
@@ -162,15 +187,23 @@ class ListenService : Service() {
                     shouldReconnect = true
                     if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
                         reconnectAttempts++
-                        Log.w(TAG, "Connection error, reconnecting (${reconnectAttempts}/$MAX_RECONNECT_ATTEMPTS)", e)
-                        postStatus("Reconnecting ($reconnectAttempts/$MAX_RECONNECT_ATTEMPTS)...")
+                        val status = "Reconnecting ($reconnectAttempts/$MAX_RECONNECT_ATTEMPTS)..."
+                        Log.w(TAG, "Connection error, $status", e)
+                        postStatus(status)
                         Thread.sleep(RECONNECT_DELAY_MS)
                     } else {
                         Log.e(TAG, "Error opening socket to $address on port $port", e)
+                        ListenServiceRepository.updateError()
                         playAlert()
                         onError?.invoke()
                         shouldReconnect = false
                     }
+                } catch (e: IllegalArgumentException) {
+                    Log.e(TAG, "Invalid socket parameters", e)
+                    ListenServiceRepository.updateError()
+                    playAlert()
+                    onError?.invoke()
+                    shouldReconnect = false
                 }
             } while (shouldReconnect && reconnectAttempts <= MAX_RECONNECT_ATTEMPTS)
         }
@@ -210,6 +243,7 @@ class ListenService : Service() {
     }
 
     private fun postStatus(status: String) {
+        ListenServiceRepository.updateStatus(status)
         onStatusChange?.let { callback ->
             android.os.Handler(android.os.Looper.getMainLooper()).post {
                 callback(status)
@@ -220,12 +254,7 @@ class ListenService : Service() {
     private fun streamAudio(socket: Socket, key: ByteArray?, sessionId: ByteArray): Boolean {
         Log.i(TAG, "Setting up stream")
         val audioTrack = try {
-            AudioTrack(AudioManager.STREAM_MUSIC,
-                frequency,
-                channelConfiguration,
-                audioEncoding,
-                bufferSize,
-                AudioTrack.MODE_STREAM)
+            AudioTrack(AudioManager.STREAM_MUSIC, frequency, channelConfiguration, audioEncoding, bufferSize, AudioTrack.MODE_STREAM)
         } catch (e: IllegalArgumentException) {
             Log.e(TAG, "AudioTrack initialization failed - invalid parameters", e)
             return false
@@ -267,7 +296,6 @@ class ListenService : Service() {
             Log.i(TAG, "Starting playback from jitter buffer")
             while (streamRunning.get() && !Thread.currentThread().isInterrupted) {
                 val jitterFrame = jitterBuffer.getFrame(100) ?: continue
-
                 val decoded = AudioCodecDefines.CODEC.decode(decodedBuffer, jitterFrame.ulawData, jitterFrame.ulawData.size, 0)
                 if (decoded > 0) {
                     val written = audioTrack.write(decodedBuffer, 0, decoded)
@@ -284,16 +312,13 @@ class ListenService : Service() {
                 }
             }
         }
-        
+
         try {
             playbackThread.start()
             var senderClockOffsetMs: Long? = null
-            // Receive loop - fill jitter buffer
             while (streamRunning.get() && !Thread.currentThread().isInterrupted) {
                 val currentTime = System.currentTimeMillis()
                 val timeSinceLastFrame = currentTime - lastFrameTime
-                
-                // Check for stream disruption (5s) and loss (10s)
                 if (timeSinceLastFrame > STREAM_LOST_MS) {
                     Log.e(TAG, "Stream lost - no frames for ${timeSinceLastFrame}ms")
                     return false
@@ -316,7 +341,6 @@ class ListenService : Service() {
                     Log.e(TAG, "Failed to read frame header")
                     return false
                 }
-                
                 lastFrameTime = System.currentTimeMillis()
 
                 if (header.seqNum != expectedSeqNum) {
@@ -358,13 +382,7 @@ class ListenService : Service() {
                     continue
                 }
 
-                // Add to jitter buffer
-                val jitterFrame = JitterBuffer.DecodedFrame(
-                    frame.seqNum,
-                    frame.timestampMs,
-                    frame.ulawData
-                )
-                jitterBuffer.addFrame(jitterFrame)
+                jitterBuffer.addFrame(JitterBuffer.DecodedFrame(frame.seqNum, frame.timestampMs, frame.ulawData))
             }
 
             return !playbackFailed.get()
@@ -416,5 +434,6 @@ class ListenService : Service() {
         private const val AUTH_TIMEOUT_MS = 10_000
         private const val STREAM_DISRUPTED_MS = 5000L
         private const val STREAM_LOST_MS = 10000L
+        private val VALID_PORT_RANGE = 1..65535
     }
 }

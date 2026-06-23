@@ -20,6 +20,8 @@ import org.openbabyphone.ClientManager
 import org.junit.Assert.*
 import org.junit.Test
 import org.mockito.Mockito.*
+import java.io.IOException
+import java.io.OutputStream
 import java.net.Socket
 
 class ClientManagerTest {
@@ -68,6 +70,18 @@ class ClientManagerTest {
     fun broadcastFrame_QueueFull_Dropped() {
         val manager = ClientManager()
         val socket = mock(Socket::class.java)
+        `when`(socket.getOutputStream()).thenReturn(object : OutputStream() {
+            override fun write(b: Int) = Unit
+
+            override fun write(b: ByteArray, off: Int, len: Int) {
+                try {
+                    Thread.sleep(10_000)
+                } catch (e: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    throw IOException(e)
+                }
+            }
+        })
         
         val client = manager.addClient(socket, "test")
         assertNotNull(client)

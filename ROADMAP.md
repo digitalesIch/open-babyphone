@@ -67,9 +67,27 @@ Goal: prove the app can run through the night on real devices.
 - Reconnect cleanly after Wi-Fi loss, network changes, router sleep, and child restarts
 - Make parent-side alert behavior reliable and understandable
 - Review audio focus, volume stream, Bluetooth, headphones, and Do Not Disturb limitations
-- Harden multi-client handling when the max client count is reached or clients disconnect
 - Add focused unit or instrumentation tests for service lifecycle, reconnect, and failure states
 - Maintain a real-device test matrix across old and modern Android versions
+
+### 2a. Support Multiple Simultaneous Parent Devices
+
+Goal: make multi-parent listening reliable enough for real household use.
+
+The child device already has one microphone pipeline and fans out encoded audio
+frames to up to 5 connected parent devices via `ClientManager`. The basic mechanism
+exists, but the lifecycle around connect, disconnect, max-clients, and runtime
+pairing changes needs hardening before public beta.
+
+- Keep the server socket lifecycle stable when max clients are reached
+- Re-register NSD when capacity becomes available again after a parent disconnects
+- Add a callback from `ClientManager` to `MonitorService` for client count changes and removals
+- Update child UI reliably when parents connect, disconnect, or are dropped as slow clients
+- Prevent busy-looping when max clients are reached
+- Avoid AEAD nonce reuse when multiple parents authenticate in the same session
+- Handle pairing code changes while parents are connected without breaking their audio
+- Add integration tests covering 2-5 parents connecting, disconnecting, and reconnecting
+- Document multi-parent support in README, store metadata, and UI
 
 ## 3. UX Release
 
@@ -121,3 +139,9 @@ These items are tracked as GitHub issues and should be handled before a public b
 - #25 Add protocol versioning and capability negotiation
 - #26 Update the privacy policy and security model whenever pairing/encryption defaults change
 - #27 Make pairing default-safe with generated codes and a QR/code parent flow
+- #30 Prevent pairing code changes from breaking audio for connected parents
+- #31 Fix MonitorService busy-loop when max clients are reached
+- #35 Prevent concurrent listen threads from causing mixed streams and leaks
+- #47 Avoid AEAD nonce reuse when multiple parents authenticate in the same session
+- #51 Add multi-parent integration test
+- #52 Document multi-parent support in README and UI
