@@ -10,6 +10,7 @@ import androidx.lifecycle.AndroidViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import org.openbabyphone.PairingCode
 
 data class DiscoveredDevice(
     val name: String,
@@ -53,10 +54,14 @@ class DiscoverViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun updatePairingCode(code: String) {
-        _uiState.value = _uiState.value.copy(pairingCode = code)
+        if (!PairingCode.isValid(code)) {
+            return
+        }
+        val normalizedCode = PairingCode.normalize(code)
+        _uiState.value = _uiState.value.copy(pairingCode = normalizedCode)
         getApplication<Application>().getSharedPreferences(
             "DiscoverPrefs", Context.MODE_PRIVATE
-        ).edit().putString(PREF_KEY_PAIRING_CODE, code).apply()
+        ).edit().putString(PREF_KEY_PAIRING_CODE, normalizedCode).apply()
     }
 
     fun startDiscovery() {

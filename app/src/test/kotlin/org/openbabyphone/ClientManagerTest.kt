@@ -231,32 +231,38 @@ class ClientManagerTest {
     @Test
     fun broadcastFrame_DeliversToAllClients() {
         val manager = ClientManager()
-        val sockets = mutableListOf<Socket>()
         val clients = mutableListOf<Client>()
+        val writeCounts = mutableListOf<java.util.concurrent.atomic.AtomicInteger>()
 
         for (i in 0 until 3) {
             val socket = mock(Socket::class.java)
+            val writeCount = java.util.concurrent.atomic.AtomicInteger(0)
             `when`(socket.getOutputStream()).thenReturn(object : OutputStream() {
                 override fun write(b: Int) = Unit
-                override fun write(b: ByteArray, off: Int, len: Int) = Unit
+                override fun write(b: ByteArray, off: Int, len: Int) {
+                    writeCount.incrementAndGet()
+                }
             })
-            sockets.add(socket)
+            writeCounts.add(writeCount)
             val client = manager.addClient(socket, "test")
             clients.add(client!!)
         }
 
         manager.broadcastFrame(ByteArray(50))
 
-        Thread.sleep(200)
+        val deadline = System.currentTimeMillis() + 1_000
+        while (writeCounts.any { it.get() == 0 } && System.currentTimeMillis() < deadline) {
+            Thread.sleep(10)
+        }
+
+        assertEquals(3, manager.getClientCount())
+        for (writeCount in writeCounts) {
+            assertTrue(writeCount.get() > 0)
+        }
 
         for (client in clients) {
             client.stop()
         }
-
-        for (socket in sockets) {
-            verify(socket, atLeast(0)).close()
-        }
-        assertEquals(3, manager.getClientCount())
     }
 
     @Test

@@ -21,13 +21,14 @@ class VolumeStatistics internal constructor(private val maxHistory: Int) {
     var volumeNorm = 1.0 / this.maxVolume
         private set
     private val historyData = DoubleArray(maxHistory)
+    private var startIndex = 0
     private var count = 0
 
     operator fun get(i: Int): Double {
         if (i < 0 || i >= count) {
             throw IndexOutOfBoundsException("Index $i out of bounds for size $count")
         }
-        return historyData[i]
+        return historyData[(startIndex + i) % maxHistory]
     }
 
     fun size(): Int {
@@ -40,13 +41,11 @@ class VolumeStatistics internal constructor(private val maxHistory: Int) {
             this.volumeNorm = 1.0 / volume
         }
         if (count < maxHistory) {
-            historyData[count] = volume
+            historyData[(startIndex + count) % maxHistory] = volume
             count++
         } else {
-            for (i in 0 until maxHistory - 1) {
-                historyData[i] = historyData[i + 1]
-            }
-            historyData[maxHistory - 1] = volume
+            historyData[startIndex] = volume
+            startIndex = (startIndex + 1) % maxHistory
         }
     }
 

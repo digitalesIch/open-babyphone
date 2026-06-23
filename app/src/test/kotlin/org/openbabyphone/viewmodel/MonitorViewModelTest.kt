@@ -51,8 +51,25 @@ class MonitorViewModelTest {
     }
 
     @Test
+    fun `updatePairingCode ignores invalid characters`() = runTest {
+        viewModel.updatePairingCode("valid123")
+        viewModel.updatePairingCode("invalid-code")
+        val state = viewModel.uiState.first { it.pairingCode == "valid123" }
+        assertEquals("valid123", state.pairingCode)
+    }
+
+    @Test
     fun `updatePairingCode persists to SharedPreferences`() {
         viewModel.updatePairingCode("persisted")
+        val context = RuntimeEnvironment.getApplication() as Application
+        val prefs = context.getSharedPreferences(MonitorService.PAIRING_PREFS_NAME, Application.MODE_PRIVATE)
+        assertEquals("persisted", prefs.getString(MonitorService.PREF_KEY_PAIRING_CODE, ""))
+    }
+
+    @Test
+    fun `invalid pairing code is not persisted`() {
+        viewModel.updatePairingCode("persisted")
+        viewModel.updatePairingCode("invalid code")
         val context = RuntimeEnvironment.getApplication() as Application
         val prefs = context.getSharedPreferences(MonitorService.PAIRING_PREFS_NAME, Application.MODE_PRIVATE)
         assertEquals("persisted", prefs.getString(MonitorService.PREF_KEY_PAIRING_CODE, ""))
