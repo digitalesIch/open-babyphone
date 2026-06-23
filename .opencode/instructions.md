@@ -41,6 +41,16 @@ gh pr list --repo digitalesIch/open-babyphone
 gh pr create --repo digitalesIch/open-babyphone
 ```
 
+## Git Sync Policy
+
+Before any write operation (commit, push, branch creation), always sync the local repository:
+1. `git fetch origin`
+2. `git pull --ff-only origin main` (or the current base branch)
+3. If the pull fails due to conflicts or a non-fast-forward state, stop and inform the user
+
+This prevents stale local branches when multiple agent sessions work on the same repository.
+Never assume the local working copy is up to date with the remote.
+
 ## Language Policy
 
 **All external-facing output must be in English only:**

@@ -9,6 +9,7 @@
 
 ## Build And Checks
 - Use the checked-in wrapper: `./gradlew ...`.
+- Before any write operation (commit, push, branch creation), always sync the local repository first: `git fetch origin` then `git pull --ff-only origin main` (or the current base branch). This prevents stale local branches when multiple agent sessions work on the same repository. If the pull fails, stop and inform the user.
 - Gradle wrapper is 8.6; Android Gradle Plugin is 8.2.2; Kotlin is 1.9.22.
 - Use JDK 21; Gradle emits Java 17 bytecode (`sourceCompatibility`, `targetCompatibility`, Kotlin `jvmTarget`) and sets `jvmToolchain(21)`.
 - CI builds a debug APK artifact, then runs the release-grade verification `./gradlew assembleRelease testReleaseUnitTest lintRelease`.
