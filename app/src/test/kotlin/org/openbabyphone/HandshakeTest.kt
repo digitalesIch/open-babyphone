@@ -25,11 +25,12 @@ class HandshakeTest {
 
     private val testSessionId = ByteArray(8) { 0x42 }
     private val testChallenge = ByteArray(32) { 0x55 }
+    private val testAuthNonce = ByteArray(12) { 0x33 }
 
     @Test
     fun writeAndRead_OpenMode_RoundTrip() {
         val outputStream = ByteArrayOutputStream()
-        Handshake.writeHandshake(outputStream, testSessionId, false, null)
+        Handshake.writeHandshake(outputStream, testSessionId, false, null, null)
 
         val inputStream = ByteArrayInputStream(outputStream.toByteArray())
         val message = Handshake.readHandshake(inputStream)
@@ -38,12 +39,13 @@ class HandshakeTest {
         assertArrayEquals(testSessionId, message!!.sessionId)
         assertFalse(message.authRequired)
         assertNull(message.challenge)
+        assertNull(message.authNonce)
     }
 
     @Test
     fun writeAndRead_PairingCodeMode_RoundTrip() {
         val outputStream = ByteArrayOutputStream()
-        Handshake.writeHandshake(outputStream, testSessionId, true, testChallenge)
+        Handshake.writeHandshake(outputStream, testSessionId, true, testChallenge, testAuthNonce)
 
         val inputStream = ByteArrayInputStream(outputStream.toByteArray())
         val message = Handshake.readHandshake(inputStream)
@@ -53,6 +55,8 @@ class HandshakeTest {
         assertTrue(message.authRequired)
         assertNotNull(message.challenge)
         assertArrayEquals(testChallenge, message.challenge)
+        assertNotNull(message.authNonce)
+        assertArrayEquals(testAuthNonce, message.authNonce)
     }
 
     @Test

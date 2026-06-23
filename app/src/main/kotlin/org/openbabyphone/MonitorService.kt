@@ -93,7 +93,8 @@ class MonitorService : Service() {
         return try {
             socket.soTimeout = AUTH_TIMEOUT_MS
             val challenge = if (authRequired) CryptoHelper.generateChallenge() else null
-            Handshake.writeHandshake(socket.getOutputStream(), sessionId, authRequired, challenge)
+            val authNonce = if (authRequired) CryptoHelper.generateNonce() else null
+            Handshake.writeHandshake(socket.getOutputStream(), sessionId, authRequired, challenge, authNonce)
             if (!authRequired) {
                 return true
             }
@@ -102,7 +103,7 @@ class MonitorService : Service() {
                     Log.w(TAG, "Parent did not send auth response")
                     return false
                 }
-            val verified = CryptoHelper.verifyChallenge(encryptedChallenge, challenge!!, key!!, sessionId)
+            val verified = CryptoHelper.verifyChallenge(encryptedChallenge, challenge!!, key!!, authNonce!!)
             if (!verified) {
                 Log.w(TAG, "Rejected parent connection with invalid pairing code")
             }

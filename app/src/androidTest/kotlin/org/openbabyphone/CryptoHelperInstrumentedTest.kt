@@ -124,11 +124,11 @@ class CryptoHelperInstrumentedTest {
     @Test
     fun encryptChallenge_VerifyChallenge_RoundTrip() {
         val key = CryptoHelper.deriveKey("test123")
-        val sessionId = CryptoHelper.generateSessionId()
         val challenge = CryptoHelper.generateChallenge()
+        val authNonce = CryptoHelper.generateNonce()
 
-        val encrypted = CryptoHelper.encryptChallenge(challenge, key, sessionId)
-        val verified = CryptoHelper.verifyChallenge(encrypted, challenge, key, sessionId)
+        val encrypted = CryptoHelper.encryptChallenge(challenge, key, authNonce)
+        val verified = CryptoHelper.verifyChallenge(encrypted, challenge, key, authNonce)
 
         assertTrue(verified)
     }
@@ -137,24 +137,24 @@ class CryptoHelperInstrumentedTest {
     fun verifyChallenge_WrongCode_ReturnsFalse() {
         val key1 = CryptoHelper.deriveKey("test123")
         val key2 = CryptoHelper.deriveKey("test456")
-        val sessionId = CryptoHelper.generateSessionId()
         val challenge = CryptoHelper.generateChallenge()
+        val authNonce = CryptoHelper.generateNonce()
 
-        val encrypted = CryptoHelper.encryptChallenge(challenge, key1, sessionId)
-        val verified = CryptoHelper.verifyChallenge(encrypted, challenge, key2, sessionId)
+        val encrypted = CryptoHelper.encryptChallenge(challenge, key1, authNonce)
+        val verified = CryptoHelper.verifyChallenge(encrypted, challenge, key2, authNonce)
 
         assertFalse(verified)
     }
 
     @Test
-    fun verifyChallenge_WrongSessionId_ReturnsFalse() {
+    fun verifyChallenge_WrongNonce_ReturnsFalse() {
         val key = CryptoHelper.deriveKey("test123")
-        val sessionId1 = CryptoHelper.generateSessionId()
-        val sessionId2 = CryptoHelper.generateSessionId()
         val challenge = CryptoHelper.generateChallenge()
+        val nonce1 = CryptoHelper.generateNonce()
+        val nonce2 = CryptoHelper.generateNonce()
 
-        val encrypted = CryptoHelper.encryptChallenge(challenge, key, sessionId1)
-        val verified = CryptoHelper.verifyChallenge(encrypted, challenge, key, sessionId2)
+        val encrypted = CryptoHelper.encryptChallenge(challenge, key, nonce1)
+        val verified = CryptoHelper.verifyChallenge(encrypted, challenge, key, nonce2)
 
         assertFalse(verified)
     }
