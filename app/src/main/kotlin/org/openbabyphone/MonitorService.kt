@@ -35,6 +35,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
+import org.openbabyphone.BuildConfig
 import org.openbabyphone.audio.FrameCodec
 import org.openbabyphone.service.MonitorServiceRepository
 import java.io.IOException
@@ -246,7 +247,7 @@ class MonitorService : Service() {
     }
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
-        Log.i(TAG, "Received start id $startId: $intent")
+        Log.i(TAG, "Received start id $startId")
         pairingCodeSnapshot = getSharedPreferences(PAIRING_PREFS_NAME, MODE_PRIVATE)
             .getString(PREF_KEY_PAIRING_CODE, "") ?: ""
         createNotificationChannel()
@@ -318,7 +319,11 @@ class MonitorService : Service() {
                 } catch (e: Exception) {
                     if (this.connectionToken == currentToken) {
                         this.currentPort++
-                        Log.e(TAG, "Failed to open server socket. Port increased to $currentPort", e)
+                        if (BuildConfig.DEBUG) {
+                            Log.e(TAG, "Failed to open server socket. Port increased to $currentPort", e)
+                        } else {
+                            Log.e(TAG, "Failed to open server socket, trying next port")
+                        }
                     }
                 }
             }
@@ -416,7 +421,11 @@ class MonitorService : Service() {
             try {
                 it.close()
             } catch (e: IOException) {
-                Log.e(TAG, "Failed to close active socket on port $currentPort")
+                if (BuildConfig.DEBUG) {
+                    Log.e(TAG, "Failed to close active socket on port $currentPort")
+                } else {
+                    Log.e(TAG, "Failed to close active socket")
+                }
             }
         }
         this.currentSocket = null

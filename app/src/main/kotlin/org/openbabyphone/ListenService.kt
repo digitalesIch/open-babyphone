@@ -34,6 +34,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
+import org.openbabyphone.BuildConfig
 import org.openbabyphone.audio.FrameCodec
 import org.openbabyphone.audio.FrameHeader
 import org.openbabyphone.audio.JitterBuffer
@@ -65,7 +66,7 @@ class ListenService : Service() {
     }
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
-        Log.i(TAG, "Received start id $startId: $intent")
+        Log.i(TAG, "Received start id $startId")
         createNotificationChannel()
         intent.extras?.let {
             val name = it.getString("name")
@@ -75,6 +76,9 @@ class ListenService : Service() {
             val port = it.getInt("port")
             val pairingCode = it.getString("pairingCode")
             ListenServiceRepository.startConnecting(name ?: "")
+            if (BuildConfig.DEBUG) {
+                Log.d(TAG, "Connecting to $address:$port")
+            }
             val n = buildNotification(name, address, port, pairingCode)
             val foregroundServiceType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK else 0
             ServiceCompat.startForeground(this, ID, n, foregroundServiceType)
@@ -233,7 +237,11 @@ class ListenService : Service() {
                                 shouldReconnect = false
                             }
                         } else {
-                            Log.e(TAG, "Connection failed after $MAX_RECONNECT_ATTEMPTS attempts", e)
+                            if (BuildConfig.DEBUG) {
+                                Log.e(TAG, "Error opening socket to $address on port $port", e)
+                            } else {
+                                Log.e(TAG, "Connection failed after $MAX_RECONNECT_ATTEMPTS attempts")
+                            }
                             ListenServiceRepository.updateError()
                             playAlert()
                             onError?.invoke()

@@ -160,10 +160,22 @@ fun ListenScreen(
                     volumeHistory = uiState.volumeHistory,
                     volumeNorm = uiState.volumeNorm,
                     modifier = Modifier
-                        .fillMaxSize()
+                        .fillMaxWidth()
+                        .weight(1f)
                         .testTag("volume_canvas")
                         .semantics { contentDescription = "Volume visualization" }
                 )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = onNavigateBack,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("disconnect_button")
+                ) {
+                    Text(stringResource(R.string.disconnect))
+                }
             }
         }
     }

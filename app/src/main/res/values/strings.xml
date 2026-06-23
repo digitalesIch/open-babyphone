@@ -59,4 +59,5 @@
     <string name="monitoring_setup_hint">Set the pairing code before starting monitoring. It is locked while monitoring is active.</string>
     <string name="permission_rationale_child">Microphone permission is required to monitor your baby. Please grant the permission to continue.</string>
     <string name="permission_rationale_parent">Network access permission is required to discover child devices. Please grant the permission to continue.</string>
+    <string name="disconnect">Disconnect</string>
 </resources>
