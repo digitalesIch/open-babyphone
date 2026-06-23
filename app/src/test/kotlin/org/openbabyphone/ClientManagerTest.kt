@@ -308,4 +308,60 @@ class ClientManagerTest {
         val newClient = manager.addClient(newSocket, "test")
         assertNotNull(newClient)
     }
+
+    @Test
+    fun clientCountListener_NotifiedOnAdd() {
+        val manager = ClientManager()
+        val counts = mutableListOf<Int>()
+        manager.setClientCountListener { counts.add(it) }
+
+        val socket = mock(Socket::class.java)
+        manager.addClient(socket, "test")
+
+        assertEquals(listOf(1), counts)
+    }
+
+    @Test
+    fun clientCountListener_NotifiedOnRemove() {
+        val manager = ClientManager()
+        val counts = mutableListOf<Int>()
+        val socket = mock(Socket::class.java)
+        val client = manager.addClient(socket, "test")
+
+        manager.setClientCountListener { counts.add(it) }
+        manager.removeClient(client!!)
+
+        assertEquals(listOf(0), counts)
+    }
+
+    @Test
+    fun clientCountListener_NotifiedOnRemoveAll() {
+        val manager = ClientManager()
+        val counts = mutableListOf<Int>()
+        for (i in 0 until 3) {
+            val socket = mock(Socket::class.java)
+            manager.addClient(socket, "test")
+        }
+
+        manager.setClientCountListener { counts.add(it) }
+        manager.removeAllClients()
+
+        assertEquals(listOf(0), counts)
+    }
+
+    @Test
+    fun setClientCountListener_NullRemovesListener() {
+        val manager = ClientManager()
+        val counts = mutableListOf<Int>()
+        val socket = mock(Socket::class.java)
+
+        manager.setClientCountListener { counts.add(it) }
+        manager.addClient(socket, "test")
+        assertEquals(1, counts.size)
+
+        manager.setClientCountListener(null)
+        val socket2 = mock(Socket::class.java)
+        manager.addClient(socket2, "test")
+        assertEquals(1, counts.size)
+    }
 }
