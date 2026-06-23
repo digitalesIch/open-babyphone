@@ -7,3 +7,6 @@
 /app/build
 /app/release
 /captures
+/keystore.properties
+*.jks
+*.keystore

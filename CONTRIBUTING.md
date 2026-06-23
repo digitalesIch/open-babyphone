@@ -42,6 +42,41 @@ The release-grade verification command that runs all checks is:
 For the real-device reliability test matrix and release verification guidance,
 see [docs/testing.md](docs/testing.md).
 
+## Local Release Signing
+
+Running `./gradlew assembleRelease` without a signing configuration produces an
+unsigned APK that cannot be installed directly on a device. To build a
+signed release APK locally, follow these steps.
+
+### 1. Create a keystore
+
+    keytool -genkey -v -keystore openbabyphone.jks \
+        -keyalg RSA -keysize 2048 -validity 10000 \
+        -alias openbabyphone
+
+Store the keystore file outside the repository (for example in your home
+directory). Never commit keystore files or passwords to the repository.
+
+### 2. Create a keystore.properties file
+
+Create a file named `keystore.properties` in the project root directory
+(already gitignored):
+
+    storeFile=/absolute/path/to/openbabyphone.jks
+    storePassword=your-store-password
+    keyAlias=openbabyphone
+    keyPassword=your-key-password
+
+### 3. Build a signed release APK
+
+    # ./gradlew assembleRelease
+
+When `keystore.properties` exists, the build automatically picks up the
+signing configuration. When it does not exist, the build produces an unsigned
+release APK as before.
+
+Production release keys must never be committed to the repository.
+
 ## Explain Your Work
 
 At the top of every patch you should include a description of the problem you
