@@ -24,13 +24,14 @@ import java.io.OutputStream
  * Binary handshake protocol for Open Babyphone v1.
  *
  * Wire format:
- *   magic[4]          = "OBP1"
- *   sessionId[8]      = random per stream session
- *   authRequired[1]   = 0 (open) | 1 (pairing code required)
- *   challenge[32]     = random, only present when authRequired == 1
+ *   magic[4]            = "OBP1"
+ *   sessionId[8]        = random per stream session
+ *   authRequired[1]    = 0 (open) | 1 (pairing code required)
+ *   challenge[32]       = random, only present when authRequired == 1
+ *   authNonce[12]       = random per-handshake nonce, only present when authRequired == 1
  *
  * Auth response (only when authRequired == 1):
- *   encryptedChallenge[48] = ChaCha20-Poly1305(challenge, key, nonce=sessionId||0xFFFFFFFF)
+ *   encryptedChallenge[48] = ChaCha20-Poly1305(challenge, key, nonce=authNonce)
  *     = 32 bytes challenge + 16 bytes auth tag
  */
 object Handshake {
@@ -46,7 +47,8 @@ object Handshake {
     data class HandshakeMessage(
         val sessionId: ByteArray,
         val authRequired: Boolean,
-        val challenge: ByteArray?
+        val challenge: ByteArray?,
+        val authNonce: ByteArray?
     ) {
         init {
             require(sessionId.size == CryptoHelper.SESSION_ID_SIZE) { "sessionId must be ${CryptoHelper.SESSION_ID_SIZE} bytes" }
@@ -54,15 +56,23 @@ object Handshake {
                 require(challenge != null && challenge.size == CryptoHelper.CHALLENGE_SIZE) {
                     "challenge must be ${CryptoHelper.CHALLENGE_SIZE} bytes when authRequired"
                 }
+                require(authNonce != null && authNonce.size == CryptoHelper.NONCE_SIZE) {
+                    "authNonce must be ${CryptoHelper.NONCE_SIZE} bytes when authRequired"
+                }
             } else {
                 require(challenge == null) { "challenge must be null when auth not required" }
+                require(authNonce == null) { "authNonce must be null when auth not required" }
             }
         }
     }
 
-    fun writeHandshake(output: OutputStream, sessionId: ByteArray, authRequired: Boolean, challenge: ByteArray?) {
-        HandshakeMessage(sessionId, authRequired, challenge)
-        val size = if (authRequired) HANDSHAKE_HEADER_SIZE + CryptoHelper.CHALLENGE_SIZE else HANDSHAKE_HEADER_SIZE
+    fun writeHandshake(output: OutputStream, sessionId: ByteArray, authRequired: Boolean, challenge: ByteArray?, authNonce: ByteArray?) {
+        HandshakeMessage(sessionId, authRequired, challenge, authNonce)
+        val size = if (authRequired) {
+            HANDSHAKE_HEADER_SIZE + CryptoHelper.CHALLENGE_SIZE + CryptoHelper.NONCE_SIZE
+        } else {
+            HANDSHAKE_HEADER_SIZE
+        }
         val buffer = ByteArray(size)
         var offset = 0
         System.arraycopy(MAGIC_BYTES, 0, buffer, offset, MAGIC_BYTES.size)
@@ -70,8 +80,10 @@ object Handshake {
         System.arraycopy(sessionId, 0, buffer, offset, CryptoHelper.SESSION_ID_SIZE)
         offset += CryptoHelper.SESSION_ID_SIZE
         buffer[offset++] = if (authRequired) AUTH_MODE_PAIRING_CODE else AUTH_MODE_OPEN
-        if (authRequired && challenge != null) {
+        if (authRequired && challenge != null && authNonce != null) {
             System.arraycopy(challenge, 0, buffer, offset, CryptoHelper.CHALLENGE_SIZE)
+            offset += CryptoHelper.CHALLENGE_SIZE
+            System.arraycopy(authNonce, 0, buffer, offset, CryptoHelper.NONCE_SIZE)
         }
         output.write(buffer)
         output.flush()
@@ -98,7 +110,16 @@ object Handshake {
         } else {
             null
         }
-        return HandshakeMessage(sessionId, authRequired, challenge)
+        val authNonce: ByteArray? = if (authRequired) {
+            val nonceBuf = ByteArray(CryptoHelper.NONCE_SIZE)
+            if (!readFully(input, nonceBuf, 0, CryptoHelper.NONCE_SIZE)) {
+                return null
+            }
+            nonceBuf
+        } else {
+            null
+        }
+        return HandshakeMessage(sessionId, authRequired, challenge, authNonce)
     }
 
     fun writeAuthResponse(output: OutputStream, encryptedChallenge: ByteArray) {

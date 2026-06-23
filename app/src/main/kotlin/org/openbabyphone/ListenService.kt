@@ -228,7 +228,7 @@ class ListenService : Service() {
                     return null
                 }
                 val key = CryptoHelper.deriveKey(code)
-                val encryptedChallenge = CryptoHelper.encryptChallenge(handshake.challenge!!, key, handshake.sessionId)
+                val encryptedChallenge = CryptoHelper.encryptChallenge(handshake.challenge!!, key, handshake.authNonce!!)
                 Handshake.writeAuthResponse(socket.getOutputStream(), encryptedChallenge)
                 socket.soTimeout = SOCKET_READ_TIMEOUT_MS
                 SessionInfo(handshake.sessionId, key)
