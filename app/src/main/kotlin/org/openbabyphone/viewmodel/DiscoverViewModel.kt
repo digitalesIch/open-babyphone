@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.openbabyphone.PairingCode
+import java.util.concurrent.ConcurrentLinkedQueue
 
 data class DiscoveredDevice(
     val name: String,
@@ -33,6 +34,8 @@ class DiscoverViewModel(application: Application) : AndroidViewModel(application
     private var discoveryListener: NsdManager.DiscoveryListener? = null
     private var multicastLock: WifiManager.MulticastLock? = null
     private val discoveredDevices: MutableList<DiscoveredDevice> = mutableListOf()
+    private val resolveQueue = ConcurrentLinkedQueue<NsdServiceInfo>()
+    @Volatile private var isResolving = false
 
     companion object {
         private const val TAG = "DiscoverViewModel"
@@ -116,11 +119,26 @@ class DiscoverViewModel(application: Application) : AndroidViewModel(application
     }
 
     private fun resolveService(service: NsdServiceInfo) {
+        resolveQueue.add(service)
+        processResolveQueue()
+    }
+
+    private fun processResolveQueue() {
+        if (isResolving) return
+        val service = resolveQueue.poll() ?: return
+        isResolving = true
         val resolver = object : NsdManager.ResolveListener {
-            override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {}
+            override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
+                isResolving = false
+                processResolveQueue()
+            }
 
             override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
-                val hostAddress = serviceInfo.host?.hostAddress ?: return
+                val hostAddress = serviceInfo.host?.hostAddress ?: run {
+                    isResolving = false
+                    processResolveQueue()
+                    return
+                }
                 val name = serviceInfo.serviceName
                     .replace("\\\\032", " ")
                     .replace("\\032", " ")
@@ -130,6 +148,8 @@ class DiscoverViewModel(application: Application) : AndroidViewModel(application
                     discoveredDevices.add(device)
                     _uiState.value = _uiState.value.copy(devices = discoveredDevices.toList())
                 }
+                isResolving = false
+                processResolveQueue()
             }
         }
         nsdManager?.resolveService(service, resolver)
