@@ -68,7 +68,7 @@ Goal: prove the app can run through the night on real devices.
 - Make parent-side alert behavior reliable and understandable
 - Review audio focus, volume stream, Bluetooth, headphones, and Do Not Disturb limitations
 - Add focused unit or instrumentation tests for service lifecycle, reconnect, and failure states
-- Maintain a real-device test matrix across old and modern Android versions
+- Maintain a real-device test matrix across old and modern Android versions (see [docs/testing.md](docs/testing.md))
 
 ### 2a. Support Multiple Simultaneous Parent Devices
 
