@@ -15,15 +15,55 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFF90CAF9),
-    secondary = Color(0xFF80CBC4),
-    tertiary = Color(0xFFFFAB91)
+    primary = Color(0xFF42A5F5),
+    onPrimary = Color(0xFF003258),
+    primaryContainer = Color(0xFF1565C0),
+    onPrimaryContainer = Color(0xFFBBDEFB),
+    secondary = Color(0xFFFFB74D),
+    onSecondary = Color(0xFF3E1F00),
+    secondaryContainer = Color(0xFFF57C00),
+    onSecondaryContainer = Color(0xFFFFECB3),
+    tertiary = Color(0xFF81C784),
+    onTertiary = Color(0xFF003906),
+    tertiaryContainer = Color(0xFF2E7D32),
+    onTertiaryContainer = Color(0xFFC8E6C9),
+    error = Color(0xFFFFB4AB),
+    onError = Color(0xFF690005),
+    errorContainer = Color(0xFF93000A),
+    onErrorContainer = Color(0xFFFFDAD6),
+    background = Color(0xFF191C1E),
+    onBackground = Color(0xFFE1E3E5),
+    surface = Color(0xFF191C1E),
+    onSurface = Color(0xFFE1E3E5),
+    surfaceVariant = Color(0xFF42474C),
+    onSurfaceVariant = Color(0xFFC2C7CC),
+    outline = Color(0xFF8C9297)
 )
 
 private val LightColorScheme = lightColorScheme(
     primary = Color(0xFF1976D2),
-    secondary = Color(0xFF00897B),
-    tertiary = Color(0xFFE64A19)
+    onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = Color(0xFFBBDEFB),
+    onPrimaryContainer = Color(0xFF0D47A1),
+    secondary = Color(0xFFFFA726),
+    onSecondary = Color(0xFF000000),
+    secondaryContainer = Color(0xFFFFECB3),
+    onSecondaryContainer = Color(0xFFE65100),
+    tertiary = Color(0xFF66BB6A),
+    onTertiary = Color(0xFF000000),
+    tertiaryContainer = Color(0xFFC8E6C9),
+    onTertiaryContainer = Color(0xFF1B5E20),
+    error = Color(0xFFBA1A1A),
+    onError = Color(0xFFFFFFFF),
+    errorContainer = Color(0xFFFFDAD6),
+    onErrorContainer = Color(0xFF410002),
+    background = Color(0xFFFAFAFA),
+    onBackground = Color(0xFF191C1E),
+    surface = Color(0xFFFAFAFA),
+    onSurface = Color(0xFF191C1E),
+    surfaceVariant = Color(0xFFDEE4E9),
+    onSurfaceVariant = Color(0xFF42474C),
+    outline = Color(0xFF72787D)
 )
 
 private val AppShapes = Shapes(

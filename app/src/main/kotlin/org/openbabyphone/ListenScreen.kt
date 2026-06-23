@@ -1,5 +1,6 @@
 package org.openbabyphone
 
+import org.openbabyphone.ui.theme.Spacing
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
@@ -26,7 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -56,6 +58,7 @@ fun ListenScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val unknownLabel = stringResource(R.string.unknown_device)
+    val volumeVisualizationDescription = stringResource(R.string.volume_visualization_content_description)
     val statusColor by animateColorAsState(
         targetValue = when {
             uiState.isError -> MaterialTheme.colorScheme.errorContainer
@@ -83,46 +86,52 @@ fun ListenScreen(
     Scaffold(
         topBar = { AppTopAppBar(stringResource(R.string.parentDevice), onNavigateBack) }
     ) { innerPadding ->
-        Column(
-            modifier = modifier
+        Box(
+            modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(16.dp)
+                .padding(innerPadding),
+            contentAlignment = Alignment.TopCenter
         ) {
+            Column(
+                modifier = modifier
+                    .widthIn(max = 600.dp)
+                    .fillMaxSize()
+                    .padding(Spacing.space16)
+            ) {
             Text(
                 stringResource(R.string.connectedTo),
                 style = MaterialTheme.typography.titleLarge
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Spacing.space8))
 
             Text(
                 text = uiState.childDeviceName.ifEmpty { name.ifEmpty { unknownLabel } },
                 style = MaterialTheme.typography.bodyLarge
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(Spacing.space24))
 
             Text(
                 stringResource(R.string.status),
                 style = MaterialTheme.typography.titleLarge
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Spacing.space8))
 
             Text(
                 uiState.status,
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier
                     .background(statusColor, MaterialTheme.shapes.small)
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .padding(horizontal = Spacing.space12, vertical = Spacing.space8)
                     .semantics {
                         liveRegion = LiveRegionMode.Polite
                         contentDescription = uiState.status
                     }
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(Spacing.space24))
 
             if (uiState.isError) {
                 Card(
@@ -133,7 +142,7 @@ fun ListenScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(24.dp),
+                                .padding(Spacing.space24),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Icon(
@@ -141,14 +150,14 @@ fun ListenScreen(
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.error
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(Spacing.space8))
                             Text(
                                 stringResource(R.string.connection_lost),
                                 style = MaterialTheme.typography.bodyLarge,
                                 textAlign = TextAlign.Center,
                                 color = MaterialTheme.colorScheme.error
                             )
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(Spacing.space16))
                             Button(onClick = onNavigateBack) {
                                 Text(stringResource(R.string.retry))
                             }
@@ -163,7 +172,7 @@ fun ListenScreen(
                         .fillMaxWidth()
                         .weight(1f)
                         .testTag("volume_canvas")
-                        .semantics { contentDescription = "Volume visualization" }
+                        .semantics { contentDescription = volumeVisualizationDescription }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -179,6 +188,7 @@ fun ListenScreen(
             }
         }
     }
+    }
 }
 
 @Composable
@@ -187,6 +197,10 @@ private fun VolumeCanvas(
     volumeNorm: Float,
     modifier: Modifier = Modifier
 ) {
+    val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
+    val primaryContainer = MaterialTheme.colorScheme.primaryContainer
+    val waveformColor = MaterialTheme.colorScheme.secondary
+
     Canvas(modifier = modifier) {
         if (volumeHistory.isEmpty()) return@Canvas
 
@@ -200,17 +214,7 @@ private fun VolumeCanvas(
             minBrightness
         }
 
-        val blue: Float
-        val rest: Float
-        if (relativeBrightness > 0.5f) {
-            blue = 1.0f
-            rest = (2 * (relativeBrightness - 0.5f))
-        } else {
-            blue = ((relativeBrightness - 0.2f) / 0.3f).coerceIn(0f, 1f)
-            rest = 0f
-        }
-
-        val backgroundColor = Color(rest, rest, blue)
+        val backgroundColor = lerp(surfaceVariant, primaryContainer, relativeBrightness)
         drawRect(backgroundColor)
 
         if (size == 0) return@Canvas
@@ -220,8 +224,6 @@ private fun VolumeCanvas(
         val leftMost = (volumeHistory.size - width.toInt()).coerceAtLeast(0)
         val graphScale = graphHeight * volumeNorm
 
-        val paintColor = Color(255, 127, 0)
-
         var xPrev = 0f
         var yPrev = margins + graphHeight - volumeHistory[leftMost] * graphScale
         val length = min(size, width.toInt())
@@ -229,7 +231,7 @@ private fun VolumeCanvas(
         for (xNext in 1 until length - 1) {
             val yNext = margins + graphHeight - volumeHistory[leftMost + xNext] * graphScale
             drawLine(
-                color = paintColor,
+                color = waveformColor,
                 start = Offset(xPrev, yPrev),
                 end = Offset(xNext.toFloat(), yNext),
                 strokeWidth = 2f

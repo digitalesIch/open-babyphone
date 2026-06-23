@@ -75,7 +75,7 @@ class ListenService : Service() {
             val address = it.getString("address")
             val port = it.getInt("port")
             val pairingCode = it.getString("pairingCode")
-            ListenServiceRepository.startConnecting(name ?: "")
+            ListenServiceRepository.startConnecting(name ?: "", getString(R.string.connecting))
             if (BuildConfig.DEBUG) {
                 Log.d(TAG, "Connecting to $address:$port")
             }
@@ -178,7 +178,7 @@ class ListenService : Service() {
     private fun doListen(address: String?, port: Int, pairingCode: String?) {
         if (port !in VALID_PORT_RANGE) {
             Log.e(TAG, "Invalid socket port")
-            ListenServiceRepository.updateError()
+            ListenServiceRepository.updateError(getString(R.string.disconnected))
             playAlert()
             onError?.invoke()
             return
@@ -202,7 +202,7 @@ class ListenService : Service() {
                         shouldReconnect = false
                     } else {
                         reconnectAttempts = 0
-                        ListenServiceRepository.updateConnected(true)
+                        ListenServiceRepository.updateConnected(true, getString(R.string.listening))
                         val streamResult = streamAudio(socket, sessionInfo.key, sessionInfo.sessionId)
                         shouldReconnect = !streamResult
                     }
@@ -210,13 +210,13 @@ class ListenService : Service() {
                     if (shouldReconnect && isRunning) {
                         reconnectAttempts++
                         if (reconnectAttempts <= MAX_RECONNECT_ATTEMPTS) {
-                            val status = "Reconnecting ($reconnectAttempts/$MAX_RECONNECT_ATTEMPTS)..."
+                            val status = getString(R.string.reconnecting_status, reconnectAttempts, MAX_RECONNECT_ATTEMPTS)
                             Log.i(TAG, status)
                             postStatus(status)
                             Thread.sleep(RECONNECT_DELAY_MS)
                         } else {
                             Log.e(TAG, "Max reconnect attempts reached")
-                            ListenServiceRepository.updateError()
+                            ListenServiceRepository.updateError(getString(R.string.disconnected))
                             playAlert()
                             onError?.invoke()
                             shouldReconnect = false
@@ -227,7 +227,7 @@ class ListenService : Service() {
                     if (shouldReconnect) {
                         reconnectAttempts++
                         if (reconnectAttempts <= MAX_RECONNECT_ATTEMPTS) {
-                            val status = "Reconnecting ($reconnectAttempts/$MAX_RECONNECT_ATTEMPTS)..."
+                            val status = getString(R.string.reconnecting_status, reconnectAttempts, MAX_RECONNECT_ATTEMPTS)
                             Log.w(TAG, "Connection error, $status", e)
                             postStatus(status)
                             try {
@@ -242,7 +242,7 @@ class ListenService : Service() {
                             } else {
                                 Log.e(TAG, "Connection failed after $MAX_RECONNECT_ATTEMPTS attempts")
                             }
-                            ListenServiceRepository.updateError()
+                            ListenServiceRepository.updateError(getString(R.string.disconnected))
                             playAlert()
                             onError?.invoke()
                             shouldReconnect = false
@@ -250,7 +250,7 @@ class ListenService : Service() {
                     }
                 } catch (e: IllegalArgumentException) {
                     Log.e(TAG, "Invalid socket parameters", e)
-                    ListenServiceRepository.updateError()
+                    ListenServiceRepository.updateError(getString(R.string.disconnected))
                     playAlert()
                     onError?.invoke()
                     shouldReconnect = false

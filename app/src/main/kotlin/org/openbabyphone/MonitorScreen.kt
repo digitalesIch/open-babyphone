@@ -1,5 +1,6 @@
 package org.openbabyphone
 
+import org.openbabyphone.ui.theme.Spacing
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -51,6 +53,8 @@ fun MonitorScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     var isMonitoring by rememberSaveable { mutableStateOf(false) }
+    val serviceInformationDescription = stringResource(R.string.service_information_content_description)
+    val serviceStatusDescription = stringResource(R.string.service_status_content_description, uiState.status)
 
     DisposableEffect(isMonitoring) {
         val binding = if (isMonitoring) bindMonitorService(context) else null
@@ -62,21 +66,27 @@ fun MonitorScreen(
     Scaffold(
         topBar = { AppTopAppBar(stringResource(R.string.childDevice), onNavigateBack) }
     ) { innerPadding ->
-        Column(
-            modifier = modifier
+        Box(
+            modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState())
+                .padding(innerPadding),
+            contentAlignment = Alignment.TopCenter
         ) {
+            Column(
+                modifier = modifier
+                    .widthIn(max = 600.dp)
+                    .fillMaxSize()
+                    .padding(Spacing.space16)
+                    .verticalScroll(rememberScrollState())
+            ) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("pairing_card"),
                 content = {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(modifier = Modifier.padding(Spacing.space16)) {
                         Text(stringResource(R.string.pairingCodeTitle), style = MaterialTheme.typography.titleLarge)
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(Spacing.space8))
                         OutlinedTextField(
                             value = uiState.pairingCode,
                             onValueChange = { viewModel.updatePairingCode(it) },
@@ -88,7 +98,7 @@ fun MonitorScreen(
                             singleLine = true,
                             textStyle = MaterialTheme.typography.bodyLarge
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(Spacing.space8))
                         Text(
                             stringResource(
                                 if (isMonitoring) R.string.pairing_code_locked else R.string.monitoring_setup_hint
@@ -99,7 +109,7 @@ fun MonitorScreen(
                 }
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Spacing.space16))
 
             Button(
                 onClick = { isMonitoring = !isMonitoring },
@@ -110,7 +120,7 @@ fun MonitorScreen(
                 Text(stringResource(if (isMonitoring) R.string.stop_monitoring else R.string.start_monitoring))
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Spacing.space16))
 
             if (!isMonitoring) {
                 return@Column
@@ -125,12 +135,12 @@ fun MonitorScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(24.dp),
+                                .padding(Spacing.space24),
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 CircularProgressIndicator()
-                                Spacer(modifier = Modifier.height(8.dp))
+                                Spacer(modifier = Modifier.height(Spacing.space8))
                                 Text(stringResource(R.string.loading), style = MaterialTheme.typography.bodyMedium)
                             }
                         }
@@ -141,32 +151,32 @@ fun MonitorScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("service_info_card")
-                        .semantics { contentDescription = "Service information" },
+                        .semantics { contentDescription = serviceInformationDescription },
                     content = {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(Spacing.space16)) {
                             Text(stringResource(R.string.serviceTitle), style = MaterialTheme.typography.titleLarge)
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(Spacing.space8))
                             Text(uiState.serviceName, style = MaterialTheme.typography.bodyLarge)
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(Spacing.space8))
                             Text(stringResource(R.string.serviceDescription), style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Spacing.space16))
 
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("connection_info_card"),
                     content = {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(Spacing.space16)) {
                             Text(stringResource(R.string.portTitle), style = MaterialTheme.typography.titleLarge)
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(Spacing.space8))
                             Text(uiState.port.toString(), style = MaterialTheme.typography.bodyLarge)
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(Spacing.space16))
                             Text(stringResource(R.string.addressTitle), style = MaterialTheme.typography.titleLarge)
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(Spacing.space8))
                             if (uiState.addresses.isEmpty()) {
                                 Text(
                                     stringResource(R.string.notConnected),
@@ -176,14 +186,14 @@ fun MonitorScreen(
                                 )
                             } else {
                                 uiState.addresses.forEach { address ->
-                                    Text(address, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 2.dp))
+                                    Text(address, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = Spacing.space2))
                                 }
                             }
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(Spacing.space16))
                             Text(
                                 uiState.status,
                                 style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.semantics { contentDescription = "Service status: ${uiState.status}" }
+                                modifier = Modifier.semantics { contentDescription = serviceStatusDescription }
                             )
                         }
                     }
@@ -191,4 +201,5 @@ fun MonitorScreen(
             }
         }
     }
+}
 }

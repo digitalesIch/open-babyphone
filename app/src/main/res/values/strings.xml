@@ -7,6 +7,8 @@
     <string name="useAsChildDevice">Use as Child Device</string>
     <string name="childDescription">Device is placed with baby, and sends audio to a paired parent device</string>
     <string name="parentDescription">Pairs with child device and plays received audio</string>
+    <string name="permissions_required_child">Microphone and notification permissions are required before child mode can start.</string>
+    <string name="permissions_required_parent">Local network discovery and notification permissions are required before parent mode can start.</string>
     <string name="childDevice">Child Device</string>
     <string name="serviceTitle">Service:</string>
     <string name="serviceDescription">Name of the service that parent must pair to</string>
@@ -22,13 +24,15 @@
     <string name="status">Status:</string>
     <string name="connectedTo">Connected To:</string>
     <string name="disconnected">Disconnected</string>
+    <string name="connecting">Connecting...</string>
+    <string name="reconnecting_status">Reconnecting (%1$d/%2$d)...</string>
     <string name="listening">Listening...</string>
     <string name="addressTitle">Addresses:</string>
     <string name="portTitle">Port:</string>
     <string name="notConnected">Not connected to any network</string>
     <string name="enterAddressInstructions">Enter the IP Address and port of a child and click Connect</string>
     <string name="connect">Connect</string>
-    <string name="exampleAddress">192.168.1.42</string>
+    <string name="exampleAddress">child.local</string>
     <string name="examplePort">10000</string>
     <string name="examplePairingCode">babyroom42</string>
     <string name="invalidPort">Enter a port from 1 to 65535</string>
@@ -53,6 +57,9 @@
     <string name="theme_mode">Theme</string>
     <string name="connected_clients">Connected: %d parents</string>
     <string name="connected_clients_initial">Connected: 0 parents</string>
+    <string name="service_information_content_description">Service information</string>
+    <string name="service_status_content_description">Service status: %1$s</string>
+    <string name="volume_visualization_content_description">Volume visualization</string>
     <string name="foreground_service_channel">Foreground Service Channel</string>
     <string name="start_monitoring">Start Monitoring</string>
     <string name="stop_monitoring">Stop Monitoring</string>

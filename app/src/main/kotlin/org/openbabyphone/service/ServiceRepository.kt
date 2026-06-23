@@ -14,7 +14,7 @@ object MonitorServiceRepository {
     private val _addresses = MutableStateFlow<List<String>>(emptyList())
     val addresses: StateFlow<List<String>> = _addresses.asStateFlow()
 
-    private val _status = MutableStateFlow("Waiting for Parent...")
+    private val _status = MutableStateFlow("")
     val status: StateFlow<String> = _status.asStateFlow()
 
     fun updateServiceInfo(name: String, port: Int, addresses: List<String>) {
@@ -32,7 +32,7 @@ object ListenServiceRepository {
     private val _childDeviceName = MutableStateFlow("")
     val childDeviceName: StateFlow<String> = _childDeviceName.asStateFlow()
 
-    private val _status = MutableStateFlow("Connecting...")
+    private val _status = MutableStateFlow("")
     val status: StateFlow<String> = _status.asStateFlow()
 
     private val _isConnected = MutableStateFlow(false)
@@ -45,9 +45,9 @@ object ListenServiceRepository {
         _childDeviceName.value = name
     }
 
-    fun startConnecting(name: String) {
+    fun startConnecting(name: String, status: String = "") {
         _childDeviceName.value = name
-        _status.value = "Connecting..."
+        _status.value = status
         _isConnected.value = false
         _isError.value = false
     }
@@ -56,17 +56,17 @@ object ListenServiceRepository {
         _status.value = status
     }
 
-    fun updateConnected(connected: Boolean) {
+    fun updateConnected(connected: Boolean, status: String = "") {
         _isConnected.value = connected
         if (connected) {
             _isError.value = false
-            _status.value = "Listening..."
+            _status.value = status
         }
     }
 
-    fun updateError() {
+    fun updateError(status: String = "") {
         _isError.value = true
-        _status.value = "Disconnected"
+        _status.value = status
         _isConnected.value = false
     }
 }

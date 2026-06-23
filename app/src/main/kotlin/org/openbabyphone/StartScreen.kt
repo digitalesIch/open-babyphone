@@ -33,6 +33,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import org.openbabyphone.ui.theme.Spacing
 
 @Composable
 fun StartScreen(
@@ -99,7 +100,7 @@ fun StartScreen(
     Row(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(Spacing.space16)
             .verticalScroll(rememberScrollState())
             .animateContentSize(),
         horizontalArrangement = Arrangement.Center,
@@ -107,7 +108,7 @@ fun StartScreen(
     ) {
         if (isExpanded) {
             Column(
-                modifier = Modifier.weight(1f).padding(end = 32.dp),
+                modifier = Modifier.weight(1f).padding(end = Spacing.space32),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
@@ -122,7 +123,7 @@ fun StartScreen(
                 text = stringResource(R.string.app_name),
                 style = MaterialTheme.typography.headlineLarge,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(bottom = 32.dp)
+                modifier = Modifier.padding(bottom = Spacing.space32)
             )
         }
 
@@ -155,7 +156,7 @@ fun StartScreen(
             }
 
             if (childPermissionDenied) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(Spacing.space8))
                 Text(
                     text = stringResource(R.string.permission_rationale_child),
                     style = MaterialTheme.typography.bodySmall,
@@ -164,16 +165,16 @@ fun StartScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Spacing.space16))
 
             Text(
                 text = stringResource(R.string.childDescription),
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 16.dp)
+                modifier = Modifier.padding(horizontal = Spacing.space16)
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(Spacing.space32))
 
             OutlinedButton(
                 onClick = {
@@ -197,7 +198,7 @@ fun StartScreen(
             }
 
             if (parentPermissionDenied) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(Spacing.space8))
                 Text(
                     text = stringResource(R.string.permission_rationale_parent),
                     style = MaterialTheme.typography.bodySmall,
@@ -206,13 +207,13 @@ fun StartScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Spacing.space16))
 
             Text(
                 text = stringResource(R.string.parentDescription),
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 16.dp)
+                modifier = Modifier.padding(horizontal = Spacing.space16)
             )
         }
     }

@@ -1,11 +1,15 @@
 package org.openbabyphone
 
+import org.openbabyphone.ui.theme.Spacing
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -43,13 +47,15 @@ fun DiscoverAddressScreen(
     val canConnect = ipAddress.isNotBlank() && isPortValid
 
     Scaffold(
-        topBar = { AppTopAppBar(stringResource(R.string.enter_address_title), onNavigateBack) }
+        topBar = { AppTopAppBar(stringResource(R.string.enter_address_title), onNavigateBack) },
+        contentWindowInsets = WindowInsets.safeDrawing
     ) { innerPadding ->
         Column(
             modifier = modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp)
+                .consumeWindowInsets(innerPadding)
+                .padding(Spacing.space16)
                 .widthIn(max = 600.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -57,7 +63,7 @@ fun DiscoverAddressScreen(
             Text(
                 stringResource(R.string.enterAddressInstructions),
                 style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(bottom = 24.dp)
+                modifier = Modifier.padding(bottom = Spacing.space24)
             )
 
             OutlinedTextField(
@@ -76,7 +82,7 @@ fun DiscoverAddressScreen(
                 textStyle = MaterialTheme.typography.bodyLarge
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Spacing.space16))
 
             OutlinedTextField(
                 value = port,
@@ -100,7 +106,7 @@ fun DiscoverAddressScreen(
                 textStyle = MaterialTheme.typography.bodyLarge
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Spacing.space16))
 
             OutlinedTextField(
                 value = pairingCode,
@@ -116,7 +122,7 @@ fun DiscoverAddressScreen(
                 textStyle = MaterialTheme.typography.bodyLarge
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(Spacing.space32))
 
             Button(
                 onClick = {

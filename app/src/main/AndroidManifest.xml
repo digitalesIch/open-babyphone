@@ -25,6 +25,7 @@
         android:name=".OpenBabyphoneApplication"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:theme="@style/AppTheme">
 
@@ -43,6 +44,7 @@
             android:name=".MainActivity"
             android:configChanges="orientation|screenSize"
             android:exported="true"
+            android:theme="@style/AppTheme.Splash"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

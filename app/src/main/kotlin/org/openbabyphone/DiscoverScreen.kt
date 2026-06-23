@@ -1,6 +1,8 @@
 package org.openbabyphone
 
+import org.openbabyphone.ui.theme.Spacing
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -8,8 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -52,19 +53,25 @@ fun DiscoverScreen(
     Scaffold(
         topBar = { AppTopAppBar(stringResource(R.string.parentDevice), onNavigateBack) }
     ) { innerPadding ->
-        Column(
-            modifier = modifier
+        Box(
+            modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(innerPadding),
+            contentAlignment = Alignment.TopCenter
         ) {
+            Column(
+                modifier = modifier
+                    .widthIn(max = 600.dp)
+                    .fillMaxSize()
+                    .padding(Spacing.space16)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
             Text(
                 stringResource(R.string.discoverChild),
                 style = MaterialTheme.typography.titleLarge,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(bottom = 8.dp)
+                modifier = Modifier.padding(bottom = Spacing.space8)
             )
 
             Button(
@@ -78,13 +85,13 @@ fun DiscoverScreen(
                 Text(if (uiState.isDiscovering) stopLabel else stringResource(R.string.discoverChild))
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Spacing.space16))
             Text(
                 stringResource(R.string.discoverChildDescription),
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Spacing.space16))
 
             OutlinedTextField(
                 value = uiState.pairingCode,
@@ -98,7 +105,7 @@ fun DiscoverScreen(
                 textStyle = MaterialTheme.typography.bodyLarge
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Spacing.space16))
 
             when {
                 uiState.isDiscovering && uiState.devices.isEmpty() -> {
@@ -107,29 +114,27 @@ fun DiscoverScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         CircularProgressIndicator()
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(Spacing.space8))
                         Text(stringResource(R.string.search_running), style = MaterialTheme.typography.bodyMedium)
                     }
                 }
                 uiState.devices.isNotEmpty() -> {
-                    LazyColumn(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(200.dp)
                             .testTag("device_list"),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(Spacing.space8)
                     ) {
-                        items(uiState.devices, key = { it.address + it.port }) { device ->
+                        uiState.devices.forEach { device ->
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .animateItem()
                                     .testTag("device_${device.address}")
                             ) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp),
+                                        .padding(Spacing.space16),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -165,7 +170,7 @@ fun DiscoverScreen(
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(24.dp),
+                                    .padding(Spacing.space24),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Icon(
@@ -173,7 +178,7 @@ fun DiscoverScreen(
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                Spacer(modifier = Modifier.height(8.dp))
+                                Spacer(modifier = Modifier.height(Spacing.space8))
                                 Text(
                                     stringResource(R.string.discovery_no_devices),
                                     style = MaterialTheme.typography.bodyMedium,
@@ -185,12 +190,12 @@ fun DiscoverScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(Spacing.space32))
             Text(
                 stringResource(R.string.enterChildAddress),
                 style = MaterialTheme.typography.titleLarge,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(bottom = 8.dp)
+                modifier = Modifier.padding(bottom = Spacing.space8)
             )
             OutlinedButton(
                 onClick = onNavigateToAddressInput,
@@ -200,12 +205,13 @@ fun DiscoverScreen(
             ) {
                 Text(stringResource(R.string.enterChildAddress))
             }
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Spacing.space16))
             Text(
                 stringResource(R.string.enterChildAddressDescription),
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center
             )
         }
+    }
     }
 }

@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -32,6 +33,7 @@ import org.openbabyphone.navigation.DiscoverAddress
 import org.openbabyphone.navigation.Listen
 import org.openbabyphone.navigation.Monitor
 import org.openbabyphone.navigation.Start
+import org.openbabyphone.ui.theme.Motion
 import org.openbabyphone.ui.theme.QuietEngineTheme
 
 val LocalWindowWidthSizeClass = staticCompositionLocalOf {
@@ -41,6 +43,7 @@ val LocalWindowWidthSizeClass = staticCompositionLocalOf {
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
@@ -59,20 +62,20 @@ class MainActivity : ComponentActivity() {
                             navController = navController,
                             startDestination = Start,
                             enterTransition = {
-                                fadeIn(animationSpec = tween(300)) +
-                                    slideInHorizontally(animationSpec = tween(300)) { it / 4 }
+                                fadeIn(animationSpec = tween(Motion.DurationMedium)) +
+                                    slideInHorizontally(animationSpec = tween(Motion.DurationMedium)) { it / 4 }
                             },
                             exitTransition = {
-                                fadeOut(animationSpec = tween(200)) +
-                                    slideOutHorizontally(animationSpec = tween(200)) { -it / 4 }
+                                fadeOut(animationSpec = tween(Motion.DurationShort)) +
+                                    slideOutHorizontally(animationSpec = tween(Motion.DurationShort)) { -it / 4 }
                             },
                             popEnterTransition = {
-                                fadeIn(animationSpec = tween(300)) +
-                                    slideInHorizontally(animationSpec = tween(300)) { -it / 4 }
+                                fadeIn(animationSpec = tween(Motion.DurationMedium)) +
+                                    slideInHorizontally(animationSpec = tween(Motion.DurationMedium)) { -it / 4 }
                             },
                             popExitTransition = {
-                                fadeOut(animationSpec = tween(200)) +
-                                    slideOutHorizontally(animationSpec = tween(200)) { it / 4 }
+                                fadeOut(animationSpec = tween(Motion.DurationShort)) +
+                                    slideOutHorizontally(animationSpec = tween(Motion.DurationShort)) { it / 4 }
                             }
                         ) {
                             composable<Start> {
