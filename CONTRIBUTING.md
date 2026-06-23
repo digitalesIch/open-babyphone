@@ -39,6 +39,9 @@ The release-grade verification command that runs all checks is:
 
     # ./gradlew assembleRelease testReleaseUnitTest lintRelease
 
+For the real-device reliability test matrix and release verification guidance,
+see [docs/testing.md](docs/testing.md).
+
 ## Explain Your Work
 
 At the top of every patch you should include a description of the problem you
