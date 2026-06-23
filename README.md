@@ -70,9 +70,9 @@ authentication and no transport encryption. Use a pairing code for normal use.
 - Notification permission on Android 13+ for foreground service notifications
 - A trusted local network; VPN use is an advanced manual fallback
 
-The app package is currently `de.rochefort.childmonitor`, inherited from the
-upstream project. Migrating the application ID before a public release is tracked
-in the roadmap.
+The Android application ID is `org.openbabyphone`. The internal Kotlin package
+and Android namespace still use the inherited `de.rochefort.childmonitor` name
+for now; that does not affect the installable app identity.
 
 ## Building From Source
 
