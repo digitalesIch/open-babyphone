@@ -38,6 +38,9 @@ fun DiscoverAddressScreen(
     var ipAddress by rememberSaveable { mutableStateOf("") }
     var port by rememberSaveable { mutableStateOf("10000") }
     var pairingCode by rememberSaveable { mutableStateOf("") }
+    val parsedPort = port.toIntOrNull()
+    val isPortValid = parsedPort in 1..65535
+    val canConnect = ipAddress.isNotBlank() && isPortValid
 
     Scaffold(
         topBar = { AppTopAppBar(stringResource(R.string.enter_address_title), onNavigateBack) }
@@ -80,7 +83,15 @@ fun DiscoverAddressScreen(
                 onValueChange = { port = it.filter { char -> char.isDigit() } },
                 label = { Text(stringResource(R.string.portTitle)) },
                 placeholder = { Text(stringResource(R.string.examplePort)) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("port_field"),
+                isError = port.isNotBlank() && !isPortValid,
+                supportingText = {
+                    if (port.isNotBlank() && !isPortValid) {
+                        Text(stringResource(R.string.invalidPort))
+                    }
+                },
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                     keyboardType = KeyboardType.Number,
                     imeAction = ImeAction.Next
@@ -109,14 +120,14 @@ fun DiscoverAddressScreen(
 
             Button(
                 onClick = {
-                    if (ipAddress.isNotBlank() && port.isNotBlank()) {
-                        onConnect(ipAddress, port.toIntOrNull() ?: 10000, pairingCode)
+                    if (canConnect) {
+                        onConnect(ipAddress, parsedPort ?: 10000, pairingCode)
                     }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("connect_button"),
-                enabled = ipAddress.isNotBlank() && port.isNotBlank()
+                enabled = canConnect
             ) {
                 Text(stringResource(R.string.connect))
             }

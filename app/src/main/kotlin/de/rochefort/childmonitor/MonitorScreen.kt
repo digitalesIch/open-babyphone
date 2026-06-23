@@ -1,5 +1,6 @@
 package de.rochefort.childmonitor
 
+import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -21,6 +23,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -39,15 +44,18 @@ import de.rochefort.childmonitor.viewmodel.MonitorViewModel
 fun MonitorScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: MonitorViewModel = viewModel()
+    viewModel: MonitorViewModel = viewModel(),
+    bindMonitorService: (Context) -> ServiceConnectionManager.ServiceBinding = ServiceConnectionManager::bindMonitorService,
+    unbindAndStopService: (Context, ServiceConnectionManager.ServiceBinding) -> Unit = ServiceConnectionManager::unbindAndStopService
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
+    var isMonitoring by rememberSaveable { mutableStateOf(false) }
 
-    DisposableEffect(Unit) {
-        val binding = ServiceConnectionManager.bindMonitorService(context)
+    DisposableEffect(isMonitoring) {
+        val binding = if (isMonitoring) bindMonitorService(context) else null
         onDispose {
-            ServiceConnectionManager.unbindAndStopService(context, binding)
+            binding?.let { unbindAndStopService(context, it) }
         }
     }
 
@@ -61,6 +69,53 @@ fun MonitorScreen(
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("pairing_card"),
+                content = {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(stringResource(R.string.pairingCodeTitle), style = MaterialTheme.typography.titleLarge)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = uiState.pairingCode,
+                            onValueChange = { viewModel.updatePairingCode(it) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("pairing_code_field"),
+                            enabled = !isMonitoring,
+                            placeholder = { Text(stringResource(R.string.examplePairingCode)) },
+                            singleLine = true,
+                            textStyle = MaterialTheme.typography.bodyLarge
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            stringResource(
+                                if (isMonitoring) R.string.pairing_code_locked else R.string.monitoring_setup_hint
+                            ),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = { isMonitoring = !isMonitoring },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("monitoring_toggle_button")
+            ) {
+                Text(stringResource(if (isMonitoring) R.string.stop_monitoring else R.string.start_monitoring))
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (!isMonitoring) {
+                return@Column
+            }
+
             if (uiState.isLoading) {
                 Card(
                     modifier = Modifier
@@ -94,32 +149,6 @@ fun MonitorScreen(
                             Text(uiState.serviceName, style = MaterialTheme.typography.bodyLarge)
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(stringResource(R.string.serviceDescription), style = MaterialTheme.typography.bodyMedium)
-                        }
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("pairing_card"),
-                    content = {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(stringResource(R.string.pairingCodeTitle), style = MaterialTheme.typography.titleLarge)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            OutlinedTextField(
-                                value = uiState.pairingCode,
-                                onValueChange = { viewModel.updatePairingCode(it) },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("pairing_code_field"),
-                                placeholder = { Text(stringResource(R.string.examplePairingCode)) },
-                                singleLine = true,
-                                textStyle = MaterialTheme.typography.bodyLarge
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(stringResource(R.string.pairingCodeDescription), style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                 )

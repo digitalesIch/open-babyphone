@@ -2,9 +2,12 @@ package de.rochefort.childmonitor
 
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Rule
 import org.junit.Test
@@ -69,5 +72,33 @@ class DiscoverAddressScreenTest {
             )
         }
         composeTestRule.onNodeWithText("Pairing code (optional)").assertIsDisplayed()
+    }
+
+    @Test
+    fun addressScreen_rejectsInvalidPortRange() {
+        composeTestRule.setContent {
+            DiscoverAddressScreen(
+                onNavigateBack = {},
+                onConnect = { _, _, _ -> }
+            )
+        }
+        composeTestRule.onNodeWithTag("ip_address_field").performTextInput("192.168.1.42")
+        composeTestRule.onNodeWithTag("port_field").performTextInput("99999")
+
+        composeTestRule.onNodeWithText("Enter a port from 1 to 65535").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Connect").assertIsNotEnabled()
+    }
+
+    @Test
+    fun addressScreen_acceptsValidPortRange() {
+        composeTestRule.setContent {
+            DiscoverAddressScreen(
+                onNavigateBack = {},
+                onConnect = { _, _, _ -> }
+            )
+        }
+        composeTestRule.onNodeWithTag("ip_address_field").performTextInput("192.168.1.42")
+
+        composeTestRule.onNodeWithText("Connect").assertIsEnabled()
     }
 }

@@ -147,6 +147,13 @@ class ListenService : Service() {
     private val jitterBuffer = JitterBuffer()
 
     private fun doListen(address: String?, port: Int, pairingCode: String?) {
+        if (port !in VALID_PORT_RANGE) {
+            Log.e(TAG, "Invalid socket port")
+            ListenServiceRepository.updateError()
+            playAlert()
+            onError?.invoke()
+            return
+        }
         val lt = Thread {
             var shouldReconnect: Boolean
             do {
@@ -191,6 +198,12 @@ class ListenService : Service() {
                         onError?.invoke()
                         shouldReconnect = false
                     }
+                } catch (e: IllegalArgumentException) {
+                    Log.e(TAG, "Invalid socket parameters", e)
+                    ListenServiceRepository.updateError()
+                    playAlert()
+                    onError?.invoke()
+                    shouldReconnect = false
                 }
             } while (shouldReconnect && reconnectAttempts <= MAX_RECONNECT_ATTEMPTS)
         }
@@ -421,5 +434,6 @@ class ListenService : Service() {
         private const val AUTH_TIMEOUT_MS = 10_000
         private const val STREAM_DISRUPTED_MS = 5000L
         private const val STREAM_LOST_MS = 10000L
+        private val VALID_PORT_RANGE = 1..65535
     }
 }
