@@ -286,6 +286,7 @@ class ListenService : Service() {
         }
 
         var expectedSeqNum = 0
+        var firstFrameReceived = false
         var lastFrameTime = System.currentTimeMillis()
         var streamDisruptedTime: Long? = null
 
@@ -343,7 +344,10 @@ class ListenService : Service() {
                 }
                 lastFrameTime = System.currentTimeMillis()
 
-                if (header.seqNum != expectedSeqNum) {
+                if (!firstFrameReceived) {
+                    expectedSeqNum = header.seqNum + 1
+                    firstFrameReceived = true
+                } else if (header.seqNum != expectedSeqNum) {
                     Log.w(TAG, "Frame gap: expected $expectedSeqNum, got ${header.seqNum}")
                     expectedSeqNum = header.seqNum + 1
                 } else {
