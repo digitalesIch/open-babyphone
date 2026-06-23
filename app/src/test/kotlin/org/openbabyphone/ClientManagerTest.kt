@@ -152,4 +152,154 @@ class ClientManagerTest {
         
         assertEquals(0, manager.getClientCount())
     }
+
+    @Test
+    fun disconnectFromMax_ThenCanAcceptAgain() {
+        val manager = ClientManager()
+        val sockets = mutableListOf<Socket>()
+        val clients = mutableListOf<Client>()
+
+        for (i in 0 until ClientManager.MAX_CLIENTS) {
+            val socket = mock(Socket::class.java)
+            sockets.add(socket)
+            val client = manager.addClient(socket, "test")
+            clients.add(client!!)
+        }
+
+        assertFalse(manager.canAcceptMoreClients())
+
+        manager.removeClient(clients.last())
+        verify(sockets.last(), times(1)).close()
+
+        assertTrue(manager.canAcceptMoreClients())
+        assertEquals(ClientManager.MAX_CLIENTS - 1, manager.getClientCount())
+
+        val newSocket = mock(Socket::class.java)
+        val newClient = manager.addClient(newSocket, "test")
+        assertNotNull(newClient)
+        assertEquals(ClientManager.MAX_CLIENTS, manager.getClientCount())
+    }
+
+    @Test
+    fun slowClient_IsDroppedAndOtherClientsContinue() {
+        val manager = ClientManager()
+
+        val fastSocket = mock(Socket::class.java)
+        `when`(fastSocket.getOutputStream()).thenReturn(object : OutputStream() {
+            override fun write(b: Int) = Unit
+            override fun write(b: ByteArray, off: Int, len: Int) = Unit
+        })
+        val fastClient = manager.addClient(fastSocket, "test")
+        assertNotNull(fastClient)
+
+        val slowWriteStarted = java.util.concurrent.CountDownLatch(1)
+        val slowWriteBlock = java.util.concurrent.CountDownLatch(1)
+        val slowSocket = mock(Socket::class.java)
+        `when`(slowSocket.getOutputStream()).thenReturn(object : OutputStream() {
+            override fun write(b: Int) = Unit
+            override fun write(b: ByteArray, off: Int, len: Int) {
+                slowWriteStarted.countDown()
+                try {
+                    slowWriteBlock.await()
+                } catch (e: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    throw IOException(e)
+                }
+            }
+        })
+        val slowClient = manager.addClient(slowSocket, "test")
+        assertNotNull(slowClient)
+
+        assertEquals(2, manager.getClientCount())
+
+        manager.broadcastFrame(ByteArray(100))
+
+        assertTrue("Slow client send thread should start blocking within timeout",
+            slowWriteStarted.await(5, java.util.concurrent.TimeUnit.SECONDS))
+
+        for (i in 0 until Client.QUEUE_CAPACITY + Client.MAX_DROPPED_FRAMES + 10) {
+            manager.broadcastFrame(ByteArray(100))
+            if (i % 10 == 0) Thread.sleep(2)
+        }
+
+        assertEquals(1, manager.getClientCount())
+        assertTrue(slowClient!!.getDroppedFrameCount() >= Client.MAX_DROPPED_FRAMES)
+
+        fastClient!!.stop()
+    }
+
+    @Test
+    fun broadcastFrame_DeliversToAllClients() {
+        val manager = ClientManager()
+        val sockets = mutableListOf<Socket>()
+        val clients = mutableListOf<Client>()
+
+        for (i in 0 until 3) {
+            val socket = mock(Socket::class.java)
+            `when`(socket.getOutputStream()).thenReturn(object : OutputStream() {
+                override fun write(b: Int) = Unit
+                override fun write(b: ByteArray, off: Int, len: Int) = Unit
+            })
+            sockets.add(socket)
+            val client = manager.addClient(socket, "test")
+            clients.add(client!!)
+        }
+
+        manager.broadcastFrame(ByteArray(50))
+
+        Thread.sleep(200)
+
+        for (client in clients) {
+            client.stop()
+        }
+
+        for (socket in sockets) {
+            verify(socket, atLeast(0)).close()
+        }
+        assertEquals(3, manager.getClientCount())
+    }
+
+    @Test
+    fun removeClient_DecreasesCount() {
+        val manager = ClientManager()
+        val socket1 = mock(Socket::class.java)
+        val socket2 = mock(Socket::class.java)
+
+        val client1 = manager.addClient(socket1, "test")
+        manager.addClient(socket2, "test")
+        assertEquals(2, manager.getClientCount())
+
+        manager.removeClient(client1!!)
+        assertEquals(1, manager.getClientCount())
+    }
+
+    @Test
+    fun addClient_AssignsIncrementingIds() {
+        val manager = ClientManager()
+
+        for (i in 0 until 3) {
+            val socket = mock(Socket::class.java)
+            val client = manager.addClient(socket, "test")
+            assertEquals(i, client!!.id)
+        }
+    }
+
+    @Test
+    fun removeAllClients_AllowsNewClientsAfterClear() {
+        val manager = ClientManager()
+
+        for (i in 0 until ClientManager.MAX_CLIENTS) {
+            val socket = mock(Socket::class.java)
+            manager.addClient(socket, "test")
+        }
+        assertFalse(manager.canAcceptMoreClients())
+
+        manager.removeAllClients()
+        assertTrue(manager.canAcceptMoreClients())
+        assertEquals(0, manager.getClientCount())
+
+        val newSocket = mock(Socket::class.java)
+        val newClient = manager.addClient(newSocket, "test")
+        assertNotNull(newClient)
+    }
 }
