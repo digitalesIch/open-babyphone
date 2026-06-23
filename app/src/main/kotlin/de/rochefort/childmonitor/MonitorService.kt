@@ -232,7 +232,7 @@ class MonitorService : Service() {
     }
 
     override fun onCreate() {
-        Log.i(TAG, "ChildMonitor start")
+        Log.i(TAG, "Open Babyphone start")
         super.onCreate()
         this.notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         this.nsdManager = this.getSystemService(NSD_SERVICE) as NsdManager
@@ -301,7 +301,7 @@ class MonitorService : Service() {
 
     private fun registerService(port: Int) {
         val serviceInfo = NsdServiceInfo()
-        serviceInfo.serviceName = "ChildMonitor on " + Build.MODEL
+        serviceInfo.serviceName = "Open Babyphone"
         serviceInfo.serviceType = "_childmonitor._tcp."
         serviceInfo.port = port
         this.registrationListener = object : RegistrationListener {

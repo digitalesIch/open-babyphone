@@ -5,6 +5,7 @@ import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.net.wifi.WifiManager
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,6 +34,7 @@ class DiscoverViewModel(application: Application) : AndroidViewModel(application
     private val discoveredDevices: MutableList<DiscoveredDevice> = mutableListOf()
 
     companion object {
+        private const val TAG = "DiscoverViewModel"
         private const val SERVICE_TYPE = "_childmonitor._tcp."
         private const val PREF_KEY_PAIRING_CODE = "pairingCode"
     }
@@ -76,7 +78,7 @@ class DiscoverViewModel(application: Application) : AndroidViewModel(application
             override fun onDiscoveryStarted(regType: String) {}
 
             override fun onServiceFound(service: NsdServiceInfo) {
-                if (service.serviceType == SERVICE_TYPE && service.serviceName.contains("ChildMonitor")) {
+                if (service.serviceType == SERVICE_TYPE && service.serviceName.contains("Open Babyphone")) {
                     resolveService(service)
                 }
             }
@@ -139,7 +141,8 @@ class DiscoverViewModel(application: Application) : AndroidViewModel(application
     private fun releaseMulticastLock() {
         try {
             multicastLock?.release()
-        } catch (ignored: Exception) {
+        } catch (e: Exception) {
+            Log.d(TAG, "Failed to release multicast lock", e)
         }
         multicastLock = null
     }
