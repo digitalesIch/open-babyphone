@@ -1,0 +1,72 @@
+package de.rochefort.childmonitor.viewmodel
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import de.rochefort.childmonitor.MonitorService
+import de.rochefort.childmonitor.service.MonitorServiceRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+
+data class MonitorUiState(
+    val pairingCode: String = "",
+    val serviceName: String = "Loading...",
+    val port: Int = 10000,
+    val addresses: List<String> = emptyList(),
+    val status: String = "Waiting for Parent...",
+    val isLoading: Boolean = true
+)
+
+class MonitorViewModel(application: Application) : AndroidViewModel(application) {
+    private val _pairingCode = MutableStateFlow("")
+
+    val uiState: StateFlow<MonitorUiState> = combine(
+        _pairingCode,
+        combine(
+            MonitorServiceRepository.serviceName,
+            MonitorServiceRepository.port,
+            MonitorServiceRepository.addresses,
+            MonitorServiceRepository.status
+        ) { name, port, addresses, status ->
+            ServiceInfo(name, port, addresses, status)
+        }
+    ) { pairingCode, info ->
+        MonitorUiState(
+            pairingCode = pairingCode,
+            serviceName = info.name,
+            port = info.port,
+            addresses = info.addresses,
+            status = info.status,
+            isLoading = info.name.isEmpty()
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), MonitorUiState())
+
+    private data class ServiceInfo(
+        val name: String,
+        val port: Int,
+        val addresses: List<String>,
+        val status: String
+    )
+
+    init {
+        val prefs = application.getSharedPreferences(
+            MonitorService.PAIRING_PREFS_NAME,
+            Application.MODE_PRIVATE
+        )
+        _pairingCode.value = prefs.getString(MonitorService.PREF_KEY_PAIRING_CODE, "") ?: ""
+    }
+
+    fun updatePairingCode(code: String) {
+        _pairingCode.value = code.trim()
+        val prefs = getApplication<Application>().getSharedPreferences(
+            MonitorService.PAIRING_PREFS_NAME,
+            Application.MODE_PRIVATE
+        )
+        prefs.edit()
+            .putString(MonitorService.PREF_KEY_PAIRING_CODE, code.trim())
+            .apply()
+    }
+}
