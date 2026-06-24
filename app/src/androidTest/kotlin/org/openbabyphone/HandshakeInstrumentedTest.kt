@@ -43,17 +43,23 @@ class HandshakeInstrumentedTest {
         assertNotNull(handshake.challenge)
         assertNotNull(handshake.authNonce)
         assertArrayEquals(authNonce, handshake.authNonce)
+        assertEquals(Handshake.PROTOCOL_VERSION, handshake.protocolVersion)
+        assertEquals(Handshake.CURRENT_CAPABILITIES, handshake.capabilities)
 
         val encryptedChallenge = CryptoHelper.encryptChallenge(handshake.challenge!!, key, handshake.authNonce!!)
         val authOutputStream = ByteArrayOutputStream()
         Handshake.writeAuthResponse(authOutputStream, encryptedChallenge)
+        Handshake.writeCapabilityResponse(authOutputStream)
 
         val childInputStream = ByteArrayInputStream(authOutputStream.toByteArray())
         val readResponse = Handshake.readAuthResponse(childInputStream)
+        val capResponse = Handshake.readCapabilityResponse(childInputStream)
 
         assertNotNull(readResponse)
+        assertNotNull(capResponse)
         val verified = CryptoHelper.verifyChallenge(readResponse!!, challenge, key, authNonce)
         assertTrue(verified)
+        assertEquals(Handshake.PROTOCOL_VERSION, capResponse!!.protocolVersion)
     }
 
     @Test
@@ -127,5 +133,21 @@ class HandshakeInstrumentedTest {
 
         assertFalse(nonce1.contentEquals(nonce2))
         assertFalse(encrypted1.contentEquals(encrypted2))
+    }
+
+    @Test
+    fun capabilityResponse_FullNegotiationRoundTrip() {
+        val childCaps = Handshake.CAP_G711_ULAW
+        val parentCaps = Handshake.CAP_G711_ULAW
+
+        val outputStream = ByteArrayOutputStream()
+        Handshake.writeCapabilityResponse(outputStream, Handshake.PROTOCOL_VERSION, parentCaps)
+
+        val inputStream = ByteArrayInputStream(outputStream.toByteArray())
+        val response = Handshake.readCapabilityResponse(inputStream)
+
+        assertNotNull(response)
+        val negotiated = Handshake.negotiateCapabilities(childCaps, response!!.capabilities)
+        assertEquals(Handshake.CAP_G711_ULAW, negotiated)
     }
 }

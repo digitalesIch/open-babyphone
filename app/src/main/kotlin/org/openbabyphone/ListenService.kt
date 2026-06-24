@@ -271,6 +271,14 @@ class ListenService : Service() {
                     Log.e(TAG, "Failed to read handshake from child device")
                     return null
                 }
+            if (!Handshake.isVersionSupported(handshake.protocolVersion)) {
+                Log.e(TAG, "Child protocol version ${handshake.protocolVersion} not supported")
+                return null
+            }
+            if ((handshake.capabilities and Handshake.CAP_G711_ULAW) == 0) {
+                Log.e(TAG, "Child has no shared codec capability")
+                return null
+            }
             if (handshake.authRequired) {
                 val code = pairingCode?.trim() ?: ""
                 if (code.isEmpty()) {
@@ -280,9 +288,11 @@ class ListenService : Service() {
                 val key = CryptoHelper.deriveKey(code)
                 val encryptedChallenge = CryptoHelper.encryptChallenge(handshake.challenge!!, key, handshake.authNonce!!)
                 Handshake.writeAuthResponse(socket.getOutputStream(), encryptedChallenge)
+                Handshake.writeCapabilityResponse(socket.getOutputStream())
                 socket.soTimeout = SOCKET_READ_TIMEOUT_MS
                 SessionInfo(handshake.sessionId, key)
             } else {
+                Handshake.writeCapabilityResponse(socket.getOutputStream())
                 socket.soTimeout = SOCKET_READ_TIMEOUT_MS
                 SessionInfo(handshake.sessionId, null)
             }
