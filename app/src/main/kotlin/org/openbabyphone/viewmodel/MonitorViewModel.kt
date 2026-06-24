@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import org.openbabyphone.PairingCode
+import org.openbabyphone.PairingCodeGenerator
 import org.openbabyphone.MonitorService
 import org.openbabyphone.R
 import org.openbabyphone.service.MonitorServiceRepository
@@ -64,7 +65,16 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             MonitorService.PAIRING_PREFS_NAME,
             Application.MODE_PRIVATE
         )
-        _pairingCode.value = prefs.getString(MonitorService.PREF_KEY_PAIRING_CODE, "") ?: ""
+        val savedCode = prefs.getString(MonitorService.PREF_KEY_PAIRING_CODE, "") ?: ""
+        if (savedCode.isEmpty()) {
+            val generatedCode = PairingCodeGenerator.generate()
+            _pairingCode.value = generatedCode
+            prefs.edit()
+                .putString(MonitorService.PREF_KEY_PAIRING_CODE, generatedCode)
+                .apply()
+        } else {
+            _pairingCode.value = savedCode
+        }
     }
 
     fun updatePairingCode(code: String) {
