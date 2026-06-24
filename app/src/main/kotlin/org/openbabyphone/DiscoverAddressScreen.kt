@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,6 +27,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -45,9 +47,17 @@ fun DiscoverAddressScreen(
     val parsedPort = port.toIntOrNull()
     val isPortValid = parsedPort in 1..65535
     val canConnect = ipAddress.isNotBlank() && isPortValid
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
 
     Scaffold(
-        topBar = { AppTopAppBar(stringResource(R.string.enter_address_title), onNavigateBack) },
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        topBar = {
+            AppTopAppBar(
+                title = stringResource(R.string.enter_address_title),
+                onNavigateBack = onNavigateBack,
+                scrollBehavior = scrollBehavior
+            )
+        },
         contentWindowInsets = WindowInsets.safeDrawing
     ) { innerPadding ->
         Column(
