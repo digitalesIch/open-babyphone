@@ -2,6 +2,7 @@ package org.openbabyphone.viewmodel
 
 import android.app.Application
 import org.openbabyphone.MonitorService
+import org.openbabyphone.PairingCode
 import org.openbabyphone.service.MonitorServiceRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -31,9 +32,26 @@ class MonitorViewModelTest {
     }
 
     @Test
-    fun `initial pairing code is empty when no saved value`() = runTest {
-        val state = viewModel.uiState.first { it.pairingCode.isEmpty() || it.pairingCode.isNotEmpty() }
-        assertEquals("", state.pairingCode)
+    fun `initial pairing code is non-empty when no saved value`() = runTest {
+        val state = viewModel.uiState.first { it.pairingCode.isNotEmpty() }
+        assertTrue(state.pairingCode.isNotEmpty())
+    }
+
+    @Test
+    fun `fresh install generates non-empty pairing code`() = runTest {
+        val state = viewModel.uiState.first { it.pairingCode.isNotEmpty() }
+        assertTrue(state.pairingCode.isNotEmpty())
+        assertTrue(PairingCode.isValid(state.pairingCode))
+    }
+
+    @Test
+    fun `generated pairing code is persisted to SharedPreferences`() = runTest {
+        val state = viewModel.uiState.first { it.pairingCode.isNotEmpty() }
+        assertTrue("Initial code should be non-empty", state.pairingCode.isNotEmpty())
+        val context = RuntimeEnvironment.getApplication() as Application
+        val prefs = context.getSharedPreferences(MonitorService.PAIRING_PREFS_NAME, Application.MODE_PRIVATE)
+        val persisted = prefs.getString(MonitorService.PREF_KEY_PAIRING_CODE, "")
+        assertEquals("Generated code should be persisted", state.pairingCode, persisted)
     }
 
     @Test
