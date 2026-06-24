@@ -3,6 +3,7 @@ package org.openbabyphone.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import org.openbabyphone.DeviceName
 import org.openbabyphone.PairingCode
 import org.openbabyphone.PairingCodeGenerator
 import org.openbabyphone.MonitorService
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.stateIn
 
 data class MonitorUiState(
     val pairingCode: String = "",
+    val deviceName: String = "",
     val serviceName: String = "",
     val port: Int = 10000,
     val addresses: List<String> = emptyList(),
@@ -25,11 +27,13 @@ data class MonitorUiState(
 
 class MonitorViewModel(application: Application) : AndroidViewModel(application) {
     private val _pairingCode = MutableStateFlow("")
+    private val _deviceName = MutableStateFlow("")
     private val loadingLabel = application.getString(R.string.loading)
     private val waitingForParentStatus = application.getString(R.string.waiting_for_parent)
 
     val uiState: StateFlow<MonitorUiState> = combine(
         _pairingCode,
+        _deviceName,
         combine(
             MonitorServiceRepository.serviceName,
             MonitorServiceRepository.port,
@@ -38,9 +42,10 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         ) { name, port, addresses, status ->
             ServiceInfo(name, port, addresses, status)
         }
-    ) { pairingCode, info ->
+    ) { pairingCode, deviceName, info ->
         MonitorUiState(
             pairingCode = pairingCode,
+            deviceName = deviceName,
             serviceName = info.name.ifEmpty { loadingLabel },
             port = info.port,
             addresses = info.addresses,
@@ -75,6 +80,8 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         } else {
             _pairingCode.value = savedCode
         }
+        val savedDeviceName = prefs.getString(MonitorService.PREF_KEY_DEVICE_NAME, "") ?: ""
+        _deviceName.value = savedDeviceName
     }
 
     fun updatePairingCode(code: String) {
@@ -89,6 +96,21 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         )
         prefs.edit()
             .putString(MonitorService.PREF_KEY_PAIRING_CODE, normalizedCode)
+            .apply()
+    }
+
+    fun updateDeviceName(name: String) {
+        val trimmed = DeviceName.normalize(name)
+        if (!DeviceName.isValid(trimmed) && trimmed.isNotEmpty()) {
+            return
+        }
+        _deviceName.value = trimmed
+        val prefs = getApplication<Application>().getSharedPreferences(
+            MonitorService.PAIRING_PREFS_NAME,
+            Application.MODE_PRIVATE
+        )
+        prefs.edit()
+            .putString(MonitorService.PREF_KEY_DEVICE_NAME, trimmed)
             .apply()
     }
 }
