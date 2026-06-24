@@ -342,7 +342,7 @@ class MonitorService : Service() {
                 nsdServiceInfo.serviceName.let { serviceName ->
                     Log.i(TAG, "Service name: $serviceName")
                     MonitorServiceRepository.updateServiceInfo(serviceName, port, listenAddresses)
-                    MonitorServiceRepository.updateStatus(getString(R.string.waitingForParent))
+                    MonitorServiceRepository.updateStatus(getString(R.string.waiting_for_parent))
                 }
             }
 
@@ -381,7 +381,7 @@ class MonitorService : Service() {
     }
 
     private fun buildNotification(): Notification {
-        val text: CharSequence = getText(R.string.childDevice)
+        val text: CharSequence = getText(R.string.child_device)
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.listening_notification)
             .setOngoing(true)

@@ -152,7 +152,7 @@ fun StartScreen(
                     .fillMaxWidth()
                     .testTag("child_device_button")
             ) {
-                Text(stringResource(R.string.useAsChildDevice))
+                Text(stringResource(R.string.use_as_child_device))
             }
 
             if (childPermissionDenied) {
@@ -168,7 +168,7 @@ fun StartScreen(
             Spacer(modifier = Modifier.height(Spacing.space16))
 
             Text(
-                text = stringResource(R.string.childDescription),
+                text = stringResource(R.string.child_description),
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = Spacing.space16)
@@ -194,7 +194,7 @@ fun StartScreen(
                     .fillMaxWidth()
                     .testTag("parent_device_button")
             ) {
-                Text(stringResource(R.string.useAsParentDevice))
+                Text(stringResource(R.string.use_as_parent_device))
             }
 
             if (parentPermissionDenied) {
@@ -210,7 +210,7 @@ fun StartScreen(
             Spacer(modifier = Modifier.height(Spacing.space16))
 
             Text(
-                text = stringResource(R.string.parentDescription),
+                text = stringResource(R.string.parent_description),
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = Spacing.space16)

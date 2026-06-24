@@ -51,7 +51,7 @@ fun DiscoverScreen(
     val stopLabel = stringResource(R.string.discovery_stopped)
 
     Scaffold(
-        topBar = { AppTopAppBar(stringResource(R.string.parentDevice), onNavigateBack) }
+        topBar = { AppTopAppBar(stringResource(R.string.parent_device), onNavigateBack) }
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -68,7 +68,7 @@ fun DiscoverScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    stringResource(R.string.discoverChild),
+                    stringResource(R.string.discover_child),
                     style = MaterialTheme.typography.titleLarge,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(bottom = Spacing.space8)
@@ -82,12 +82,12 @@ fun DiscoverScreen(
                         .fillMaxWidth()
                         .testTag("discover_button")
                 ) {
-                    Text(if (uiState.isDiscovering) stopLabel else stringResource(R.string.discoverChild))
+                    Text(if (uiState.isDiscovering) stopLabel else stringResource(R.string.discover_child))
                 }
 
                 Spacer(modifier = Modifier.height(Spacing.space16))
                 Text(
-                    stringResource(R.string.discoverChildDescription),
+                    stringResource(R.string.discover_child_description),
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center
                 )
@@ -97,7 +97,7 @@ fun DiscoverScreen(
                     value = uiState.pairingCode,
                     onValueChange = { viewModel.updatePairingCode(it) },
                     label = { Text(stringResource(R.string.pairing_code_optional)) },
-                    placeholder = { Text(stringResource(R.string.examplePairingCode)) },
+                    placeholder = { Text(stringResource(R.string.example_pairing_code)) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("discover_pairing_code_field"),
@@ -192,7 +192,7 @@ fun DiscoverScreen(
 
                 Spacer(modifier = Modifier.height(Spacing.space32))
                 Text(
-                    stringResource(R.string.enterChildAddress),
+                    stringResource(R.string.enter_child_address),
                     style = MaterialTheme.typography.titleLarge,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(bottom = Spacing.space8)
@@ -203,11 +203,11 @@ fun DiscoverScreen(
                         .fillMaxWidth()
                         .testTag("address_input_button")
                 ) {
-                    Text(stringResource(R.string.enterChildAddress))
+                    Text(stringResource(R.string.enter_child_address))
                 }
                 Spacer(modifier = Modifier.height(Spacing.space16))
                 Text(
-                    stringResource(R.string.enterChildAddressDescription),
+                    stringResource(R.string.enter_child_address_description),
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center
                 )

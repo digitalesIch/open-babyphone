@@ -61,7 +61,7 @@ fun DiscoverAddressScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                stringResource(R.string.enterAddressInstructions),
+                stringResource(R.string.enter_address_instructions),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(bottom = Spacing.space24)
             )
@@ -70,7 +70,7 @@ fun DiscoverAddressScreen(
                 value = ipAddress,
                 onValueChange = { ipAddress = it },
                 label = { Text(stringResource(R.string.ip_address)) },
-                placeholder = { Text(stringResource(R.string.exampleAddress)) },
+                placeholder = { Text(stringResource(R.string.example_address)) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("ip_address_field"),
@@ -87,15 +87,15 @@ fun DiscoverAddressScreen(
             OutlinedTextField(
                 value = port,
                 onValueChange = { port = it.filter { char -> char.isDigit() } },
-                label = { Text(stringResource(R.string.portTitle)) },
-                placeholder = { Text(stringResource(R.string.examplePort)) },
+                label = { Text(stringResource(R.string.port_title)) },
+                placeholder = { Text(stringResource(R.string.example_port)) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("port_field"),
                 isError = port.isNotBlank() && !isPortValid,
                 supportingText = {
                     if (port.isNotBlank() && !isPortValid) {
-                        Text(stringResource(R.string.invalidPort))
+                        Text(stringResource(R.string.invalid_port))
                     }
                 },
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
@@ -112,7 +112,7 @@ fun DiscoverAddressScreen(
                 value = pairingCode,
                 onValueChange = { pairingCode = it },
                 label = { Text(stringResource(R.string.pairing_code_optional)) },
-                placeholder = { Text(stringResource(R.string.examplePairingCode)) },
+                placeholder = { Text(stringResource(R.string.example_pairing_code)) },
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                     keyboardType = KeyboardType.Ascii,

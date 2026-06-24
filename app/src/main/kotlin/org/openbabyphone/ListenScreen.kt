@@ -84,7 +84,7 @@ fun ListenScreen(
     }
 
     Scaffold(
-        topBar = { AppTopAppBar(stringResource(R.string.parentDevice), onNavigateBack) }
+        topBar = { AppTopAppBar(stringResource(R.string.parent_device), onNavigateBack) }
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -99,7 +99,7 @@ fun ListenScreen(
                     .padding(Spacing.space16)
             ) {
                 Text(
-                    stringResource(R.string.connectedTo),
+                    stringResource(R.string.connected_to),
                     style = MaterialTheme.typography.titleLarge
                 )
 

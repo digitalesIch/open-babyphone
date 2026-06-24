@@ -25,7 +25,7 @@ data class MonitorUiState(
 class MonitorViewModel(application: Application) : AndroidViewModel(application) {
     private val _pairingCode = MutableStateFlow("")
     private val loadingLabel = application.getString(R.string.loading)
-    private val waitingForParentStatus = application.getString(R.string.waitingForParent)
+    private val waitingForParentStatus = application.getString(R.string.waiting_for_parent)
 
     val uiState: StateFlow<MonitorUiState> = combine(
         _pairingCode,

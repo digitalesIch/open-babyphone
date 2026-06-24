@@ -64,7 +64,7 @@ fun MonitorScreen(
     }
 
     Scaffold(
-        topBar = { AppTopAppBar(stringResource(R.string.childDevice), onNavigateBack) }
+        topBar = { AppTopAppBar(stringResource(R.string.child_device), onNavigateBack) }
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -85,7 +85,7 @@ fun MonitorScreen(
                         .testTag("pairing_card"),
                     content = {
                         Column(modifier = Modifier.padding(Spacing.space16)) {
-                            Text(stringResource(R.string.pairingCodeTitle), style = MaterialTheme.typography.titleLarge)
+                            Text(stringResource(R.string.pairing_code_title), style = MaterialTheme.typography.titleLarge)
                             Spacer(modifier = Modifier.height(Spacing.space8))
                             OutlinedTextField(
                                 value = uiState.pairingCode,
@@ -94,7 +94,7 @@ fun MonitorScreen(
                                     .fillMaxWidth()
                                     .testTag("pairing_code_field"),
                                 enabled = !isMonitoring,
-                                placeholder = { Text(stringResource(R.string.examplePairingCode)) },
+                                placeholder = { Text(stringResource(R.string.example_pairing_code)) },
                                 singleLine = true,
                                 textStyle = MaterialTheme.typography.bodyLarge
                             )
@@ -154,11 +154,11 @@ fun MonitorScreen(
                             .semantics { contentDescription = serviceInformationDescription },
                         content = {
                             Column(modifier = Modifier.padding(Spacing.space16)) {
-                                Text(stringResource(R.string.serviceTitle), style = MaterialTheme.typography.titleLarge)
+                                Text(stringResource(R.string.service_title), style = MaterialTheme.typography.titleLarge)
                                 Spacer(modifier = Modifier.height(Spacing.space8))
                                 Text(uiState.serviceName, style = MaterialTheme.typography.bodyLarge)
                                 Spacer(modifier = Modifier.height(Spacing.space8))
-                                Text(stringResource(R.string.serviceDescription), style = MaterialTheme.typography.bodyMedium)
+                                Text(stringResource(R.string.service_description), style = MaterialTheme.typography.bodyMedium)
                             }
                         }
                     )
@@ -171,15 +171,15 @@ fun MonitorScreen(
                             .testTag("connection_info_card"),
                         content = {
                             Column(modifier = Modifier.padding(Spacing.space16)) {
-                                Text(stringResource(R.string.portTitle), style = MaterialTheme.typography.titleLarge)
+                                Text(stringResource(R.string.port_title), style = MaterialTheme.typography.titleLarge)
                                 Spacer(modifier = Modifier.height(Spacing.space8))
                                 Text(uiState.port.toString(), style = MaterialTheme.typography.bodyLarge)
                                 Spacer(modifier = Modifier.height(Spacing.space16))
-                                Text(stringResource(R.string.addressTitle), style = MaterialTheme.typography.titleLarge)
+                                Text(stringResource(R.string.address_title), style = MaterialTheme.typography.titleLarge)
                                 Spacer(modifier = Modifier.height(Spacing.space8))
                                 if (uiState.addresses.isEmpty()) {
                                     Text(
-                                        stringResource(R.string.notConnected),
+                                        stringResource(R.string.not_connected),
                                         style = MaterialTheme.typography.bodyMedium,
                                         textAlign = TextAlign.Center,
                                         modifier = Modifier.fillMaxWidth()
