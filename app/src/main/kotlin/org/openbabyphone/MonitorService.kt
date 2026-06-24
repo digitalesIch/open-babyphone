@@ -100,6 +100,19 @@ class MonitorService : Service() {
             val authNonce = if (authRequired) CryptoHelper.generateNonce() else null
             Handshake.writeHandshake(socket.getOutputStream(), sessionId, authRequired, challenge, authNonce)
             if (!authRequired) {
+                val capResponse = Handshake.readCapabilityResponse(socket.getInputStream())
+                if (capResponse == null) {
+                    Log.w(TAG, "Parent did not send capability response")
+                    return false
+                }
+                if (!Handshake.isVersionSupported(capResponse.protocolVersion)) {
+                    Log.w(TAG, "Parent protocol version ${capResponse.protocolVersion} not supported")
+                    return false
+                }
+                if ((capResponse.capabilities and Handshake.CAP_G711_ULAW) == 0) {
+                    Log.w(TAG, "Parent has no shared codec capability")
+                    return false
+                }
                 return true
             }
             val encryptedChallenge = Handshake.readAuthResponse(socket.getInputStream())
@@ -107,6 +120,19 @@ class MonitorService : Service() {
                     Log.w(TAG, "Parent did not send auth response")
                     return false
                 }
+            val capResponse = Handshake.readCapabilityResponse(socket.getInputStream())
+                ?: run {
+                    Log.w(TAG, "Parent did not send capability response")
+                    return false
+                }
+            if (!Handshake.isVersionSupported(capResponse.protocolVersion)) {
+                Log.w(TAG, "Parent protocol version ${capResponse.protocolVersion} not supported")
+                return false
+            }
+            if ((capResponse.capabilities and Handshake.CAP_G711_ULAW) == 0) {
+                Log.w(TAG, "Parent has no shared codec capability")
+                return false
+            }
             val verified = CryptoHelper.verifyChallenge(encryptedChallenge, challenge!!, key!!, authNonce!!)
             if (!verified) {
                 Log.w(TAG, "Rejected parent connection with invalid pairing code")

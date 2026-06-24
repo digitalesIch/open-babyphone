@@ -5,8 +5,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 
@@ -14,7 +16,8 @@ import androidx.compose.ui.res.stringResource
 @Composable
 fun AppTopAppBar(
     title: String,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    scrollBehavior: TopAppBarScrollBehavior? = null
 ) {
     TopAppBar(
         title = { Text(title) },
@@ -25,6 +28,28 @@ fun AppTopAppBar(
                     contentDescription = stringResource(R.string.navigate_back)
                 )
             }
-        }
+        },
+        scrollBehavior = scrollBehavior
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AppLargeTopAppBar(
+    title: String,
+    onNavigateBack: () -> Unit,
+    scrollBehavior: TopAppBarScrollBehavior? = null
+) {
+    LargeTopAppBar(
+        title = { Text(title) },
+        navigationIcon = {
+            IconButton(onClick = onNavigateBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.navigate_back)
+                )
+            }
+        },
+        scrollBehavior = scrollBehavior
     )
 }

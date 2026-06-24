@@ -25,11 +25,13 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -49,9 +51,17 @@ fun DiscoverScreen(
     val uiState by viewModel.uiState.collectAsState()
     val connectLabel = stringResource(R.string.connect)
     val stopLabel = stringResource(R.string.discovery_stopped)
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
-        topBar = { AppTopAppBar(stringResource(R.string.parent_device), onNavigateBack) }
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        topBar = {
+            AppLargeTopAppBar(
+                title = stringResource(R.string.parent_device),
+                onNavigateBack = onNavigateBack,
+                scrollBehavior = scrollBehavior
+            )
+        }
     ) { innerPadding ->
         Box(
             modifier = Modifier
