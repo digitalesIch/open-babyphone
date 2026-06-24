@@ -42,7 +42,7 @@ fun DiscoverAddressScreen(
     modifier: Modifier = Modifier
 ) {
     var ipAddress by rememberSaveable { mutableStateOf("") }
-    var port by rememberSaveable { mutableStateOf("10000") }
+    var port by rememberSaveable { mutableStateOf(ConnectionConstants.DEFAULT_PORT.toString()) }
     var pairingCode by rememberSaveable { mutableStateOf("") }
     val parsedPort = port.toIntOrNull()
     val isPortValid = parsedPort in 1..65535
@@ -137,7 +137,7 @@ fun DiscoverAddressScreen(
             Button(
                 onClick = {
                     if (canConnect) {
-                        onConnect(ipAddress, parsedPort ?: 10000, pairingCode)
+                        onConnect(ipAddress, parsedPort ?: ConnectionConstants.DEFAULT_PORT, pairingCode)
                     }
                 },
                 modifier = Modifier
