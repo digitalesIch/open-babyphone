@@ -106,6 +106,25 @@ Goal: make normal use simple enough for tired parents at night.
 - Reduce Toast-based feedback for important states and prefer persistent UI state
 - Improve accessibility labels, text scaling, contrast, and landscape/tablet behavior
 
+### 3a. Parent-Side Comfort Noise
+
+Goal: give parents reassurance that the connection is alive without requiring them
+to keep the screen on or listen to absolute silence.
+
+When the baby is quiet and the audio stream carries no significant signal, the
+parent device plays a very low-level, unobtrusive background noise. When the baby
+makes sounds, the comfort noise ducks or stops so the parent hears the baby
+clearly. This is independent of the child-side white noise feature planned in
+Phase 5e and works with the current G.711 codec.
+
+- Add a toggle in the parent listen screen to enable/disable comfort noise
+- Generate low-level pink or white noise locally on the parent device
+- Duck or suppress comfort noise when incoming audio exceeds a signal threshold
+- Keep comfort noise volume low and separate from the main stream volume
+- Ensure comfort noise stops on disconnect, stream loss, and alert playback
+- No child-side changes required
+- No protocol changes required
+
 ## 4. F-Droid Release
 
 Goal: make the project installable and maintainable as an open source Android app.
@@ -241,3 +260,4 @@ These items are tracked as GitHub issues and should be handled before a public b
 - #70 Add white noise on child device with noise suppression on parent device (depends on #69)
 - #77 Add WiFi Direct connection support
 - #78 Explore Wi-Fi Aware (NAN) for local peer-to-peer connections
+- #87 Add parent-side comfort noise for connection reassurance

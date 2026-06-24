@@ -41,6 +41,9 @@
     <string name="discover_child_description">Select child from a list of discovered children on the network</string>
     <string name="enter_child_address">Select Child by Address</string>
     <string name="enter_child_address_description">Enter the address and port of the child</string>
+    <string name="advanced_section_title">Advanced</string>
+    <string name="advanced_section_description">Manual connection for VPN or unusual network setups</string>
+    <string name="manual_connection">Manual connection (advanced)</string>
 
     <string name="navigate_back">Back</string>
     <string name="pairing_code_optional">Pairing code (optional)</string>

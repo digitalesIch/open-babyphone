@@ -268,7 +268,7 @@ class MonitorService : Service() {
         this.notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         this.nsdManager = this.getSystemService(NSD_SERVICE) as NsdManager
         this.connectivityManager = this.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
-        this.currentPort = 10000
+        this.currentPort = ConnectionConstants.DEFAULT_PORT
         this.currentSocket = null
     }
 
@@ -371,7 +371,7 @@ class MonitorService : Service() {
     private fun registerService(port: Int) {
         val serviceInfo = NsdServiceInfo()
         serviceInfo.serviceName = buildServiceName()
-        serviceInfo.serviceType = "_childmonitor._tcp."
+        serviceInfo.serviceType = ConnectionConstants.SERVICE_TYPE
         serviceInfo.port = port
         this.registrationListener = object : RegistrationListener {
             override fun onServiceRegistered(nsdServiceInfo: NsdServiceInfo) {

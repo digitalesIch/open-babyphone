@@ -3,6 +3,7 @@ package org.openbabyphone.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import org.openbabyphone.ConnectionConstants
 import org.openbabyphone.DeviceName
 import org.openbabyphone.PairingCode
 import org.openbabyphone.PairingCodeGenerator
@@ -19,7 +20,7 @@ data class MonitorUiState(
     val pairingCode: String = "",
     val deviceName: String = "",
     val serviceName: String = "",
-    val port: Int = 10000,
+    val port: Int = ConnectionConstants.DEFAULT_PORT,
     val addresses: List<String> = emptyList(),
     val status: String = "",
     val isLoading: Boolean = true
