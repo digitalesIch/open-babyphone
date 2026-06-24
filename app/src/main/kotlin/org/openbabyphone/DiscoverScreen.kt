@@ -14,12 +14,15 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -29,6 +32,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -52,6 +58,7 @@ fun DiscoverScreen(
     val connectLabel = stringResource(R.string.connect)
     val stopLabel = stringResource(R.string.discovery_stopped)
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    var advancedExpanded by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -201,26 +208,55 @@ fun DiscoverScreen(
                 }
 
                 Spacer(modifier = Modifier.height(Spacing.space32))
-                Text(
-                    stringResource(R.string.enter_child_address),
-                    style = MaterialTheme.typography.titleLarge,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(bottom = Spacing.space8)
-                )
-                OutlinedButton(
-                    onClick = onNavigateToAddressInput,
+
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("address_input_button")
+                        .testTag("advanced_section")
                 ) {
-                    Text(stringResource(R.string.enter_child_address))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(Spacing.space16)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("advanced_toggle"),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                stringResource(R.string.advanced_section_title),
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            IconButton(onClick = { advancedExpanded = !advancedExpanded }) {
+                                Icon(
+                                    imageVector = if (advancedExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                    contentDescription = if (advancedExpanded) "Collapse" else "Expand"
+                                )
+                            }
+                        }
+
+                        if (advancedExpanded) {
+                            Spacer(modifier = Modifier.height(Spacing.space8))
+                            Text(
+                                stringResource(R.string.advanced_section_description),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(Spacing.space12))
+                            OutlinedButton(
+                                onClick = onNavigateToAddressInput,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("address_input_button")
+                            ) {
+                                Text(stringResource(R.string.manual_connection))
+                            }
+                        }
+                    }
                 }
-                Spacer(modifier = Modifier.height(Spacing.space16))
-                Text(
-                    stringResource(R.string.enter_child_address_description),
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center
-                )
             }
         }
     }

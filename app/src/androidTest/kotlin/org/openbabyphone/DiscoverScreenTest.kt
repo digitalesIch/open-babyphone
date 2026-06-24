@@ -3,7 +3,9 @@ package org.openbabyphone
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Rule
 import org.junit.Test
@@ -28,7 +30,7 @@ class DiscoverScreenTest {
     }
 
     @Test
-    fun discoverScreen_displaysAddressButton() {
+    fun discoverScreen_advancedSectionCollapsible_AddressButtonRevealed() {
         composeTestRule.setContent {
             DiscoverScreen(
                 onNavigateBack = {},
@@ -36,7 +38,9 @@ class DiscoverScreenTest {
                 onNavigateToListen = { _, _, _, _ -> }
             )
         }
-        composeTestRule.onNodeWithText("Select Child by Address").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("advanced_section").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("advanced_toggle").performClick()
+        composeTestRule.onNodeWithText("Manual connection (advanced)").assertIsDisplayed()
     }
 
     @Test
