@@ -73,6 +73,41 @@ authentication and no transport encryption. Use a pairing code for normal use.
 The Android application ID, Android namespace, and internal Kotlin package
 are all `org.openbabyphone`.
 
+## Using Open Babyphone Without Existing Wi-Fi
+
+Open Babyphone does not need internet access, but the two devices need a local
+network path between them. In a holiday home or another place without Wi-Fi,
+Android hotspot mode can provide that local network.
+
+### Child Device Hotspot
+
+The child device can create a Wi-Fi hotspot in Android settings. The parent
+device then joins that hotspot and connects to Open Babyphone as usual.
+
+- The child device does not need a SIM card for Open Babyphone itself.
+- Whether Android allows hotspot mode without a SIM card is device/ROM-specific.
+- If the child device has mobile data, it may share internet through the hotspot.
+- If the child device has no internet uplink, the hotspot is still useful as a
+  local network for Open Babyphone.
+- The parent device may be able to keep using mobile data for other apps while
+  connected to the child hotspot, depending on Android and vendor settings.
+- Keep the child device plugged in when possible because hotspot, microphone, and
+  streaming increase power use.
+
+### Parent Device Hotspot
+
+The parent device can create the hotspot instead. The child device joins that
+hotspot, and Open Babyphone still communicates locally.
+
+- This can be practical when the parent device has a SIM card and can keep its
+  own mobile internet active while hosting the hotspot.
+- The child device does not need a SIM card.
+- As with every local-only setup, both devices must remain within range of the
+  local wireless link.
+
+WiFi Direct support is not implemented yet. It is a future local-only option
+being considered for direct device-to-device connections without a normal hotspot.
+
 ## Building From Source
 
 Use the checked-in Gradle wrapper and JDK 21:

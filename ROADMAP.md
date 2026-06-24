@@ -123,7 +123,53 @@ Goal: improve the in-home baby monitor without expanding into remote infrastruct
 - Improve local troubleshooting guidance for trusted VPN users without making VPN the main flow
 - Revisit larger features only if they preserve the local-only, no-cloud product promise
 
-### 5a. Migrate Audio Codec from G.711 u-law to Opus
+### 5a. Improve No-Wi-Fi Local Setups
+
+Goal: make Open Babyphone practical in places without an existing Wi-Fi network,
+such as holiday homes.
+
+Open Babyphone already works over any local network path. The immediate approach
+is documentation for Android hotspot setups: either the child device creates a
+local hotspot and the parent joins it, or the parent device creates a hotspot and
+the child joins it. Internet access is not required for Open Babyphone itself;
+internet availability depends on which device provides the hotspot and whether
+that device has an upstream mobile data connection.
+
+- Document child-device hotspot setup and its battery implications
+- Document parent-device hotspot setup and mobile-data considerations
+- Explain that all local-only modes require both devices to stay within wireless range
+- Keep third-device/travel-router setups as a simple no-code option in troubleshooting docs
+
+### 5b. Add WiFi Direct Connection Support
+
+Goal: support a direct local device-to-device connection without an existing Wi-Fi
+network or normal Android hotspot setup.
+
+WiFi Direct should be explored as the medium-term local-only answer for holiday
+homes and other no-infrastructure setups. It may also allow the parent device to
+keep mobile data available for other apps while Open Babyphone uses the WiFi
+Direct data path, but routing behavior must be verified on real devices.
+
+- Add `WifiP2pManager`-based discovery and group formation
+- Keep existing NSD/manual-address flows as fallbacks
+- Verify parent mobile data behavior while WiFi Direct is active
+- Test on OnePlus 3T (LineageOS 18.1) and modern Android devices
+- Document known vendor/ROM limitations
+
+### 5c. Explore Wi-Fi Aware / NAN
+
+Goal: evaluate whether Wi-Fi Aware is practical for future local peer-to-peer use.
+
+Wi-Fi Aware can discover nearby devices and create direct data paths without a
+normal access point, but Android device support and real-world reliability vary.
+This is a research item, not an implementation commitment.
+
+- Check API and hardware availability across target devices
+- Test whether continuous audio streaming is reliable
+- Verify whether parent mobile data remains usable for other apps
+- Compare complexity and reliability against WiFi Direct
+
+### 5d. Migrate Audio Codec from G.711 u-law to Opus
 
 Goal: replace the legacy 8 kHz G.711 u-law codec with Opus for better audio quality,
 lower bandwidth, and broader frequency response.
@@ -144,12 +190,12 @@ spectrum than G.711 provides.
 - Test on OnePlus 3T (LineageOS 18.1) and modern devices
 - Keep bandwidth and latency within limits for multi-parent fan-out
 
-### 5b. White Noise on Child Device with Noise Suppression on Parent Device
+### 5e. White Noise on Child Device with Noise Suppression on Parent Device
 
 Goal: let the child device play soothing white noise for the baby while the parent
 device filters it out so parents hear the baby clearly.
 
-Depends on: Opus migration (5a), because noise suppression needs broader spectrum
+Depends on: Opus migration (5d), because noise suppression needs broader spectrum
 than G.711 8 kHz provides.
 
 White noise without suppression is not practical: parents would hear constant noise
@@ -189,3 +235,5 @@ These items are tracked as GitHub issues and should be handled before a public b
 - #52 Document multi-parent support in README and UI
 - #69 Migrate audio codec from G.711 u-law to Opus (depends on #25)
 - #70 Add white noise on child device with noise suppression on parent device (depends on #69)
+- #77 Add WiFi Direct connection support
+- #78 Explore Wi-Fi Aware (NAN) for local peer-to-peer connections
