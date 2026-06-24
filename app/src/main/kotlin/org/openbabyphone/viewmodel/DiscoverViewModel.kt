@@ -10,6 +10,7 @@ import androidx.lifecycle.AndroidViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import org.openbabyphone.ConnectionConstants
 import org.openbabyphone.PairingCode
 import java.util.concurrent.ConcurrentLinkedQueue
 
@@ -39,7 +40,6 @@ class DiscoverViewModel(application: Application) : AndroidViewModel(application
 
     companion object {
         private const val TAG = "DiscoverViewModel"
-        private const val SERVICE_TYPE = "_childmonitor._tcp."
         private const val PREF_KEY_PAIRING_CODE = "pairingCode"
     }
 
@@ -86,7 +86,7 @@ class DiscoverViewModel(application: Application) : AndroidViewModel(application
             override fun onDiscoveryStarted(regType: String) {}
 
             override fun onServiceFound(service: NsdServiceInfo) {
-                if (service.serviceType == SERVICE_TYPE && service.serviceName.contains("Open Babyphone")) {
+                if (service.serviceType == ConnectionConstants.SERVICE_TYPE && service.serviceName.contains(ConnectionConstants.SERVICE_NAME_PREFIX)) {
                     resolveService(service)
                 }
             }
@@ -115,7 +115,7 @@ class DiscoverViewModel(application: Application) : AndroidViewModel(application
             }
         }
 
-        nsdManager?.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener)
+        nsdManager?.discoverServices(ConnectionConstants.SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener)
     }
 
     private fun resolveService(service: NsdServiceInfo) {

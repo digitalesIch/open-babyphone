@@ -3,12 +3,13 @@ package org.openbabyphone.service
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import org.openbabyphone.ConnectionConstants
 
 object MonitorServiceRepository {
     private val _serviceName = MutableStateFlow("")
     val serviceName: StateFlow<String> = _serviceName.asStateFlow()
 
-    private val _port = MutableStateFlow(10000)
+    private val _port = MutableStateFlow(ConnectionConstants.DEFAULT_PORT)
     val port: StateFlow<Int> = _port.asStateFlow()
 
     private val _addresses = MutableStateFlow<List<String>>(emptyList())
