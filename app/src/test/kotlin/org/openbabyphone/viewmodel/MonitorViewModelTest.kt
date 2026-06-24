@@ -1,6 +1,7 @@
 package org.openbabyphone.viewmodel
 
 import android.app.Application
+import org.openbabyphone.DeviceName
 import org.openbabyphone.MonitorService
 import org.openbabyphone.PairingCode
 import org.openbabyphone.service.MonitorServiceRepository
@@ -117,5 +118,67 @@ class MonitorViewModelTest {
         MonitorServiceRepository.updateServiceInfo("", 10000, emptyList())
         val state = viewModel.uiState.first()
         assertTrue(state.isLoading)
+    }
+
+    @Test
+    fun `device name is empty when no saved value`() = runTest {
+        val state = viewModel.uiState.first { it.pairingCode.isNotEmpty() }
+        assertEquals("", state.deviceName)
+    }
+
+    @Test
+    fun `updateDeviceName updates state`() = runTest {
+        viewModel.updateDeviceName("Nursery")
+        val state = viewModel.uiState.first { it.deviceName == "Nursery" }
+        assertEquals("Nursery", state.deviceName)
+    }
+
+    @Test
+    fun `updateDeviceName trims whitespace`() = runTest {
+        viewModel.updateDeviceName("  Nursery  ")
+        val state = viewModel.uiState.first { it.deviceName == "Nursery" }
+        assertEquals("Nursery", state.deviceName)
+    }
+
+    @Test
+    fun `updateDeviceName persists to SharedPreferences`() {
+        viewModel.updateDeviceName("LivingRoom")
+        val context = RuntimeEnvironment.getApplication() as Application
+        val prefs = context.getSharedPreferences(MonitorService.PAIRING_PREFS_NAME, Application.MODE_PRIVATE)
+        assertEquals("LivingRoom", prefs.getString(MonitorService.PREF_KEY_DEVICE_NAME, ""))
+    }
+
+    @Test
+    fun `saved device name is loaded on init`() = runTest {
+        val context = RuntimeEnvironment.getApplication() as Application
+        val prefs = context.getSharedPreferences(MonitorService.PAIRING_PREFS_NAME, Application.MODE_PRIVATE)
+        prefs.edit().putString(MonitorService.PREF_KEY_DEVICE_NAME, "MyRoom").apply()
+        viewModel = MonitorViewModel(context)
+        val state = viewModel.uiState.first { it.deviceName == "MyRoom" }
+        assertEquals("MyRoom", state.deviceName)
+    }
+
+    @Test
+    fun `updateDeviceName ignores names with newlines`() = runTest {
+        viewModel.updateDeviceName("Valid")
+        viewModel.updateDeviceName("Invalid\nName")
+        val state = viewModel.uiState.first { it.deviceName == "Valid" }
+        assertEquals("Valid", state.deviceName)
+    }
+
+    @Test
+    fun `updateDeviceName ignores names exceeding 63 characters`() = runTest {
+        viewModel.updateDeviceName("Valid")
+        viewModel.updateDeviceName("a".repeat(64))
+        val state = viewModel.uiState.first { it.deviceName == "Valid" }
+        assertEquals("Valid", state.deviceName)
+    }
+
+    @Test
+    fun `empty device name is accepted and cleared`() = runTest {
+        viewModel.updateDeviceName("SomeName")
+        viewModel.updateDeviceName("")
+        val state = viewModel.uiState.first { it.deviceName == "" }
+        assertEquals("", state.deviceName)
     }
 }

@@ -358,9 +358,19 @@ class MonitorService : Service() {
         mt.start()
     }
 
+    private fun buildServiceName(): String {
+        val deviceName = getSharedPreferences(PAIRING_PREFS_NAME, MODE_PRIVATE)
+            .getString(PREF_KEY_DEVICE_NAME, "") ?: ""
+        return if (deviceName.isBlank()) {
+            "Open Babyphone"
+        } else {
+            "Open Babyphone \u2014 $deviceName"
+        }
+    }
+
     private fun registerService(port: Int) {
         val serviceInfo = NsdServiceInfo()
-        serviceInfo.serviceName = ConnectionConstants.SERVICE_NAME_PREFIX
+        serviceInfo.serviceName = buildServiceName()
         serviceInfo.serviceType = ConnectionConstants.SERVICE_TYPE
         serviceInfo.port = port
         this.registrationListener = object : RegistrationListener {
@@ -475,6 +485,7 @@ class MonitorService : Service() {
         const val ID = 1338
         const val PAIRING_PREFS_NAME = "pairing"
         const val PREF_KEY_PAIRING_CODE = "pairingCode"
+        const val PREF_KEY_DEVICE_NAME = "deviceName"
         private const val AUTH_TIMEOUT_MS = 10_000
     }
 }

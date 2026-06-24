@@ -13,6 +13,10 @@
     <string name="service_description">Name of the service that parent must pair to</string>
     <string name="pairing_code_title">Pairing code:</string>
     <string name="pairing_code_locked">Pairing code is locked while monitoring. Stop monitoring to change it.</string>
+    <string name="device_name_title">Device name</string>
+    <string name="device_name_description">Shown to parents during discovery so they can identify this child device</string>
+    <string name="device_name_placeholder">e.g. Nursery, Living Room</string>
+    <string name="device_name_invalid">Name must be 1 to 63 characters with no line breaks</string>
     <string name="loading">Loading...</string>
     <string name="stopped">Stopped</string>
     <string name="streaming">Streaming...</string>

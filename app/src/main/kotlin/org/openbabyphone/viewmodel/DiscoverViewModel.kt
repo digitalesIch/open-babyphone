@@ -86,7 +86,7 @@ class DiscoverViewModel(application: Application) : AndroidViewModel(application
             override fun onDiscoveryStarted(regType: String) {}
 
             override fun onServiceFound(service: NsdServiceInfo) {
-                if (service.serviceType == ConnectionConstants.SERVICE_TYPE && service.serviceName.contains(ConnectionConstants.SERVICE_NAME_PREFIX)) {
+                if (service.serviceType == ConnectionConstants.SERVICE_TYPE && service.serviceName.startsWith(ConnectionConstants.SERVICE_NAME_PREFIX)) {
                     resolveService(service)
                 }
             }

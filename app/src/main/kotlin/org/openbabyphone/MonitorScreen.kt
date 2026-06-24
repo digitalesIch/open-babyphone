@@ -92,6 +92,36 @@ fun MonitorScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .testTag("device_name_card"),
+                    content = {
+                        Column(modifier = Modifier.padding(Spacing.space16)) {
+                            Text(stringResource(R.string.device_name_title), style = MaterialTheme.typography.titleLarge)
+                            Spacer(modifier = Modifier.height(Spacing.space8))
+                            OutlinedTextField(
+                                value = uiState.deviceName,
+                                onValueChange = { viewModel.updateDeviceName(it) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("device_name_field"),
+                                enabled = !isMonitoring,
+                                placeholder = { Text(stringResource(R.string.device_name_placeholder)) },
+                                singleLine = true,
+                                textStyle = MaterialTheme.typography.bodyLarge
+                            )
+                            Spacer(modifier = Modifier.height(Spacing.space8))
+                            Text(
+                                stringResource(R.string.device_name_description),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(Spacing.space16))
+
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
                         .testTag("pairing_card"),
                     content = {
                         Column(modifier = Modifier.padding(Spacing.space16)) {
