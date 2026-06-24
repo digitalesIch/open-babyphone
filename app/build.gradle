@@ -52,7 +52,7 @@ android {
         mavenCentral()
     }
 
-    packagingOptions {
+    packaging {
         resources {
             excludes += '/META-INF/{AL2.0,LGPL2.1}'
         }
@@ -64,7 +64,7 @@ android {
         warning 'MissingTranslation'
     }
     compileOptions {
-        // AGP 8.2 lint cannot analyze Java 21 class files reliably.
+        // AGP 8.5 lint cannot analyze Java 21 class files reliably.
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
