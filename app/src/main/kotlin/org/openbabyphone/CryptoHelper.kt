@@ -22,7 +22,7 @@ import org.libsodium.jni.Sodium
 object CryptoHelper {
 
     private const val ARGON2_OPS_LIMIT = 3
-    private const val ARGON2_MEM_LIMIT = 64 * 1024 * 1024
+    private const val ARGON2_MEM_LIMIT = 16 * 1024 * 1024
     private val ARGON2_SALT = "openbabyphone.argon2id.salt.v1".toByteArray(Charsets.UTF_8)
 
     const val SESSION_ID_SIZE = 8
@@ -72,10 +72,12 @@ object CryptoHelper {
     }
 
     fun encryptChunk(plaintext: ByteArray, key: ByteArray, sessionId: ByteArray, counter: Long): ByteArray {
+        require(key.size == 32) { "key must be 32 bytes, got ${key.size}" }
+        require(sessionId.size == SESSION_ID_SIZE) { "sessionId must be $SESSION_ID_SIZE bytes, got ${sessionId.size}" }
         val nonce = buildStreamNonce(sessionId, counter)
         val ciphertext = ByteArray(plaintext.size + AUTH_TAG_SIZE)
         val clen = intArrayOf(ciphertext.size)
-        Sodium.crypto_aead_chacha20poly1305_ietf_encrypt(
+        val result = Sodium.crypto_aead_chacha20poly1305_ietf_encrypt(
             ciphertext,
             clen,
             plaintext,
@@ -86,6 +88,9 @@ object CryptoHelper {
             nonce,
             key
         )
+        if (result != 0) {
+            throw IllegalStateException("crypto_aead_chacha20poly1305_ietf_encrypt failed with code $result")
+        }
         return ciphertext
     }
 
