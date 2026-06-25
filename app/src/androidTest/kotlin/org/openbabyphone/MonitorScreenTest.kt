@@ -11,6 +11,8 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextClearance
+import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.openbabyphone.service.ServiceConnectionManager
 import org.junit.Rule
@@ -31,10 +33,24 @@ class MonitorScreenTest {
 
         composeTestRule.onNodeWithText("Start Monitoring").assertIsDisplayed()
         composeTestRule.onNodeWithTag("pairing_code_field").assertIsEnabled()
+        composeTestRule.onNodeWithTag("pairing_qr_code").assertIsDisplayed()
     }
 
     @Test
-    fun monitorScreen_locksPairingCodeAfterStart() {
+    fun monitorScreen_showsValidationForInvalidPairingCode() {
+        composeTestRule.setContent {
+            MonitorScreen(onNavigateBack = {}, bindMonitorService = { fakeBinding(it) })
+        }
+
+        composeTestRule.onNodeWithTag("pairing_code_field").performTextClearance()
+        composeTestRule.onNodeWithTag("pairing_code_field").performTextInput("invalid-code")
+
+        composeTestRule.onNodeWithText("Use 1-64 letters and numbers").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Start Monitoring").assertIsNotEnabled()
+    }
+
+    @Test
+    fun monitorScreen_hidesSetupAfterStart() {
         composeTestRule.setContent {
             MonitorScreen(onNavigateBack = {}, bindMonitorService = { fakeBinding(it) })
         }
@@ -42,7 +58,7 @@ class MonitorScreenTest {
         composeTestRule.onNodeWithText("Start Monitoring").performClick()
 
         composeTestRule.onNodeWithText("Stop Monitoring").assertIsDisplayed()
-        composeTestRule.onNodeWithTag("pairing_code_field").assertIsNotEnabled()
+        composeTestRule.onNodeWithTag("loading_card").assertIsDisplayed()
     }
 
     private fun fakeBinding(context: Context): ServiceConnectionManager.ServiceBinding {

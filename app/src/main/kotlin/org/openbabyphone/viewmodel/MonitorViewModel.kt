@@ -18,11 +18,13 @@ import kotlinx.coroutines.flow.stateIn
 
 data class MonitorUiState(
     val pairingCode: String = "",
+    val pairingCodeValid: Boolean = true,
     val deviceName: String = "",
     val serviceName: String = "",
     val port: Int = ConnectionConstants.DEFAULT_PORT,
     val addresses: List<String> = emptyList(),
     val status: String = "",
+    val connectedClients: Int = 0,
     val isLoading: Boolean = true
 )
 
@@ -35,6 +37,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     val uiState: StateFlow<MonitorUiState> = combine(
         _pairingCode,
         _deviceName,
+        MonitorServiceRepository.connectedClients,
         combine(
             MonitorServiceRepository.serviceName,
             MonitorServiceRepository.port,
@@ -43,14 +46,16 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         ) { name, port, addresses, status ->
             ServiceInfo(name, port, addresses, status)
         }
-    ) { pairingCode, deviceName, info ->
+    ) { pairingCode, deviceName, clients, info ->
         MonitorUiState(
             pairingCode = pairingCode,
+            pairingCodeValid = PairingCode.isValid(pairingCode),
             deviceName = deviceName,
             serviceName = info.name.ifEmpty { loadingLabel },
             port = info.port,
             addresses = info.addresses,
             status = info.status.ifEmpty { waitingForParentStatus },
+            connectedClients = clients,
             isLoading = info.name.isEmpty()
         )
     }.stateIn(
@@ -86,11 +91,11 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun updatePairingCode(code: String) {
-        if (!PairingCode.isValid(code)) {
-            return
-        }
         val normalizedCode = PairingCode.normalize(code)
         _pairingCode.value = normalizedCode
+        if (!PairingCode.isValid(normalizedCode)) {
+            return
+        }
         val prefs = getApplication<Application>().getSharedPreferences(
             MonitorService.PAIRING_PREFS_NAME,
             Application.MODE_PRIVATE

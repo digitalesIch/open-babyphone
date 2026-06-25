@@ -18,6 +18,9 @@ object MonitorServiceRepository {
     private val _status = MutableStateFlow("")
     val status: StateFlow<String> = _status.asStateFlow()
 
+    private val _connectedClients = MutableStateFlow(0)
+    val connectedClients: StateFlow<Int> = _connectedClients.asStateFlow()
+
     fun updateServiceInfo(name: String, port: Int, addresses: List<String>) {
         _serviceName.value = name
         _port.value = port
@@ -26,6 +29,10 @@ object MonitorServiceRepository {
 
     fun updateStatus(status: String) {
         _status.value = status
+    }
+
+    fun updateConnectedClients(count: Int) {
+        _connectedClients.value = count
     }
 }
 

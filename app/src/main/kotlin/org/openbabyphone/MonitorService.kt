@@ -164,6 +164,7 @@ class MonitorService : Service() {
         }
 
         MonitorServiceRepository.updateStatus(getString(R.string.connected_clients, clientManager.getClientCount()))
+        MonitorServiceRepository.updateConnectedClients(clientManager.getClientCount())
 
         if (!clientManager.canAcceptMoreClients()) {
             unregisterService()
@@ -287,6 +288,7 @@ class MonitorService : Service() {
         ServiceCompat.startForeground(this, ID, n, foregroundServiceType)
         clientManager.setClientCountListener { count ->
             MonitorServiceRepository.updateStatus(getString(R.string.connected_clients, count))
+            MonitorServiceRepository.updateConnectedClients(count)
             if (clientManager.canAcceptMoreClients() && registrationListener == null && connectionToken != null) {
                 Log.i(TAG, "Capacity available again, re-registering NSD")
                 currentSocket?.localPort?.let { registerService(it) }

@@ -45,6 +45,7 @@ class ListenViewModelTest {
         ListenServiceRepository.updateConnected(true)
         val state = viewModel.uiState.first { it.isConnected }
         assertTrue(state.isConnected)
+        assertFalse(state.isReconnecting)
     }
 
     @Test
@@ -53,7 +54,17 @@ class ListenViewModelTest {
         val state = viewModel.uiState.first { it.isError }
         assertTrue(state.isError)
         assertFalse(state.isConnected)
+        assertFalse(state.isReconnecting)
         assertEquals("Disconnected", state.status)
+    }
+
+    @Test
+    fun `reconnecting status reflects in state`() = runTest {
+        ListenServiceRepository.updateStatus("Reconnecting (1/3)...")
+        val state = viewModel.uiState.first { it.isReconnecting }
+        assertFalse(state.isConnected)
+        assertFalse(state.isError)
+        assertTrue(state.isReconnecting)
     }
 
     @Test
