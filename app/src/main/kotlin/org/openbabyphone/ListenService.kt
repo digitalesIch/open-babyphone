@@ -390,22 +390,27 @@ class ListenService : Service() {
         val playbackThread = Thread {
             val decodedBuffer = ShortArray(byteBufferSize * 2)
             Log.i(TAG, "Starting playback from jitter buffer")
-            while (streamRunning.get() && !Thread.currentThread().isInterrupted) {
-                val jitterFrame = jitterBuffer.getFrame(100) ?: continue
-                val decoded = AudioCodecDefines.CODEC.decode(decodedBuffer, jitterFrame.ulawData, jitterFrame.ulawData.size, 0)
-                if (decoded > 0) {
-                    val written = audioTrack.write(decodedBuffer, 0, decoded)
-                    if (written < 0) {
-                        Log.e(TAG, "AudioTrack write error: $written")
-                        playbackFailed.set(true)
-                        streamRunning.set(false)
-                        break
+            try {
+                while (streamRunning.get() && !Thread.currentThread().isInterrupted) {
+                    val jitterFrame = jitterBuffer.getFrame(100) ?: continue
+                    val decoded = AudioCodecDefines.CODEC.decode(decodedBuffer, jitterFrame.ulawData, jitterFrame.ulawData.size, 0)
+                    if (decoded > 0) {
+                        val written = audioTrack.write(decodedBuffer, 0, decoded)
+                        if (written < 0) {
+                            Log.e(TAG, "AudioTrack write error: $written")
+                            playbackFailed.set(true)
+                            streamRunning.set(false)
+                            break
+                        }
+                        val decodedBytes = ShortArray(decoded)
+                        System.arraycopy(decodedBuffer, 0, decodedBytes, 0, decoded)
+                        volumeHistory.onAudioData(decodedBytes)
+                        onUpdate?.invoke()
                     }
-                    val decodedBytes = ShortArray(decoded)
-                    System.arraycopy(decodedBuffer, 0, decodedBytes, 0, decoded)
-                    volumeHistory.onAudioData(decodedBytes)
-                    onUpdate?.invoke()
                 }
+            } catch (e: InterruptedException) {
+                Log.d(TAG, "Playback thread interrupted")
+                Thread.currentThread().interrupt()
             }
         }
 
