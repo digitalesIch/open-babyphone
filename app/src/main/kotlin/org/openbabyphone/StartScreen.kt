@@ -6,8 +6,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -42,7 +42,6 @@ fun StartScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val isExpanded = LocalWindowWidthSizeClass.current == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Expanded
 
     var childPermissionDenied by remember { mutableStateOf(false) }
     var parentPermissionDenied by remember { mutableStateOf(false) }
@@ -97,43 +96,28 @@ fun StartScreen(
         }
     }
 
-    Row(
+    Box(
         modifier = modifier
-            .fillMaxSize()
-            .padding(Spacing.space16)
-            .verticalScroll(rememberScrollState())
-            .animateContentSize(),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
+            .fillMaxSize(),
+        contentAlignment = Alignment.TopCenter
     ) {
-        if (isExpanded) {
-            Column(
-                modifier = Modifier.weight(1f).padding(end = Spacing.space32),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = stringResource(R.string.app_name),
-                    style = MaterialTheme.typography.headlineLarge,
-                    textAlign = TextAlign.Center
-                )
-            }
-        } else {
+        Column(
+            modifier = Modifier
+                .widthIn(max = 600.dp)
+                .fillMaxSize()
+                .padding(Spacing.space16)
+                .verticalScroll(rememberScrollState())
+                .animateContentSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
             Text(
                 text = stringResource(R.string.app_name),
                 style = MaterialTheme.typography.headlineLarge,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(bottom = Spacing.space32)
             )
-        }
 
-        Column(
-            modifier = Modifier
-                .widthIn(max = 500.dp)
-                .then(if (isExpanded) Modifier.weight(1f) else Modifier.fillMaxWidth()),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
             Button(
                 onClick = {
                     val allGranted = childPermissions.all { perm ->
