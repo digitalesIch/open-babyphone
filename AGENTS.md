@@ -10,7 +10,7 @@
 - A deep link `quiet-engine://listen?...` is registered in the manifest and `MainActivity` for resuming the listen session.
 - The Compose theme lives under `ui/theme/` (`Theme.kt`, `Spacing.kt`, `Motion.kt`): full M3 light/dark color schemes, spacing tokens (`space2`..`space32`) replacing `dimens.xml`, and motion tokens for nav transitions. `VolumeCanvas` is theme-aware (`MaterialTheme.colorScheme`). `MainActivity` installs a `core-splashscreen` splash (`AppTheme.Splash`) and calls `enableEdgeToEdge()`.
 - Adaptive/tablet strategy is responsive single-pane: screens cap content width with `Box` + `widthIn(max = 600.dp)`. No multi-pane layout (deferred; compileSdk 34 and no Navigation 3). Compose Preview Screenshot Testing requires Kotlin 2.x (the `screenshot-validation-api` artifact starts at plugin alpha10 which needs Kotlin 2.1+); it remains deferred until a Kotlin upgrade is scheduled.
-- Audio/networking is service-driven: `MonitorService` advertises `_childmonitor._tcp.` with Android NSD, binds from TCP port `10000` upward, optionally authenticates parents with a persistent alphanumeric pairing code, records mic audio, and streams G.711 u-law; `ListenService` performs the parent-side handshake, decodes, and plays the stream.
+- Audio/networking is service-driven: `MonitorService` advertises `_openbabyphone._tcp.` with Android NSD, binds from TCP port `10000` upward, optionally authenticates parents with a persistent alphanumeric pairing code, records mic audio, and streams G.711 u-law; `ListenService` performs the parent-side handshake, decodes, and plays the stream.
 - Manual parent connection exists for advanced trusted VPN or unusual local-network setups; the product direction is same Wi-Fi/LAN first, and NSD discovery is LAN-only.
 
 ## Build And Checks
@@ -35,7 +35,7 @@
 - `CONTRIBUTING.md` expects patches to pass unit tests and lint; CI runs on `main` pushes and PRs.
 - `CONTRIBUTING.md` expects each patch/PR description to explain the problem being solved, how it was solved, and why that solution was chosen; bug fixes should include a reproducer and verification instructions when practical.
 - `CONTRIBUTING.md` requires a license confirmation statement in PR descriptions; no sign-off line required. License confirmation is required only for pull requests that contribute code, not for issues, bug reports, or feature requests.
-- Favor zero-cost, low-maintenance changes. Features that need servers, relays, paid SaaS, accounts, WebRTC/STUN/TURN infrastructure, or recurring infrastructure are outside the current product direction unless explicitly requested; offer local-network/no-server options first. Treat VPN only as an advanced manual setup note.
+- Favor zero-cost, low-maintenance changes. Features that need hosted servers, relays, paid SaaS, accounts, WebRTC/STUN/TURN infrastructure, or recurring infrastructure are outside the current product direction unless explicitly requested; offer local-network/no-server options first. Treat VPN only as an advanced manual setup note.
 - **Language**: All PR titles, PR descriptions, commit messages, and code comments must be written in English, regardless of the language used in conversation with the user. The project's CONTRIBUTING.md and documentation are in English.
 - **App Language**: The app is English-only. All user-facing strings must be in English. Do not add or maintain translations in other languages.
 

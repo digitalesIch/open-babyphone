@@ -1,30 +1,31 @@
 # Roadmap 2.0
 
 This roadmap reflects the current product direction for Open Babyphone: a modern,
-open source, local-only Android baby monitor for use at home.
+open-source Android baby monitor for local home networks.
 
 ## Product Vision
 
-Open Babyphone should become a trustworthy local baby monitor that:
+Open Babyphone should become a dependable local baby monitor that:
 
 - Works reliably overnight on real Android devices
 - Streams audio directly between devices on the same Wi-Fi or local network
 - Uses safe pairing and encrypted transport by default
 - Is understandable for non-technical parents and caregivers
 - Is transparent, auditable, and suitable for F-Droid distribution
-- Avoids cloud services, accounts, relay servers, tracking, and recurring infrastructure
+- Works without accounts or project-operated server infrastructure
 
 Trusted VPN use remains an advanced manual setup note. It is not the normal setup
 flow and not a remote-access product goal.
 
-## Non-Goals
+## Product Scope
 
-- No internet-based remote listening feature
-- No cloud relay, hosted backend, user accounts, push service, or paid SaaS dependency
-- No WebRTC/STUN/TURN infrastructure unless explicitly revisited as a separate product
-  direction, which is currently not planned
-- No video feature before audio reliability, privacy, and release quality are solved
-- No AI, sleep tracking, or extra sensors before the core baby monitor experience is stable
+- Same Wi-Fi or same LAN is the normal setup
+- Manual address entry remains available for trusted VPNs and unusual local networks
+- Internet-based remote listening is outside the current product direction
+- Hosted relays, accounts, push services, and paid SaaS dependencies are not part
+  of the planned architecture
+- Video, AI, sleep tracking, and extra sensors can be revisited only after the
+  core audio monitor is reliable, understandable, and release-ready
 
 ## Current Baseline
 
@@ -146,7 +147,7 @@ Goal: improve the in-home baby monitor without expanding into remote infrastruct
 - Improve local discovery diagnostics for routers that block multicast/mDNS
 - Consider configurable sensitivity or noise-gate features only if they do not compromise safety
 - Improve local troubleshooting guidance for trusted VPN users without making VPN the main flow
-- Revisit larger features only if they preserve the local-only, no-cloud product promise
+- Revisit larger features only if they preserve the local-network product promise
 
 ### 5a. Improve No-Wi-Fi Local Setups
 

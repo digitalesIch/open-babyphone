@@ -14,8 +14,8 @@ June 2026: Initial fork release
   * Replaced plaintext pairing code transmission with challenge-response authentication
   * Added per-session random nonces to prevent AEAD nonce reuse across sessions
   * Froze pairing code during active monitoring sessions to prevent key mismatches
-  * Focus on no-cloud, local-network-first baby monitoring
-  * Trusted VPN use is treated as an advanced manual setup note, not a remote-access feature
+  * Focus on local-network baby monitoring for home use
+  * Trusted VPN use is treated as an advanced manual setup note, not the normal setup flow
 
 Child Monitor (original project)
 =================================
