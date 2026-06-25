@@ -116,7 +116,7 @@ object CryptoHelper {
     fun encryptChallenge(challenge: ByteArray, key: ByteArray, authNonce: ByteArray): ByteArray {
         val ciphertext = ByteArray(challenge.size + AUTH_TAG_SIZE)
         val clen = intArrayOf(ciphertext.size)
-        Sodium.crypto_aead_chacha20poly1305_ietf_encrypt(
+        val result = Sodium.crypto_aead_chacha20poly1305_ietf_encrypt(
             ciphertext,
             clen,
             challenge,
@@ -127,6 +127,9 @@ object CryptoHelper {
             authNonce,
             key
         )
+        if (result != 0) {
+            throw IllegalStateException("crypto_aead_chacha20poly1305_ietf_encrypt failed with code $result")
+        }
         return ciphertext
     }
 
