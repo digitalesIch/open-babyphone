@@ -69,4 +69,8 @@
     <string name="permission_rationale_child">Microphone permission is required to monitor your baby. Please grant the permission to continue.</string>
     <string name="permission_rationale_parent">Network access permission is required to discover child devices. Please grant the permission to continue.</string>
     <string name="disconnect">Disconnect</string>
+    <string name="qr_code_hint">Scan this code on the parent device</string>
+    <string name="qr_code_content_description">QR code for pairing</string>
+    <string name="invalid_pairing_code_feedback">Use 1-64 letters and numbers</string>
+    <string name="waiting_for_connection">Waiting for connection...</string>
 </resources>

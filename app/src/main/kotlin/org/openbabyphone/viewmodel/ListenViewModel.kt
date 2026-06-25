@@ -17,7 +17,8 @@ data class ListenUiState(
     val volumeHistory: FloatArray = floatArrayOf(),
     val volumeNorm: Float = 1.0f,
     val isConnected: Boolean = false,
-    val isError: Boolean = false
+    val isError: Boolean = false,
+    val isReconnecting: Boolean = false
 )
 
 class ListenViewModel(application: Application) : AndroidViewModel(application) {
@@ -53,7 +54,8 @@ class ListenViewModel(application: Application) : AndroidViewModel(application) 
             volumeHistory = volumeHistory,
             volumeNorm = volumeNorm,
             isConnected = connected,
-            isError = isError
+            isError = isError,
+            isReconnecting = !connected && !isError && status.startsWith("Reconnecting")
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ListenUiState(status = connectingStatus))
 

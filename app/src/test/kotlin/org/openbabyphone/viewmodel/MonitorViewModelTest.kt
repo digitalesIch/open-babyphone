@@ -28,6 +28,7 @@ class MonitorViewModelTest {
 
         MonitorServiceRepository.updateServiceInfo("", 10000, emptyList())
         MonitorServiceRepository.updateStatus("Waiting for Parent...")
+        MonitorServiceRepository.updateConnectedClients(0)
 
         viewModel = MonitorViewModel(context)
     }
@@ -70,11 +71,12 @@ class MonitorViewModelTest {
     }
 
     @Test
-    fun `updatePairingCode ignores invalid characters`() = runTest {
+    fun `updatePairingCode keeps invalid characters visible`() = runTest {
         viewModel.updatePairingCode("valid123")
         viewModel.updatePairingCode("invalid-code")
-        val state = viewModel.uiState.first { it.pairingCode == "valid123" }
-        assertEquals("valid123", state.pairingCode)
+        val state = viewModel.uiState.first { it.pairingCode == "invalid-code" }
+        assertEquals("invalid-code", state.pairingCode)
+        assertTrue(!state.pairingCodeValid)
     }
 
     @Test
@@ -111,6 +113,13 @@ class MonitorViewModelTest {
         assertEquals("TestService", state.serviceName)
         assertEquals(8080, state.port)
         assertTrue(state.addresses.contains("192.168.1.1"))
+    }
+
+    @Test
+    fun `connected client count updates reflect in state`() = runTest {
+        MonitorServiceRepository.updateConnectedClients(2)
+        val state = viewModel.uiState.first { it.connectedClients == 2 }
+        assertEquals(2, state.connectedClients)
     }
 
     @Test
