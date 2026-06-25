@@ -237,12 +237,7 @@ class MonitorService : Service() {
                     }
                     val encoded = AudioCodecDefines.CODEC.encode(pcmBuffer, read, ulawBuffer, 0)
                     val timestampMs = (System.currentTimeMillis() - sessionStartTime).toInt()
-                    val frame = try {
-                        FrameCodec.encodeFrame(ulawBuffer.copyOf(encoded), seqNum++, timestampMs, key, sessionId)
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Frame encoding failed, falling back to unencrypted", e)
-                        FrameCodec.encodeFrame(ulawBuffer.copyOf(encoded), seqNum++, timestampMs, null, sessionId)
-                    }
+                    val frame = FrameCodec.encodeFrame(ulawBuffer.copyOf(encoded), seqNum++, timestampMs, key, sessionId)
                     clientManager.broadcastFrame(frame)
 
                     val currentTime = System.currentTimeMillis()
@@ -310,7 +305,7 @@ class MonitorService : Service() {
             return
         }
         streamSessionId = CryptoHelper.generateSessionId()
-        streamKey = null
+        streamKey = pairingCode.takeIf { it.isNotBlank() }?.let(CryptoHelper::deriveKey)
         val currentToken = Any()
         this.connectionToken = currentToken
         mt = Thread {
