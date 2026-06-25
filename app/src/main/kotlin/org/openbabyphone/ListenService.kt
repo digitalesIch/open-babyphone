@@ -23,6 +23,9 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
 import android.media.MediaPlayer
@@ -53,16 +56,34 @@ class ListenService : Service() {
     private val byteBufferSize = bufferSize * 2
     private val binder: IBinder = ListenBinder()
     private lateinit var notificationManager: NotificationManager
+    private lateinit var audioManager: AudioManager
     private var listenThread: Thread? = null
     @Volatile private var currentSocket: Socket? = null
     @Volatile private var isRunning = false
+    @Volatile private var hasAudioFocus = false
     val volumeHistory = VolumeHistory(16384)
     var childDeviceName: String? = null
         private set
 
+    private val monitoringAudioAttributes = AudioAttributes.Builder()
+        .setUsage(AudioAttributes.USAGE_MEDIA)
+        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+        .build()
+
+    private val audioFocusRequest: AudioFocusRequest by lazy {
+        AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+            .setAudioAttributes(monitoringAudioAttributes)
+            .setAcceptsDelayedFocusGain(false)
+            .setOnAudioFocusChangeListener { change ->
+                Log.i(TAG, "Audio focus changed: $change")
+            }
+            .build()
+    }
+
     override fun onCreate() {
         super.onCreate()
         this.notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        this.audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
     }
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
@@ -91,10 +112,12 @@ class ListenService : Service() {
     override fun onDestroy() {
         isRunning = false
         stopListenThread()
+        abandonAudioFocus()
         ListenServiceRepository.updateConnected(false)
 
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         Toast.makeText(this, R.string.stopped, Toast.LENGTH_SHORT).show()
+        super.onDestroy()
     }
 
     private fun stopListenThread() {
@@ -313,8 +336,20 @@ class ListenService : Service() {
 
     private fun streamAudio(socket: Socket, key: ByteArray?, sessionId: ByteArray): Boolean {
         Log.i(TAG, "Setting up stream")
+        requestAudioFocus()
         val audioTrack = try {
-            AudioTrack(AudioManager.STREAM_MUSIC, frequency, channelConfiguration, audioEncoding, bufferSize, AudioTrack.MODE_STREAM)
+            AudioTrack.Builder()
+                .setAudioAttributes(monitoringAudioAttributes)
+                .setAudioFormat(
+                    AudioFormat.Builder()
+                        .setSampleRate(frequency)
+                        .setChannelMask(channelConfiguration)
+                        .setEncoding(audioEncoding)
+                        .build()
+                )
+                .setBufferSizeInBytes(bufferSize)
+                .setTransferMode(AudioTrack.MODE_STREAM)
+                .build()
         } catch (e: IllegalArgumentException) {
             Log.e(TAG, "AudioTrack initialization failed - invalid parameters", e)
             return false
@@ -478,7 +513,8 @@ class ListenService : Service() {
     }
 
     private fun playAlert() {
-        val mp = MediaPlayer.create(this, R.raw.upward_beep_chromatic_fifths)
+        requestAudioFocus()
+        val mp = MediaPlayer.create(this, R.raw.upward_beep_chromatic_fifths, monitoringAudioAttributes, 0)
         if (mp != null) {
             Log.i(TAG, "Playing alert")
             mp.setOnCompletionListener { obj: MediaPlayer -> obj.release() }
@@ -486,6 +522,21 @@ class ListenService : Service() {
         } else {
             Log.e(TAG, "Failed to play alert")
         }
+    }
+
+    private fun requestAudioFocus() {
+        if (hasAudioFocus) return
+        val result = audioManager.requestAudioFocus(audioFocusRequest)
+        hasAudioFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        if (!hasAudioFocus) {
+            Log.w(TAG, "Audio focus request was not granted: $result")
+        }
+    }
+
+    private fun abandonAudioFocus() {
+        if (!hasAudioFocus) return
+        audioManager.abandonAudioFocusRequest(audioFocusRequest)
+        hasAudioFocus = false
     }
 
     companion object {

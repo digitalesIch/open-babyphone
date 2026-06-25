@@ -51,6 +51,40 @@ cannot cover Android power management, OEM battery restrictions, router
 behavior, screen-off operation, or long-running foreground services.
 The following matrix must be run before each public release.
 
+### Power Management Strategy
+
+Open Babyphone currently uses foreground services with explicit service types
+for the long-running work:
+- Child mode: `FOREGROUND_SERVICE_TYPE_MICROPHONE`
+- Parent mode: `FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK`
+
+The app does not currently hold an always-on `PARTIAL_WAKE_LOCK` or Wi-Fi lock.
+That is intentional until real-device testing proves a lock is needed. Always-on
+locks can increase battery drain and heat during overnight use, and the stream
+itself uses TCP unicast after NSD discovery completes. Parent discovery uses a
+short-lived multicast lock while searching for child devices.
+
+If any screen-off or overnight test below fails because Android suspends CPU,
+Wi-Fi, microphone capture, or playback, file a bug with device details and add
+the narrowest scoped lock needed for that mode. Do not add a broad permanent
+lock without a reproducer.
+
+### OEM Battery Optimization Guidance
+
+Some Android distributions can stop or throttle foreground services despite the
+notification being visible. Before treating an overnight failure as an app bug,
+record whether battery optimization was enabled for Open Babyphone and whether
+the device has OEM-specific power management.
+
+For release validation, run the overnight scenarios twice on at least one
+aggressive-OEM device:
+- With default battery optimization enabled
+- With Open Babyphone exempted from battery optimization, if the default run
+  fails or is unstable
+
+Document any required OEM setting in the release notes and file a follow-up bug
+if the app can improve its in-app guidance.
+
 ### Device Coverage
 
 | Category | Requirement | Example |
@@ -82,44 +116,56 @@ Each scenario should be run on at least one device from each category.
 | 8 | Child on charger, parent on battery | Both stable for 8+ hours |
 | 9 | Child on battery, parent on charger | Both stable for 8+ hours |
 | 10 | Locked screen on both devices | Stream continues, foreground notification visible |
+| 11 | Child screen off, parent screen on for 30 minutes | Parent receives uninterrupted audio |
+| 12 | Parent screen off, child screen on for 30 minutes | Parent playback continues and notification remains visible |
+| 13 | Child charger connected during active monitoring | Stream continues without service restart |
+| 14 | Child charger disconnected during active monitoring | Stream continues without service restart |
+| 15 | Parent charger connected during active listening | Playback continues without service restart |
+| 16 | Parent charger disconnected during active listening | Playback continues without service restart |
 
 #### Network Resilience
 
 | # | Scenario | Pass Criteria |
 |---|----------|---------------|
-| 11 | Wi-Fi disconnects on child for 10 seconds, reconnects | Parent reconnects automatically or alert fires |
-| 12 | Wi-Fi disconnects on parent for 10 seconds, reconnects | Parent reconnects automatically or alert fires |
-| 13 | Router restart (30 second outage) | Both devices recover without manual intervention |
-| 14 | Child app killed and restarted | Parent reconnects or alerts |
-| 15 | Parent app killed and restarted | Parent reconnects to child |
+| 17 | Wi-Fi disconnects on child for 10 seconds, reconnects | Parent reconnects automatically or alert fires |
+| 18 | Wi-Fi disconnects on parent for 10 seconds, reconnects | Parent reconnects automatically or alert fires |
+| 19 | Router restart (30 second outage) | Both devices recover without manual intervention or parent alert fires |
+| 20 | Child service stopped and restarted | Parent reconnects or alerts clearly |
+| 21 | Parent service stopped and restarted | Parent reconnects to child |
+| 22 | Child switches Wi-Fi access point on same LAN | Parent reconnects or alerts clearly |
+| 23 | Parent switches Wi-Fi access point on same LAN | Parent reconnects or alerts clearly |
 
 #### Multi-Parent
 
 | # | Scenario | Pass Criteria |
 |---|----------|---------------|
-| 16 | 2 parents connect simultaneously | Both receive audio |
-| 17 | 1 of 2 parents disconnects | Other parent continues without interruption |
-| 18 | 5 parents connect (max) | All 5 receive audio |
-| 19 | 6th parent attempts connection | 6th parent rejected gracefully |
-| 20 | 1 parent disconnects from max, new parent connects | New parent connects successfully |
+| 24 | 2 parents connect simultaneously | Both receive audio |
+| 25 | 1 of 2 parents disconnects | Other parent continues without interruption |
+| 26 | 5 parents connect (max) | All 5 receive audio |
+| 27 | 6th parent attempts connection | 6th parent rejected gracefully |
+| 28 | 1 parent disconnects from max, new parent connects | New parent connects successfully |
 
 #### Alert Audibility
 
 | # | Scenario | Pass Criteria |
 |---|----------|---------------|
-| 21 | Child disconnects, parent on phone speaker | Alert is audible |
-| 22 | Child disconnects, parent on Bluetooth headphones | Alert is audible |
-| 23 | Child disconnects, parent on wired headphones | Alert is audible |
-| 24 | Child disconnects, parent in Do Not Disturb mode | Alert behavior documented (may be silenced by DND) |
+| 29 | Child disconnects, parent on phone speaker | Alert is audible |
+| 30 | Child disconnects, parent on Bluetooth headphones | Alert is audible on the active media output |
+| 31 | Child disconnects, parent on wired headphones | Alert is audible on the active media output |
+| 32 | Child disconnects, parent in Do Not Disturb mode | Alert behavior documented (may be silenced by DND) |
+| 33 | Another media app is playing before parent connects | Open Babyphone requests audio focus and monitoring audio remains understandable |
+| 34 | Another media app starts while parent is listening | Open Babyphone remains understandable or Android focus behavior is documented |
 
 #### Foreground Service
 
 | # | Scenario | Pass Criteria |
 |---|----------|---------------|
-| 25 | Child foreground notification persists | Notification visible for entire session |
-| 26 | Parent foreground notification persists | Notification visible for entire session |
-| 27 | App backgrounded on child | Stream continues, foreground service active |
-| 28 | App backgrounded on parent | Stream continues, foreground service active |
+| 35 | Child foreground notification persists | Notification visible for entire session |
+| 36 | Parent foreground notification persists | Notification visible for entire session |
+| 37 | App backgrounded on child | Stream continues, foreground service active |
+| 38 | App backgrounded on parent | Stream continues, foreground service active |
+| 39 | Child app removed from recents while monitoring | Stream continues or stops with a clear parent alert |
+| 40 | Parent app removed from recents while listening | Playback continues or the foreground service stops cleanly |
 
 ### Release Verification Checklist
 
@@ -130,7 +176,7 @@ Before tagging a release, record the following:
 - [ ] Tester: ___
 - [ ] Devices used: ___
 - [ ] Android versions: ___
-- [ ] Scenarios passed: ___ / 28
+- [ ] Scenarios passed: ___ / 40
 - [ ] Known issues at release time: ___
 - [ ] Bugs filed for failures: ___
 
