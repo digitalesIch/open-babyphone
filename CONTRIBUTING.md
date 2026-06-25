@@ -9,10 +9,9 @@ should have a much easier time getting your work merged.
 
 Open Babyphone is an independent fork of Child Monitor (which itself is a fork
 of Protect Baby Monitor). We maintain attribution to the original projects
-while developing Open Babyphone as a separate project focused on no-cloud,
-local-network-first baby monitoring. Same Wi-Fi or same LAN use is the core
-product goal; trusted VPN setups are treated as an advanced manual fallback,
-not as a remote-access feature.
+while developing Open Babyphone as a separate project for local-network baby
+monitoring. Same Wi-Fi or same LAN use is the core product goal; trusted VPN
+setups are treated as an advanced manual fallback, not as the normal setup flow.
 
 ## Build Requirements
 

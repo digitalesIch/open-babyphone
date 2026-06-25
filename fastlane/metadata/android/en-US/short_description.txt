@@ -1,1 +1,1 @@
-Local-network Android baby monitor without cloud accounts.
+Open-source Android baby monitor for local networks.
