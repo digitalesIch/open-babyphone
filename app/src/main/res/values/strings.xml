@@ -73,4 +73,7 @@
     <string name="qr_code_content_description">QR code for pairing</string>
     <string name="invalid_pairing_code_feedback">Use 1-64 letters and numbers</string>
     <string name="waiting_for_connection">Waiting for connection...</string>
+    <string name="scan_qr_code">Scan QR Code</string>
+    <string name="scan_qr_code_prompt">Point the camera at the QR code on the child device</string>
+    <string name="invalid_qr_code_feedback">That QR code does not contain a valid pairing code. Enter the code manually instead.</string>
 </resources>

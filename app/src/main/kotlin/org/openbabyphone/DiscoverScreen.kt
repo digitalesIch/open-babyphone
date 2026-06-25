@@ -1,6 +1,7 @@
 package org.openbabyphone
 
 import org.openbabyphone.ui.theme.Spacing
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -43,6 +45,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import org.openbabyphone.viewmodel.DiscoverViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,8 +61,23 @@ fun DiscoverScreen(
     val uiState by viewModel.uiState.collectAsState()
     val connectLabel = stringResource(R.string.connect)
     val stopLabel = stringResource(R.string.discovery_stopped)
+    val invalidQrFeedback = stringResource(R.string.invalid_qr_code_feedback)
+    val scanPrompt = stringResource(R.string.scan_qr_code_prompt)
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var advancedExpanded by rememberSaveable { mutableStateOf(false) }
+    var scanErrorMessage by remember { mutableStateOf<String?>(null) }
+
+    val scanLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
+        if (result.contents != null) {
+            val candidate = PairingQrCode.parseScannedCode(result.contents)
+            if (candidate != null && PairingCode.isValid(candidate)) {
+                viewModel.updatePairingCode(candidate)
+                scanErrorMessage = null
+            } else {
+                scanErrorMessage = invalidQrFeedback
+            }
+        }
+    }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -121,6 +140,38 @@ fun DiscoverScreen(
                     singleLine = true,
                     textStyle = MaterialTheme.typography.bodyLarge
                 )
+
+                Spacer(modifier = Modifier.height(Spacing.space8))
+
+                OutlinedButton(
+                    onClick = {
+                        scanErrorMessage = null
+                        scanLauncher.launch(
+                            ScanOptions().apply {
+                                setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                                setPrompt(scanPrompt)
+                                setBeepEnabled(false)
+                                setOrientationLocked(false)
+                            }
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("scan_qr_button")
+                ) {
+                    Text(stringResource(R.string.scan_qr_code))
+                }
+
+                scanErrorMessage?.let { message ->
+                    Spacer(modifier = Modifier.height(Spacing.space8))
+                    Text(
+                        text = message,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(Spacing.space16))
 

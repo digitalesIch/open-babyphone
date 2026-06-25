@@ -54,4 +54,16 @@ class DiscoverScreenTest {
         }
         composeTestRule.onNodeWithText("Pairing code (optional)").assertIsDisplayed()
     }
+
+    @Test
+    fun discoverScreen_displaysScanQrButton() {
+        composeTestRule.setContent {
+            DiscoverScreen(
+                onNavigateBack = {},
+                onNavigateToAddressInput = {},
+                onNavigateToListen = { _, _, _, _ -> }
+            )
+        }
+        composeTestRule.onNodeWithTag("scan_qr_button").assertIsDisplayed()
+    }
 }
