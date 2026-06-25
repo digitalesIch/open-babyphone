@@ -24,6 +24,7 @@ object CryptoHelper {
     private const val ARGON2_OPS_LIMIT = 3
     private const val ARGON2_MEM_LIMIT = 16 * 1024 * 1024
     private val ARGON2_SALT = "openbabyphone.argon2id.salt.v1".toByteArray(Charsets.UTF_8)
+    private val EMPTY_BYTES = ByteArray(0)
 
     const val SESSION_ID_SIZE = 8
     const val CHALLENGE_SIZE = 32
@@ -82,9 +83,9 @@ object CryptoHelper {
             clen,
             plaintext,
             plaintext.size,
-            null,
+            EMPTY_BYTES,
             0,
-            null,
+            EMPTY_BYTES,
             nonce,
             key
         )
@@ -101,10 +102,10 @@ object CryptoHelper {
         val result = Sodium.crypto_aead_chacha20poly1305_ietf_decrypt(
             plaintext,
             mlen,
-            null,
+            EMPTY_BYTES,
             ciphertext,
             ciphertext.size,
-            null,
+            EMPTY_BYTES,
             0,
             nonce,
             key
@@ -120,9 +121,9 @@ object CryptoHelper {
             clen,
             challenge,
             challenge.size,
-            null,
+            EMPTY_BYTES,
             0,
-            null,
+            EMPTY_BYTES,
             authNonce,
             key
         )
@@ -135,10 +136,10 @@ object CryptoHelper {
         val result = Sodium.crypto_aead_chacha20poly1305_ietf_decrypt(
             decrypted,
             mlen,
-            null,
+            EMPTY_BYTES,
             encryptedChallenge,
             encryptedChallenge.size,
-            null,
+            EMPTY_BYTES,
             0,
             authNonce,
             key
