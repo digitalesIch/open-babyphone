@@ -54,7 +54,10 @@ signed release APK locally, follow these steps.
         -alias openbabyphone
 
 Store the keystore file outside the repository (for example in your home
-directory). Never commit keystore files or passwords to the repository.
+directory). Back up the keystore and its passwords in a durable, private place
+before publishing any APK signed with it. If this key is lost, users of APKs
+signed with it cannot receive normal updates from the same release channel.
+Never commit keystore files or passwords to the repository.
 
 ### 2. Create a keystore.properties file
 
@@ -74,7 +77,8 @@ When `keystore.properties` exists, the build automatically picks up the
 signing configuration. When it does not exist, the build produces an unsigned
 release APK as before.
 
-Production release keys must never be committed to the repository.
+Production release keys must be backed up before the first public release and
+must never be committed to the repository.
 
 ## Explain Your Work
 

@@ -29,6 +29,15 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Ensure release secrets are not committed
+        run: |
+          tracked_secrets="$(git ls-files keystore.properties '*.jks' '*.keystore')"
+          if [ -n "$tracked_secrets" ]; then
+            printf '%s\n' 'Release signing secrets must not be committed.' >&2
+            printf '%s\n' "$tracked_secrets" >&2
+            exit 1
+          fi
+
       - name: Build debug APK for testing
         run: ./gradlew assembleDebug
 

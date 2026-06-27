@@ -177,6 +177,7 @@ Before tagging a release, record the following:
 - [ ] Devices used: ___
 - [ ] Android versions: ___
 - [ ] Scenarios passed: ___ / 40
+- [ ] Release keystore and passwords backed up outside the repository: yes / no
 - [ ] Known issues at release time: ___
 - [ ] Bugs filed for failures: ___
 
