@@ -424,7 +424,7 @@ class ListenService : Service() {
                     if (streamDisruptedTime == null) {
                         streamDisruptedTime = currentTime
                         Log.w(TAG, "Stream disrupted - no frames for ${timeSinceLastFrame}ms")
-                        postStatus("Connection disrupted...")
+                        postStatus(getString(R.string.connection_disrupted))
                     }
                 } else {
                     streamDisruptedTime = null

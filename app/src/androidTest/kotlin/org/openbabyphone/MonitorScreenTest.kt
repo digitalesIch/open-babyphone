@@ -45,7 +45,9 @@ class MonitorScreenTest {
         composeTestRule.onNodeWithTag("pairing_code_field").performTextClearance()
         composeTestRule.onNodeWithTag("pairing_code_field").performTextInput("invalid-code")
 
-        composeTestRule.onNodeWithText("Use 1-64 letters and numbers").assertIsDisplayed()
+        composeTestRule
+            .onNodeWithText(composeTestRule.activity.getString(R.string.invalid_pairing_code_feedback))
+            .assertIsDisplayed()
         composeTestRule.onNodeWithText("Start Monitoring").assertIsNotEnabled()
     }
 

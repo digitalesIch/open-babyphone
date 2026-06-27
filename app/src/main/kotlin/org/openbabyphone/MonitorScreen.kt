@@ -57,6 +57,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -324,7 +325,11 @@ private fun MonitoringSection(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    stringResource(R.string.connected_clients, uiState.connectedClients),
+                                    pluralStringResource(
+                                        R.plurals.connected_clients,
+                                        uiState.connectedClients,
+                                        uiState.connectedClients
+                                    ),
                                     style = MaterialTheme.typography.titleMedium,
                                     modifier = Modifier.testTag("client_count_text")
                                 )
