@@ -673,7 +673,7 @@
       <section class="hero" aria-labelledby="hero-title">
         <div>
           <div class="eyebrow"><span class="pulse-dot" aria-hidden="true"></span>Open source Android baby monitor</div>
-          <h1 id="hero-title">Turn two phones into one <span class="gradient-text">calm audio link.</span></h1>
+          <h1 id="hero-title">Turn two phones into your new <span class="gradient-text">babyphone.</span></h1>
           <p class="lead">Open Babyphone connects two Android devices on your home Wi-Fi: one listens near the child, the other plays the live audio with the parent.</p>
 
           <div class="actions">
@@ -682,7 +682,7 @@
           </div>
 
           <div class="proof" aria-label="Project facts">
-            <span class="pill">Android 11+</span>
+            <span class="pill">Android app</span>
             <span class="pill">GPLv3</span>
             <span class="pill">Local audio</span>
           </div>
@@ -725,23 +725,23 @@
 
       <section class="release" id="latest-release" aria-labelledby="release-title">
         <div class="release-copy">
-          <p class="section-kicker">First preview build</p>
-          <h2>Try the newest Open Babyphone release.</h2>
-          <p>The website pulls release metadata from GitHub, so this download area follows future prereleases and stable releases automatically.</p>
+          <p class="section-kicker">Android download</p>
+          <h2>Get Open Babyphone for Android.</h2>
+          <p>Download the Android build and review what changed before installing.</p>
         </div>
 
         <article class="release-card" aria-live="polite">
           <div class="release-top">
-            <span class="release-badge" id="release-badge">Preview</span>
-            <span class="release-date" id="release-date">Published Jun 27, 2026</span>
+            <span class="release-badge" id="release-badge">Release</span>
+            <span class="release-date" id="release-date">Loading release details</span>
           </div>
-          <h2 class="release-title" id="release-title">Open Babyphone 1.1.0 Alpha 1</h2>
-          <span class="release-tag" id="release-tag">v1.1.0-alpha.1</span>
+          <h2 class="release-title" id="release-title">Open Babyphone releases</h2>
+          <span class="release-tag" id="release-tag">GitHub releases</span>
           <div class="release-actions">
-            <a class="btn primary" id="release-download" href="https://github.com/digitalesIch/open-babyphone/releases/download/v1.1.0-alpha.1/OpenBabyphone-1.1.0-alpha.1.apk">Download APK</a>
-            <a class="btn secondary" id="release-link" href="https://github.com/digitalesIch/open-babyphone/releases/tag/v1.1.0-alpha.1">Release notes</a>
+            <a class="btn primary" id="release-download" href="https://github.com/digitalesIch/open-babyphone/releases">View downloads</a>
+            <a class="btn secondary" id="release-link" href="https://github.com/digitalesIch/open-babyphone/releases">All releases</a>
           </div>
-          <p class="release-note">Android may ask you to allow installing apps from your browser or file manager. Review the release notes before installing preview builds.</p>
+          <p class="release-note">Android may ask you to allow installing apps from your browser or file manager. Check the release notes before installing.</p>
         </article>
       </section>
 
@@ -769,21 +769,16 @@
   <script>
     (() => {
       const fallbackRelease = {
-        name: "Open Babyphone 1.1.0 Alpha 1",
-        tag_name: "v1.1.0-alpha.1",
-        prerelease: true,
-        published_at: "2026-06-27T15:14:14Z",
-        html_url: "https://github.com/digitalesIch/open-babyphone/releases/tag/v1.1.0-alpha.1",
-        assets: [
-          {
-            name: "OpenBabyphone-1.1.0-alpha.1.apk",
-            browser_download_url: "https://github.com/digitalesIch/open-babyphone/releases/download/v1.1.0-alpha.1/OpenBabyphone-1.1.0-alpha.1.apk"
-          }
-        ]
+        name: "Open Babyphone releases",
+        tag_name: "GitHub releases",
+        prerelease: null,
+        published_at: null,
+        html_url: "https://github.com/digitalesIch/open-babyphone/releases",
+        assets: []
       };
 
       const releaseApiUrl = "https://api.github.com/repos/digitalesIch/open-babyphone/releases?per_page=10";
-      const githubUrlPattern = /^https:\/\/github\.com\/digitalesIch\/open-babyphone\/releases\//;
+      const githubUrlPattern = /^https:\/\/github\.com\/digitalesIch\/open-babyphone\/releases(?:\/|$)/;
 
       const setText = (id, value) => {
         const element = document.getElementById(id);
@@ -809,14 +804,16 @@
 
       const renderRelease = (release) => {
         const apkAsset = release.assets?.find((asset) => asset.name.toLowerCase().endsWith(".apk"));
-        setText("release-badge", release.prerelease ? "Preview" : "Stable");
-        setText("release-date", `Published ${formatDate(release.published_at)}`);
+        const releaseUrl = release.html_url || fallbackRelease.html_url;
+        const downloadUrl = apkAsset?.browser_download_url || releaseUrl;
+        setText("release-badge", release.prerelease == null ? "Release" : release.prerelease ? "Preview" : "Stable");
+        setText("release-date", release.published_at ? `Published ${formatDate(release.published_at)}` : "Loading release details");
         setText("release-title", release.name || release.tag_name || fallbackRelease.name);
         setText("release-tag", release.tag_name || fallbackRelease.tag_name);
-        setHref("release-link", release.html_url || fallbackRelease.html_url);
-        if (apkAsset?.browser_download_url) {
-          setHref("release-download", apkAsset.browser_download_url);
-        }
+        setText("release-download", apkAsset ? "Download APK" : "View downloads");
+        setText("release-link", release.published_at ? "Release notes" : "All releases");
+        setHref("release-download", downloadUrl);
+        setHref("release-link", releaseUrl);
       };
 
       fetch(releaseApiUrl, { headers: { Accept: "application/vnd.github+json" } })
