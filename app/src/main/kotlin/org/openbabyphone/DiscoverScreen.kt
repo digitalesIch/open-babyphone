@@ -151,7 +151,8 @@ fun DiscoverScreen(
                                 setDesiredBarcodeFormats(ScanOptions.QR_CODE)
                                 setPrompt(scanPrompt)
                                 setBeepEnabled(false)
-                                setOrientationLocked(false)
+                                setCaptureActivity(PortraitCaptureActivity::class.java)
+                                setOrientationLocked(true)
                             }
                         )
                     },
