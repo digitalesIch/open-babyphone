@@ -29,7 +29,6 @@ import android.net.nsd.NsdManager
 import android.net.nsd.NsdManager.RegistrationListener
 import android.net.nsd.NsdServiceInfo
 import android.os.Binder
-import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import android.widget.Toast
@@ -279,8 +278,7 @@ class MonitorService : Service() {
             .getString(PREF_KEY_PAIRING_CODE, "") ?: ""
         createNotificationChannel()
         val n = buildNotification()
-        val foregroundServiceType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else 0
-        ServiceCompat.startForeground(this, ID, n, foregroundServiceType)
+        ServiceCompat.startForeground(this, ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
         clientManager.setClientCountListener { count ->
             MonitorServiceRepository.updateStatus(getString(R.string.connected_clients, count))
             MonitorServiceRepository.updateConnectedClients(count)
@@ -408,14 +406,12 @@ class MonitorService : Service() {
     }
 
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val serviceChannel = NotificationChannel(
-                CHANNEL_ID,
-                getString(R.string.foreground_service_channel),
-                NotificationManager.IMPORTANCE_DEFAULT
-            )
-            this.notificationManager.createNotificationChannel(serviceChannel)
-        }
+        val serviceChannel = NotificationChannel(
+            CHANNEL_ID,
+            getString(R.string.foreground_service_channel),
+            NotificationManager.IMPORTANCE_DEFAULT
+        )
+        this.notificationManager.createNotificationChannel(serviceChannel)
     }
 
     private fun buildNotification(): Notification {
