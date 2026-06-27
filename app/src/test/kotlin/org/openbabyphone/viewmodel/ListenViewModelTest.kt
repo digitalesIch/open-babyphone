@@ -1,6 +1,7 @@
 package org.openbabyphone.viewmodel
 
 import android.app.Application
+import org.openbabyphone.R
 import org.openbabyphone.service.ListenServiceRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -17,18 +18,20 @@ import org.robolectric.RuntimeEnvironment
 class ListenViewModelTest {
 
     private lateinit var viewModel: ListenViewModel
+    private lateinit var context: Application
 
     @Before
     fun setup() {
-        val context = RuntimeEnvironment.getApplication() as Application
+        context = RuntimeEnvironment.getApplication() as Application
         ListenServiceRepository.startConnecting("")
         viewModel = ListenViewModel(context)
     }
 
     @Test
     fun `initial state has connecting status`() = runTest {
-        val state = viewModel.uiState.first { it.status == "Connecting..." }
-        assertEquals("Connecting...", state.status)
+        val connecting = context.getString(R.string.connecting)
+        val state = viewModel.uiState.first { it.status == connecting }
+        assertEquals(connecting, state.status)
     }
 
     @Test
@@ -60,7 +63,7 @@ class ListenViewModelTest {
 
     @Test
     fun `reconnecting status reflects in state`() = runTest {
-        ListenServiceRepository.updateStatus("Reconnecting (1/3)...")
+        ListenServiceRepository.updateStatus(context.getString(R.string.reconnecting_status, 1, 3))
         val state = viewModel.uiState.first { it.isReconnecting }
         assertFalse(state.isConnected)
         assertFalse(state.isError)
@@ -74,7 +77,7 @@ class ListenViewModelTest {
 
         val state = viewModel.uiState.first { it.isConnected }
         assertFalse(state.isError)
-        assertEquals("Listening...", state.status)
+        assertEquals(context.getString(R.string.listening), state.status)
     }
 
     @Test

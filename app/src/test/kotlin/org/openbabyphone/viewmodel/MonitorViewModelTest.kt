@@ -4,6 +4,7 @@ import android.app.Application
 import org.openbabyphone.DeviceName
 import org.openbabyphone.MonitorService
 import org.openbabyphone.PairingCode
+import org.openbabyphone.R
 import org.openbabyphone.service.MonitorServiceRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -27,7 +28,7 @@ class MonitorViewModelTest {
         prefs.edit().clear().apply()
 
         MonitorServiceRepository.updateServiceInfo("", 10000, emptyList())
-        MonitorServiceRepository.updateStatus("Waiting for Parent...")
+        MonitorServiceRepository.updateStatus(context.getString(R.string.waiting_for_parent))
         MonitorServiceRepository.updateConnectedClients(0)
 
         viewModel = MonitorViewModel(context)

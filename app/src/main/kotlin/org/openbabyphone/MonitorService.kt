@@ -162,8 +162,11 @@ class MonitorService : Service() {
             return false
         }
 
-        MonitorServiceRepository.updateStatus(getString(R.string.connected_clients, clientManager.getClientCount()))
-        MonitorServiceRepository.updateConnectedClients(clientManager.getClientCount())
+        val clientCount = clientManager.getClientCount()
+        MonitorServiceRepository.updateStatus(
+            resources.getQuantityString(R.plurals.connected_clients, clientCount, clientCount)
+        )
+        MonitorServiceRepository.updateConnectedClients(clientCount)
 
         if (!clientManager.canAcceptMoreClients()) {
             unregisterService()
@@ -280,7 +283,9 @@ class MonitorService : Service() {
         val n = buildNotification()
         ServiceCompat.startForeground(this, ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
         clientManager.setClientCountListener { count ->
-            MonitorServiceRepository.updateStatus(getString(R.string.connected_clients, count))
+            MonitorServiceRepository.updateStatus(
+                resources.getQuantityString(R.plurals.connected_clients, count, count)
+            )
             MonitorServiceRepository.updateConnectedClients(count)
             if (clientManager.canAcceptMoreClients() && registrationListener == null && connectionToken != null) {
                 Log.i(TAG, "Capacity available again, re-registering NSD")
