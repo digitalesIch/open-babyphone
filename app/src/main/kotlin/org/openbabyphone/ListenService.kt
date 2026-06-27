@@ -31,7 +31,6 @@ import android.media.AudioTrack
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Binder
-import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import android.widget.Toast
@@ -101,8 +100,7 @@ class ListenService : Service() {
                 Log.d(TAG, "Connecting to $address:$port")
             }
             val n = buildNotification(name, address, port, pairingCode)
-            val foregroundServiceType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK else 0
-            ServiceCompat.startForeground(this, ID, n, foregroundServiceType)
+            ServiceCompat.startForeground(this, ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
             stopListenThread()
             doListen(address, port, pairingCode)
         }
@@ -177,14 +175,12 @@ class ListenService : Service() {
     }
 
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val serviceChannel = NotificationChannel(
-                CHANNEL_ID,
-                getString(R.string.foreground_service_channel),
-                NotificationManager.IMPORTANCE_DEFAULT
-            )
-            notificationManager.createNotificationChannel(serviceChannel)
-        }
+        val serviceChannel = NotificationChannel(
+            CHANNEL_ID,
+            getString(R.string.foreground_service_channel),
+            NotificationManager.IMPORTANCE_DEFAULT
+        )
+        notificationManager.createNotificationChannel(serviceChannel)
     }
 
     inner class ListenBinder : Binder() {
