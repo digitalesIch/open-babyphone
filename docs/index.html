@@ -424,6 +424,126 @@
       font-size: 0.96rem;
     }
 
+    .release {
+      display: grid;
+      grid-template-columns: minmax(0, 0.92fr) minmax(280px, 1.08fr);
+      gap: 18px;
+      align-items: stretch;
+      margin: clamp(46px, 7vw, 86px) 0 0;
+    }
+
+    .release-copy,
+    .release-card {
+      border: 1px solid var(--line);
+      border-radius: 30px;
+      background: var(--panel);
+      box-shadow: 0 22px 70px rgba(0, 0, 0, 0.14);
+      backdrop-filter: blur(18px);
+    }
+
+    .release-copy {
+      padding: clamp(24px, 4vw, 34px);
+    }
+
+    .section-kicker {
+      margin: 0 0 10px;
+      color: var(--cyan);
+      font-size: 0.82rem;
+      font-weight: 850;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .release-copy h2 {
+      margin: 0 0 14px;
+      font-size: clamp(2rem, 4vw, 3.3rem);
+      line-height: 0.98;
+      letter-spacing: -0.06em;
+      text-wrap: balance;
+    }
+
+    .release-copy p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 1.04rem;
+      text-wrap: pretty;
+    }
+
+    .release-card {
+      position: relative;
+      overflow: hidden;
+      padding: clamp(22px, 4vw, 32px);
+    }
+
+    .release-card::before {
+      content: "";
+      position: absolute;
+      inset: -30% 34% 30% -20%;
+      background: radial-gradient(circle, rgba(95, 242, 210, 0.24), transparent 68%);
+      pointer-events: none;
+    }
+
+    .release-top {
+      position: relative;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .release-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      border-radius: 999px;
+      padding: 0 10px;
+      background: linear-gradient(135deg, var(--peach), var(--pink));
+      color: #170611;
+      font-size: 0.78rem;
+      font-weight: 950;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .release-date {
+      color: var(--muted);
+      font-size: 0.92rem;
+      font-weight: 700;
+    }
+
+    .release-title {
+      position: relative;
+      margin: 0 0 8px;
+      font-size: clamp(1.55rem, 3vw, 2.35rem);
+      line-height: 1.05;
+      letter-spacing: -0.055em;
+    }
+
+    .release-tag {
+      position: relative;
+      display: inline-flex;
+      margin-bottom: 24px;
+      color: var(--muted);
+      font-size: 0.95rem;
+      font-weight: 750;
+    }
+
+    .release-actions {
+      position: relative;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .release-note {
+      position: relative;
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
     footer {
       display: flex;
       flex-wrap: wrap;
@@ -478,6 +598,10 @@
       }
 
       .feature-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .release {
         grid-template-columns: 1fr;
       }
     }
@@ -538,6 +662,7 @@
         <span>Open Babyphone</span>
       </a>
       <div class="nav-links">
+        <a href="#latest-release">Download</a>
         <a href="https://github.com/digitalesIch/open-babyphone">GitHub</a>
         <a href="impressum.html">Impressum</a>
         <a href="datenschutz.html">Datenschutz</a>
@@ -598,6 +723,28 @@
         </div>
       </section>
 
+      <section class="release" id="latest-release" aria-labelledby="release-title">
+        <div class="release-copy">
+          <p class="section-kicker">First preview build</p>
+          <h2>Try the newest Open Babyphone release.</h2>
+          <p>The website pulls release metadata from GitHub, so this download area follows future prereleases and stable releases automatically.</p>
+        </div>
+
+        <article class="release-card" aria-live="polite">
+          <div class="release-top">
+            <span class="release-badge" id="release-badge">Preview</span>
+            <span class="release-date" id="release-date">Published Jun 27, 2026</span>
+          </div>
+          <h2 class="release-title" id="release-title">Open Babyphone 1.1.0 Alpha 1</h2>
+          <span class="release-tag" id="release-tag">v1.1.0-alpha.1</span>
+          <div class="release-actions">
+            <a class="btn primary" id="release-download" href="https://github.com/digitalesIch/open-babyphone/releases/download/v1.1.0-alpha.1/OpenBabyphone-1.1.0-alpha.1.apk">Download APK</a>
+            <a class="btn secondary" id="release-link" href="https://github.com/digitalesIch/open-babyphone/releases/tag/v1.1.0-alpha.1">Release notes</a>
+          </div>
+          <p class="release-note">Android may ask you to allow installing apps from your browser or file manager. Review the release notes before installing preview builds.</p>
+        </article>
+      </section>
+
       <section class="feature-grid" aria-label="Highlights">
         <article class="feature">
           <strong>Built for home Wi-Fi</strong>
@@ -619,5 +766,65 @@
       <p><a href="impressum.html">Impressum</a> &middot; <a href="datenschutz.html">Datenschutzerkl&auml;rung</a></p>
     </footer>
   </div>
+  <script>
+    (() => {
+      const fallbackRelease = {
+        name: "Open Babyphone 1.1.0 Alpha 1",
+        tag_name: "v1.1.0-alpha.1",
+        prerelease: true,
+        published_at: "2026-06-27T15:14:14Z",
+        html_url: "https://github.com/digitalesIch/open-babyphone/releases/tag/v1.1.0-alpha.1",
+        assets: [
+          {
+            name: "OpenBabyphone-1.1.0-alpha.1.apk",
+            browser_download_url: "https://github.com/digitalesIch/open-babyphone/releases/download/v1.1.0-alpha.1/OpenBabyphone-1.1.0-alpha.1.apk"
+          }
+        ]
+      };
+
+      const releaseApiUrl = "https://api.github.com/repos/digitalesIch/open-babyphone/releases?per_page=10";
+      const githubUrlPattern = /^https:\/\/github\.com\/digitalesIch\/open-babyphone\/releases\//;
+
+      const setText = (id, value) => {
+        const element = document.getElementById(id);
+        if (element) element.textContent = value;
+      };
+
+      const setHref = (id, value) => {
+        const element = document.getElementById(id);
+        if (element && githubUrlPattern.test(value)) element.href = value;
+      };
+
+      const formatDate = (value) => {
+        try {
+          return new Intl.DateTimeFormat("en", {
+            year: "numeric",
+            month: "short",
+            day: "numeric"
+          }).format(new Date(value));
+        } catch (_) {
+          return "Latest release";
+        }
+      };
+
+      const renderRelease = (release) => {
+        const apkAsset = release.assets?.find((asset) => asset.name.toLowerCase().endsWith(".apk"));
+        setText("release-badge", release.prerelease ? "Preview" : "Stable");
+        setText("release-date", `Published ${formatDate(release.published_at)}`);
+        setText("release-title", release.name || release.tag_name || fallbackRelease.name);
+        setText("release-tag", release.tag_name || fallbackRelease.tag_name);
+        setHref("release-link", release.html_url || fallbackRelease.html_url);
+        if (apkAsset?.browser_download_url) {
+          setHref("release-download", apkAsset.browser_download_url);
+        }
+      };
+
+      fetch(releaseApiUrl, { headers: { Accept: "application/vnd.github+json" } })
+        .then((response) => (response.ok ? response.json() : Promise.reject()))
+        .then((releases) => releases.find((release) => !release.draft) || fallbackRelease)
+        .then(renderRelease)
+        .catch(() => renderRelease(fallbackRelease));
+    })();
+  </script>
 </body>
 </html>
