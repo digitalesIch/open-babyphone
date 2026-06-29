@@ -12,19 +12,55 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.openbabyphone.ConnectionConstants
 import org.openbabyphone.PairingCode
+import org.openbabyphone.PairingQrCode
+import org.openbabyphone.TrustedChild
+import org.openbabyphone.TrustedChildStore
 import java.util.concurrent.ConcurrentLinkedQueue
 
 data class DiscoveredDevice(
     val name: String,
     val address: String,
-    val port: Int
-)
+    val port: Int,
+    val childId: String? = null,
+    val pairingId: String? = null,
+    val displayName: String? = null
+) {
+    /**
+     * The name to show in the UI. Falls back to the NSD service name when no
+     * display name TXT attribute is available.
+     */
+    val visibleName: String
+        get() = displayName?.takeIf { it.isNotBlank() } ?: name
+}
+
+/**
+ * Status of a discovered device relative to the parent's trusted child list.
+ */
+sealed interface DeviceTrustStatus {
+    /**
+     * The device is a known child with a matching pairing generation.
+     */
+    data object Trusted : DeviceTrustStatus
+
+    /**
+     * The device's childId is known but the pairingId differs, meaning the
+     * child's pairing code was reset and re-pairing is required.
+     */
+    data object PairingReset : DeviceTrustStatus
+
+    /**
+     * The device is not in the trusted child list.
+     */
+    data object Unknown : DeviceTrustStatus
+}
 
 data class DiscoverUiState(
     val isDiscovering: Boolean = false,
     val devices: List<DiscoveredDevice> = emptyList(),
     val pairingCode: String = "",
-    val error: String? = null
+    val error: String? = null,
+    val trustedChildren: List<TrustedChild> = emptyList(),
+    val trustedChildStatuses: Map<String, DeviceTrustStatus> = emptyMap()
 )
 
 class DiscoverViewModel(application: Application) : AndroidViewModel(application) {
@@ -38,6 +74,8 @@ class DiscoverViewModel(application: Application) : AndroidViewModel(application
     private val resolveQueue = ConcurrentLinkedQueue<NsdServiceInfo>()
     @Volatile private var isResolving = false
 
+    private val trustedChildStore = TrustedChildStore(application)
+
     companion object {
         private const val TAG = "DiscoverViewModel"
         private const val PREF_KEY_PAIRING_CODE = "pairingCode"
@@ -45,6 +83,7 @@ class DiscoverViewModel(application: Application) : AndroidViewModel(application
 
     init {
         loadSavedPairingCode()
+        refreshTrustedChildren()
     }
 
     private fun loadSavedPairingCode() {
@@ -56,6 +95,10 @@ class DiscoverViewModel(application: Application) : AndroidViewModel(application
         )
     }
 
+    private fun refreshTrustedChildren() {
+        _uiState.value = _uiState.value.copy(trustedChildren = trustedChildStore.getAll())
+    }
+
     fun updatePairingCode(code: String) {
         if (!PairingCode.isValid(code)) {
             return
@@ -65,6 +108,64 @@ class DiscoverViewModel(application: Application) : AndroidViewModel(application
         getApplication<Application>().getSharedPreferences(
             "DiscoverPrefs", Context.MODE_PRIVATE
         ).edit().putString(PREF_KEY_PAIRING_CODE, normalizedCode).apply()
+    }
+
+    /**
+     * Processes a scanned QR code. If the QR contains a structured pairing
+     * payload, the child is stored as a trusted device and the pairing code
+     * is set automatically.
+     *
+     * @return `true` if the scan produced a valid result (legacy or structured),
+     *         `false` if the QR content was invalid.
+     */
+    fun handleQrScan(content: String?): Boolean {
+        val parsed = PairingQrCode.parse(content) ?: return false
+        return when (parsed) {
+            is PairingQrCode.ParsedQrCode.Legacy -> {
+                if (PairingCode.isValid(parsed.pairingCode)) {
+                    updatePairingCode(parsed.pairingCode)
+                    true
+                } else false
+            }
+            is PairingQrCode.ParsedQrCode.Structured -> {
+                if (!PairingCode.isValid(parsed.pairingCode)) return false
+                val trusted = TrustedChild(
+                    childId = parsed.childId,
+                    pairingId = parsed.pairingId,
+                    displayName = parsed.name,
+                    pairingCode = parsed.pairingCode
+                )
+                trustedChildStore.upsert(trusted)
+                updatePairingCode(parsed.pairingCode)
+                refreshTrustedChildren()
+                recomputeTrustStatuses()
+                true
+            }
+        }
+    }
+
+    /**
+     * Forgets (removes) a trusted child profile.
+     */
+    fun forgetChild(childId: String) {
+        trustedChildStore.forget(childId)
+        refreshTrustedChildren()
+        recomputeTrustStatuses()
+    }
+
+    /**
+     * Returns the pairing code to use when connecting to the given discovered
+     * device. If the device is a trusted child, the stored pairing code is used;
+     * otherwise the manually entered pairing code is used.
+     */
+    fun pairingCodeFor(device: DiscoveredDevice): String {
+        val childId = device.childId ?: return _uiState.value.pairingCode
+        val trusted = trustedChildStore.findById(childId) ?: return _uiState.value.pairingCode
+        return if (trusted.matchesPairing(device.pairingId ?: "")) {
+            trusted.pairingCode
+        } else {
+            _uiState.value.pairingCode
+        }
     }
 
     fun startDiscovery() {
@@ -94,6 +195,7 @@ class DiscoverViewModel(application: Application) : AndroidViewModel(application
             override fun onServiceLost(service: NsdServiceInfo) {
                 discoveredDevices.removeAll { it.name == service.serviceName }
                 _uiState.value = _uiState.value.copy(devices = discoveredDevices.toList())
+                recomputeTrustStatuses()
             }
 
             override fun onDiscoveryStopped(serviceType: String) {
@@ -143,10 +245,23 @@ class DiscoverViewModel(application: Application) : AndroidViewModel(application
                     .replace("\\\\032", " ")
                     .replace("\\032", " ")
 
-                val device = DiscoveredDevice(name, hostAddress, serviceInfo.port)
+                val txtMap = serviceInfo.attributes
+                val childId = txtMap?.get(ConnectionConstants.NSD_TXT_CHILD_ID)?.let { String(it, Charsets.UTF_8) }
+                val pairingId = txtMap?.get(ConnectionConstants.NSD_TXT_PAIRING_ID)?.let { String(it, Charsets.UTF_8) }
+                val displayName = txtMap?.get(ConnectionConstants.NSD_TXT_NAME)?.let { String(it, Charsets.UTF_8) }
+
+                val device = DiscoveredDevice(
+                    name = name,
+                    address = hostAddress,
+                    port = serviceInfo.port,
+                    childId = childId,
+                    pairingId = pairingId,
+                    displayName = displayName
+                )
                 if (discoveredDevices.none { it.address == device.address && it.port == device.port }) {
                     discoveredDevices.add(device)
                     _uiState.value = _uiState.value.copy(devices = discoveredDevices.toList())
+                    recomputeTrustStatuses()
                 }
                 isResolving = false
                 processResolveQueue()
@@ -161,6 +276,22 @@ class DiscoverViewModel(application: Application) : AndroidViewModel(application
         }
         discoveryListener = null
         _uiState.value = _uiState.value.copy(isDiscovering = false)
+    }
+
+    private fun recomputeTrustStatuses() {
+        val devices = _uiState.value.devices
+        val statuses = mutableMapOf<String, DeviceTrustStatus>()
+        for (device in devices) {
+            val childId = device.childId ?: continue
+            val trusted = trustedChildStore.findById(childId)
+            val key = "${device.address}:${device.port}"
+            statuses[key] = when {
+                trusted == null -> DeviceTrustStatus.Unknown
+                trusted.matchesPairing(device.pairingId ?: "") -> DeviceTrustStatus.Trusted
+                else -> DeviceTrustStatus.PairingReset
+            }
+        }
+        _uiState.value = _uiState.value.copy(trustedChildStatuses = statuses)
     }
 
     private fun releaseMulticastLock() {

@@ -54,4 +54,29 @@ object ConnectionConstants {
      * TXT record key carrying the child's display name.
      */
     const val WIFI_DIRECT_TXT_NAME = "name"
+
+    /**
+     * NSD TXT record key identifying the Open Babyphone service.
+     */
+    const val NSD_TXT_APP = "app"
+
+    /**
+     * NSD TXT record value identifying the Open Babyphone service.
+     */
+    const val NSD_TXT_APP_VALUE = "openbabyphone"
+
+    /**
+     * NSD TXT record key carrying the child's stable device identifier.
+     */
+    const val NSD_TXT_CHILD_ID = "childId"
+
+    /**
+     * NSD TXT record key carrying the child's current pairing generation id.
+     */
+    const val NSD_TXT_PAIRING_ID = "pairingId"
+
+    /**
+     * NSD TXT record key carrying the child's display name.
+     */
+    const val NSD_TXT_NAME = "name"
 }

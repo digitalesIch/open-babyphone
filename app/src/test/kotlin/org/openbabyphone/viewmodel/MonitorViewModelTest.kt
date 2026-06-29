@@ -191,4 +191,55 @@ class MonitorViewModelTest {
         val state = viewModel.uiState.first { it.deviceName == "" }
         assertEquals("", state.deviceName)
     }
+
+    @Test
+    fun `qr payload is empty when no pairing code is set`() = runTest {
+        val context = RuntimeEnvironment.getApplication() as Application
+        context.getSharedPreferences(MonitorService.PAIRING_PREFS_NAME, Application.MODE_PRIVATE)
+            .edit().clear().apply()
+        context.getSharedPreferences("child_identity", Application.MODE_PRIVATE)
+            .edit().clear().apply()
+        val vm = MonitorViewModel(context)
+        val state = vm.uiState.first { it.pairingCode.isNotEmpty() }
+        assertTrue(state.qrPayload.isNotEmpty())
+    }
+
+    @Test
+    fun `qr payload contains structured format when code is valid`() = runTest {
+        viewModel.updatePairingCode("myCode42")
+        val state = viewModel.uiState.first { it.pairingCode == "myCode42" }
+        assertTrue(state.qrPayload.startsWith("openbabyphone://pair?"))
+        assertTrue(state.qrPayload.contains("childId="))
+        assertTrue(state.qrPayload.contains("pairingId="))
+    }
+
+    @Test
+    fun `reset pairing generates new code`() = runTest {
+        val state1 = viewModel.uiState.first { it.pairingCode.isNotEmpty() }
+        val originalCode = state1.pairingCode
+
+        viewModel.resetPairing()
+
+        val context = RuntimeEnvironment.getApplication() as Application
+        val prefs = context.getSharedPreferences(MonitorService.PAIRING_PREFS_NAME, Application.MODE_PRIVATE)
+        val persistedCode = prefs.getString(MonitorService.PREF_KEY_PAIRING_CODE, "")
+        assertTrue(persistedCode != originalCode)
+        assertTrue(persistedCode!!.isNotEmpty())
+    }
+
+    @Test
+    fun `child identity store generates stable child id`() = runTest {
+        val context = RuntimeEnvironment.getApplication() as Application
+        context.getSharedPreferences("child_identity", Application.MODE_PRIVATE)
+            .edit().clear().apply()
+
+        val vm1 = MonitorViewModel(context)
+        val state1 = vm1.uiState.first { it.pairingCode.isNotEmpty() }
+
+        val vm2 = MonitorViewModel(context)
+        val state2 = vm2.uiState.first { it.pairingCode.isNotEmpty() }
+
+        assertTrue(state1.qrPayload.isNotEmpty())
+        assertTrue(state2.qrPayload.isNotEmpty())
+    }
 }

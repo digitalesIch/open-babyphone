@@ -4,10 +4,12 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import org.openbabyphone.ConnectionConstants
+import org.openbabyphone.ChildDeviceIdentityStore
 import org.openbabyphone.DeviceName
 import org.openbabyphone.PairingCode
 import org.openbabyphone.PairingCodeGenerator
 import org.openbabyphone.MonitorService
+import org.openbabyphone.PairingQrCode
 import org.openbabyphone.R
 import org.openbabyphone.WifiDirectController
 import org.openbabyphone.WifiDirectState
@@ -29,7 +31,8 @@ data class MonitorUiState(
     val connectedClients: Int = 0,
     val isLoading: Boolean = true,
     val wifiDirectState: WifiDirectState = WifiDirectState.Idle,
-    val wifiDirectSupported: Boolean = true
+    val wifiDirectSupported: Boolean = true,
+    val qrPayload: String = ""
 )
 
 class MonitorViewModel(application: Application) : AndroidViewModel(application) {
@@ -38,6 +41,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     private val loadingLabel = application.getString(R.string.loading)
     private val waitingForParentStatus = application.getString(R.string.waiting_for_parent)
 
+    private val childIdentityStore = ChildDeviceIdentityStore(application)
     private val wifiDirectController = WifiDirectController(application)
     private val wifiDirectSupported = wifiDirectController.isSupported()
 
@@ -55,6 +59,17 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         },
         wifiDirectController.state
     ) { pairingCode, deviceName, clients, info, wifiDirect ->
+        val identity = childIdentityStore.identity
+        val qrPayload = if (pairingCode.isNotEmpty() && PairingCode.isValid(pairingCode)) {
+            PairingQrCode.buildPayload(
+                childId = identity.childId,
+                pairingId = identity.pairingId,
+                name = deviceName,
+                pairingCode = pairingCode
+            )
+        } else {
+            ""
+        }
         MonitorUiState(
             pairingCode = pairingCode,
             pairingCodeValid = PairingCode.isValid(pairingCode),
@@ -66,7 +81,8 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             connectedClients = clients,
             isLoading = info.name.isEmpty(),
             wifiDirectState = wifiDirect,
-            wifiDirectSupported = wifiDirectSupported
+            wifiDirectSupported = wifiDirectSupported,
+            qrPayload = qrPayload
         )
     }.stateIn(
         viewModelScope,
@@ -113,6 +129,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         prefs.edit()
             .putString(MonitorService.PREF_KEY_PAIRING_CODE, normalizedCode)
             .apply()
+        childIdentityStore.rotatePairingId()
     }
 
     fun updateDeviceName(name: String) {
@@ -128,6 +145,24 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         prefs.edit()
             .putString(MonitorService.PREF_KEY_DEVICE_NAME, trimmed)
             .apply()
+    }
+
+    /**
+     * Resets the pairing code to a new generated value and rotates the pairing
+     * generation id. Parents that previously paired with this child must
+     * re-scan the QR code to reconnect.
+     */
+    fun resetPairing() {
+        val newCode = PairingCodeGenerator.generate()
+        _pairingCode.value = newCode
+        val prefs = getApplication<Application>().getSharedPreferences(
+            MonitorService.PAIRING_PREFS_NAME,
+            Application.MODE_PRIVATE
+        )
+        prefs.edit()
+            .putString(MonitorService.PREF_KEY_PAIRING_CODE, newCode)
+            .apply()
+        childIdentityStore.rotatePairingId()
     }
 
     fun startWifiDirect() {

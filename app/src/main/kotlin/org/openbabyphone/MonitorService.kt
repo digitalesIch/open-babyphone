@@ -46,6 +46,7 @@ class MonitorService : Service() {
     private val binder: IBinder = MonitorBinder()
     private lateinit var nsdManager: NsdManager
     private lateinit var connectivityManager: ConnectivityManager
+    private lateinit var childIdentityStore: ChildDeviceIdentityStore
     private var registrationListener: RegistrationListener? = null
     private var currentSocket: ServerSocket? = null
     private var connectionToken: Any? = null
@@ -271,6 +272,7 @@ class MonitorService : Service() {
         this.notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         this.nsdManager = this.getSystemService(NSD_SERVICE) as NsdManager
         this.connectivityManager = this.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+        this.childIdentityStore = ChildDeviceIdentityStore(this)
         this.currentPort = ConnectionConstants.DEFAULT_PORT
         this.currentSocket = null
     }
@@ -378,6 +380,15 @@ class MonitorService : Service() {
         serviceInfo.serviceName = buildServiceName()
         serviceInfo.serviceType = ConnectionConstants.SERVICE_TYPE
         serviceInfo.port = port
+
+        val identity = childIdentityStore.identity
+        val deviceName = getSharedPreferences(PAIRING_PREFS_NAME, MODE_PRIVATE)
+            .getString(PREF_KEY_DEVICE_NAME, "") ?: ""
+        serviceInfo.setAttribute(ConnectionConstants.NSD_TXT_APP, ConnectionConstants.NSD_TXT_APP_VALUE)
+        serviceInfo.setAttribute(ConnectionConstants.NSD_TXT_CHILD_ID, identity.childId)
+        serviceInfo.setAttribute(ConnectionConstants.NSD_TXT_PAIRING_ID, identity.pairingId)
+        serviceInfo.setAttribute(ConnectionConstants.NSD_TXT_NAME, deviceName)
+
         this.registrationListener = object : RegistrationListener {
             override fun onServiceRegistered(nsdServiceInfo: NsdServiceInfo) {
                 nsdServiceInfo.serviceName.let { serviceName ->
