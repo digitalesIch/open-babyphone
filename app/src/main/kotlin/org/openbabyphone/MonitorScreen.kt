@@ -127,6 +127,8 @@ fun MonitorScreen(
         }
     }
 
+    var showResetPairingDialog by remember { mutableStateOf(false) }
+
     DisposableEffect(isMonitoring) {
         val binding = if (isMonitoring) bindMonitorService(context) else null
         onDispose {
@@ -163,7 +165,8 @@ fun MonitorScreen(
                         isMonitoring = isMonitoring,
                         onPairingCodeChange = { viewModel.updatePairingCode(it) },
                         onDeviceNameChange = { viewModel.updateDeviceName(it) },
-                        onStartMonitoring = { isMonitoring = true }
+                        onStartMonitoring = { isMonitoring = true },
+                        onResetPairing = { showResetPairingDialog = true }
                     )
                 } else {
                     MonitoringSection(
@@ -182,6 +185,27 @@ fun MonitorScreen(
             }
         }
     }
+
+    if (showResetPairingDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showResetPairingDialog = false },
+            title = { Text(stringResource(R.string.reset_pairing)) },
+            text = { Text(stringResource(R.string.reset_pairing_confirmation)) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    viewModel.resetPairing()
+                    showResetPairingDialog = false
+                }) {
+                    Text(stringResource(R.string.confirm))
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showResetPairingDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -191,7 +215,8 @@ private fun SetupSection(
     isMonitoring: Boolean,
     onPairingCodeChange: (String) -> Unit,
     onDeviceNameChange: (String) -> Unit,
-    onStartMonitoring: () -> Unit
+    onStartMonitoring: () -> Unit,
+    onResetPairing: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -260,7 +285,7 @@ private fun SetupSection(
                 if (uiState.pairingCode.isNotEmpty() && uiState.pairingCodeValid) {
                     Spacer(modifier = Modifier.height(Spacing.space16))
                     QrCode(
-                        content = uiState.pairingCode,
+                        content = uiState.qrPayload.ifEmpty { uiState.pairingCode },
                         modifier = Modifier.testTag("pairing_qr_code")
                     )
                     Spacer(modifier = Modifier.height(Spacing.space8))
@@ -269,6 +294,16 @@ private fun SetupSection(
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center
                     )
+                    Spacer(modifier = Modifier.height(Spacing.space8))
+                    OutlinedButton(
+                        onClick = onResetPairing,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("reset_pairing_button"),
+                        enabled = !isMonitoring
+                    ) {
+                        Text(stringResource(R.string.reset_pairing))
+                    }
                 }
             }
         }
