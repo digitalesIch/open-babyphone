@@ -30,6 +30,7 @@ import androidx.navigation.navDeepLink
 import androidx.navigation.toRoute
 import org.openbabyphone.navigation.Discover
 import org.openbabyphone.navigation.DiscoverAddress
+import org.openbabyphone.navigation.DiscoverWifiDirect
 import org.openbabyphone.navigation.Listen
 import org.openbabyphone.navigation.Monitor
 import org.openbabyphone.navigation.Start
@@ -97,7 +98,8 @@ class MainActivity : ComponentActivity() {
                                         navController.navigate(
                                             Listen(address, port, name, pairingCode)
                                         )
-                                    }
+                                    },
+                                    onNavigateToWifiDirect = { navController.navigate(DiscoverWifiDirect) }
                                 )
                             }
                             composable<DiscoverAddress> {
@@ -106,6 +108,16 @@ class MainActivity : ComponentActivity() {
                                     onConnect = { address, port, pairingCode ->
                                         navController.navigate(
                                             Listen(address, port, address, pairingCode)
+                                        )
+                                    }
+                                )
+                            }
+                            composable<DiscoverWifiDirect> {
+                                DiscoverWifiDirectScreen(
+                                    onNavigateBack = { navController.popBackStack() },
+                                    onConnected = { host, port, name, pairingCode ->
+                                        navController.navigate(
+                                            Listen(host, port, name, pairingCode)
                                         )
                                     }
                                 )

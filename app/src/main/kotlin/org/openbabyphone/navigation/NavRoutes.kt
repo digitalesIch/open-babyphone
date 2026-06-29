@@ -15,6 +15,9 @@ object Discover
 object DiscoverAddress
 
 @Serializable
+object DiscoverWifiDirect
+
+@Serializable
 data class Listen(
     val address: String = "",
     val port: Int = 0,

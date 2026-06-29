@@ -61,9 +61,25 @@ class DiscoverScreenTest {
             DiscoverScreen(
                 onNavigateBack = {},
                 onNavigateToAddressInput = {},
-                onNavigateToListen = { _, _, _, _ -> }
+                onNavigateToListen = { _, _, _, _ -> },
+                onNavigateToWifiDirect = {}
             )
         }
         composeTestRule.onNodeWithTag("scan_qr_button").assertIsDisplayed()
+    }
+
+    @Test
+    fun discoverScreen_advancedSection_wifiDirectButtonRevealed() {
+        composeTestRule.setContent {
+            DiscoverScreen(
+                onNavigateBack = {},
+                onNavigateToAddressInput = {},
+                onNavigateToListen = { _, _, _, _ -> },
+                onNavigateToWifiDirect = {}
+            )
+        }
+        composeTestRule.onNodeWithTag("advanced_section").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("advanced_toggle").performClick()
+        composeTestRule.onNodeWithTag("wifi_direct_button").assertIsDisplayed()
     }
 }

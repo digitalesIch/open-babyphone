@@ -72,4 +72,18 @@
     <string name="scan_qr_code">Scan QR Code</string>
     <string name="scan_qr_code_prompt">Point the camera at the QR code on the child device</string>
     <string name="invalid_qr_code_feedback">That QR code does not contain a valid pairing code. Enter the code manually instead.</string>
+    <string name="wifi_direct_title">Wi-Fi Direct (experimental)</string>
+    <string name="wifi_direct_connection">Wi-Fi Direct connection (experimental)</string>
+    <string name="wifi_direct_child_description">Allow a parent device to find and connect to this child directly via Wi-Fi Direct, without an existing Wi-Fi network.</string>
+    <string name="wifi_direct_parent_description">Discover and connect to a child device directly via Wi-Fi Direct, without an existing Wi-Fi network.</string>
+    <string name="wifi_direct_start">Start direct connection</string>
+    <string name="wifi_direct_stop">Stop direct connection</string>
+    <string name="wifi_direct_starting">Starting Wi-Fi Direct…</string>
+    <string name="wifi_direct_advertising">Waiting for a parent device to connect via Wi-Fi Direct</string>
+    <string name="wifi_direct_start_discovery">Search for child devices</string>
+    <string name="wifi_direct_searching">Searching for child devices…</string>
+    <string name="wifi_direct_connecting">Connecting to %1$s…</string>
+    <string name="wifi_direct_not_supported">Wi-Fi Direct is not supported on this device</string>
+    <string name="wifi_direct_permission_nearby">Nearby devices permission is required to discover child devices via Wi-Fi Direct. Please grant the permission to continue.</string>
+    <string name="wifi_direct_permission_location">Location permission is required to discover child devices via Wi-Fi Direct. Please grant the permission and enable Location to continue.</string>
 </resources>

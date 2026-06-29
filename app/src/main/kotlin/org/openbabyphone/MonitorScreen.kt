@@ -41,6 +41,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -68,6 +69,7 @@ import org.openbabyphone.service.ServiceConnectionManager
 import org.openbabyphone.ui.theme.Motion
 import org.openbabyphone.viewmodel.MonitorViewModel
 import org.openbabyphone.viewmodel.MonitorUiState
+import org.openbabyphone.WifiDirectState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -126,7 +128,12 @@ fun MonitorScreen(
                 } else {
                     MonitoringSection(
                         uiState = uiState,
-                        onStopMonitoring = { isMonitoring = false },
+                        onStopMonitoring = {
+                            viewModel.stopWifiDirect()
+                            isMonitoring = false
+                        },
+                        onStartWifiDirect = { viewModel.startWifiDirect() },
+                        onStopWifiDirect = { viewModel.stopWifiDirect() },
                         serviceInformationDescription = serviceInformationDescription,
                         serviceStatusDescription = serviceStatusDescription
                     )
@@ -244,6 +251,8 @@ private fun SetupSection(
 private fun MonitoringSection(
     uiState: MonitorUiState,
     onStopMonitoring: () -> Unit,
+    onStartWifiDirect: () -> Unit,
+    onStopWifiDirect: () -> Unit,
     serviceInformationDescription: String,
     serviceStatusDescription: String
 ) {
@@ -349,6 +358,14 @@ private fun MonitoringSection(
 
             Spacer(modifier = Modifier.height(Spacing.space16))
 
+            WifiDirectCard(
+                uiState = uiState,
+                onStart = onStartWifiDirect,
+                onStop = onStopWifiDirect
+            )
+
+            Spacer(modifier = Modifier.height(Spacing.space16))
+
             Button(
                 onClick = onStopMonitoring,
                 modifier = Modifier
@@ -359,4 +376,74 @@ private fun MonitoringSection(
             }
         }
     }
+}
+
+@Composable
+private fun WifiDirectCard(
+    uiState: MonitorUiState,
+    onStart: () -> Unit,
+    onStop: () -> Unit
+) {
+    if (!uiState.wifiDirectSupported) return
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("wifi_direct_card"),
+        content = {
+            Column(modifier = Modifier.padding(Spacing.space16)) {
+                Text(
+                    stringResource(R.string.wifi_direct_title),
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Spacer(modifier = Modifier.height(Spacing.space8))
+                Text(
+                    stringResource(R.string.wifi_direct_child_description),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(Spacing.space12))
+                when (val s = uiState.wifiDirectState) {
+                    WifiDirectState.Idle,
+                    is WifiDirectState.Error -> {
+                        OutlinedButton(
+                            onClick = onStart,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("wifi_direct_start_button")
+                        ) {
+                            Text(stringResource(R.string.wifi_direct_start))
+                        }
+                        if (s is WifiDirectState.Error) {
+                            Spacer(modifier = Modifier.height(Spacing.space8))
+                            Text(
+                                text = s.message,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                    WifiDirectState.Starting,
+                    WifiDirectState.Advertising -> {
+                        OutlinedButton(
+                            onClick = onStop,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("wifi_direct_stop_button")
+                        ) {
+                            Text(stringResource(R.string.wifi_direct_stop))
+                        }
+                        Spacer(modifier = Modifier.height(Spacing.space8))
+                        Text(
+                            if (s is WifiDirectState.Advertising)
+                                stringResource(R.string.wifi_direct_advertising)
+                            else stringResource(R.string.wifi_direct_starting),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                    is WifiDirectState.Discovering,
+                    is WifiDirectState.Connecting,
+                    is WifiDirectState.Connected -> Unit
+                }
+            }
+        }
+    )
 }
