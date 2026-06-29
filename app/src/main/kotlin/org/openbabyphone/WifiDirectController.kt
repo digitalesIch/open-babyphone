@@ -363,9 +363,20 @@ class WifiDirectController(private val context: Context) {
             intent.getParcelableExtra(WifiP2pManager.EXTRA_WIFI_P2P_INFO) as? WifiP2pInfo
         }
         if (info != null && info.groupFormed) {
-            val host = info.groupOwnerAddress?.hostAddress ?: return
-            val endpoint = WifiDirectEndpoint(host, pendingEndpointPort, pendingEndpointName)
-            _state.value = WifiDirectState.Connected(endpoint)
+            if (info.isGroupOwner) {
+                // Child side: group created, we are the group owner and are
+                // advertising. Stay in Advertising so the UI shows the stop
+                // button and waiting status.
+                if (_state.value !is WifiDirectState.Advertising) {
+                    _state.value = WifiDirectState.Advertising
+                }
+            } else {
+                // Parent side: connected to the child's group, the group
+                // owner address is the child's address.
+                val host = info.groupOwnerAddress?.hostAddress ?: return
+                val endpoint = WifiDirectEndpoint(host, pendingEndpointPort, pendingEndpointName)
+                _state.value = WifiDirectState.Connected(endpoint)
+            }
         }
     }
 
