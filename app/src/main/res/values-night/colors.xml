@@ -14,7 +14,6 @@
     <color name="md_theme_onTertiaryContainer">#C8E6C9</color>
     <color name="md_theme_error">#FFB4AB</color>
     <color name="md_theme_onError">#690005</color>
-    <color name="md_theme_errorContainer">#93000A</color>
     <color name="md_theme_onErrorContainer">#FFDAD6</color>
     <color name="md_theme_background">#191C1E</color>
     <color name="md_theme_onBackground">#E1E3E5</color>
