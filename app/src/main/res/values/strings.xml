@@ -6,17 +6,13 @@
     <string name="use_as_child_device">Use as Child Device</string>
     <string name="child_description">Device is placed with baby, and sends audio to a paired parent device</string>
     <string name="parent_description">Pairs with child device and plays received audio</string>
-    <string name="permissions_required_child">Microphone and notification permissions are required before child mode can start.</string>
-    <string name="permissions_required_parent">Local network discovery and notification permissions are required before parent mode can start.</string>
     <string name="child_device">Child Device</string>
     <string name="service_title">Service:</string>
     <string name="service_description">Name of the service that parent must pair to</string>
     <string name="pairing_code_title">Pairing code:</string>
-    <string name="pairing_code_locked">Pairing code is locked while monitoring. Stop monitoring to change it.</string>
     <string name="device_name_title">Device name</string>
     <string name="device_name_description">Shown to parents during discovery so they can identify this child device</string>
     <string name="device_name_placeholder">e.g. Nursery, Living Room</string>
-    <string name="device_name_invalid">Name must be 1 to 63 characters with no line breaks</string>
     <string name="loading">Loading…</string>
     <string name="stopped">Stopped</string>
     <string name="streaming">Streaming…</string>
@@ -39,8 +35,6 @@
     <string name="invalid_port">Enter a port from 1 to 65535</string>
     <string name="discover_child">Discover Child on Network</string>
     <string name="discover_child_description">Select child from a list of discovered children on the network</string>
-    <string name="enter_child_address">Select Child by Address</string>
-    <string name="enter_child_address_description">Enter the address and port of the child</string>
     <string name="advanced_section_title">Advanced</string>
     <string name="advanced_section_description">Manual connection for VPN or unusual network setups</string>
     <string name="manual_connection">Manual connection (advanced)</string>
@@ -57,12 +51,10 @@
     <string name="connection_disrupted">Connection disrupted…</string>
     <string name="retry">Retry</string>
     <string name="settings">Settings</string>
-    <string name="theme_mode">Theme</string>
     <plurals name="connected_clients">
         <item quantity="one">Connected: %d parent</item>
         <item quantity="other">Connected: %d parents</item>
     </plurals>
-    <string name="connected_clients_initial">Connected: 0 parents</string>
     <string name="service_information_content_description">Service information</string>
     <string name="service_status_content_description">Service status: %1$s</string>
     <string name="volume_visualization_content_description">Volume visualization</string>

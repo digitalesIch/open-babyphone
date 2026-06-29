@@ -15,7 +15,6 @@
     <color name="md_theme_onTertiaryContainer">#1B5E20</color>
     <color name="md_theme_error">#BA1A1A</color>
     <color name="md_theme_onError">#FFFFFF</color>
-    <color name="md_theme_errorContainer">#FFDAD6</color>
     <color name="md_theme_onErrorContainer">#410002</color>
     <color name="md_theme_background">#FAFAFA</color>
     <color name="md_theme_onBackground">#191C1E</color>
@@ -24,5 +23,5 @@
     <color name="md_theme_surfaceVariant">#DEE4E9</color>
     <color name="md_theme_onSurfaceVariant">#42474C</color>
     <color name="md_theme_outline">#72787D</color>
-    <color name="ic_launcher_background">#1976D2</color>
+    <color name="ic_launcher_background">#080B12</color>
 </resources>
