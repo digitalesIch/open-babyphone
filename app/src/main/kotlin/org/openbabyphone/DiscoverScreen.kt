@@ -55,6 +55,7 @@ fun DiscoverScreen(
     onNavigateBack: () -> Unit,
     onNavigateToAddressInput: () -> Unit,
     onNavigateToListen: (String, Int, String, String) -> Unit,
+    onNavigateToWifiDirect: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: DiscoverViewModel = viewModel()
 ) {
@@ -305,6 +306,15 @@ fun DiscoverScreen(
                                     .testTag("address_input_button")
                             ) {
                                 Text(stringResource(R.string.manual_connection))
+                            }
+                            Spacer(modifier = Modifier.height(Spacing.space8))
+                            OutlinedButton(
+                                onClick = onNavigateToWifiDirect,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("wifi_direct_button")
+                            ) {
+                                Text(stringResource(R.string.wifi_direct_connection))
                             }
                         }
                     }

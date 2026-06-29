@@ -27,4 +27,31 @@ object ConnectionConstants {
     const val DEFAULT_PORT = 10000
     const val SERVICE_TYPE = "_openbabyphone._tcp."
     const val SERVICE_NAME_PREFIX = "Open Babyphone"
+
+    /**
+     * Wi-Fi Direct (P2P) service type used for service discovery. Mirrors the
+     * NSD service type but without the trailing dot, as required by
+     * `WifiP2pDnsSdServiceInfo`.
+     */
+    const val WIFI_DIRECT_SERVICE_TYPE = "_openbabyphone._tcp"
+
+    /**
+     * TXT record key identifying the Open Babyphone service.
+     */
+    const val WIFI_DIRECT_TXT_APP = "app"
+
+    /**
+     * TXT record value identifying the Open Babyphone service.
+     */
+    const val WIFI_DIRECT_TXT_APP_VALUE = "openbabyphone"
+
+    /**
+     * TXT record key carrying the child's listening port.
+     */
+    const val WIFI_DIRECT_TXT_PORT = "port"
+
+    /**
+     * TXT record key carrying the child's display name.
+     */
+    const val WIFI_DIRECT_TXT_NAME = "name"
 }

@@ -9,6 +9,8 @@ import org.openbabyphone.PairingCode
 import org.openbabyphone.PairingCodeGenerator
 import org.openbabyphone.MonitorService
 import org.openbabyphone.R
+import org.openbabyphone.WifiDirectController
+import org.openbabyphone.WifiDirectState
 import org.openbabyphone.service.MonitorServiceRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -25,7 +27,9 @@ data class MonitorUiState(
     val addresses: List<String> = emptyList(),
     val status: String = "",
     val connectedClients: Int = 0,
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    val wifiDirectState: WifiDirectState = WifiDirectState.Idle,
+    val wifiDirectSupported: Boolean = true
 )
 
 class MonitorViewModel(application: Application) : AndroidViewModel(application) {
@@ -33,6 +37,9 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     private val _deviceName = MutableStateFlow("")
     private val loadingLabel = application.getString(R.string.loading)
     private val waitingForParentStatus = application.getString(R.string.waiting_for_parent)
+
+    private val wifiDirectController = WifiDirectController(application)
+    private val wifiDirectSupported = wifiDirectController.isSupported()
 
     val uiState: StateFlow<MonitorUiState> = combine(
         _pairingCode,
@@ -45,8 +52,9 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             MonitorServiceRepository.status
         ) { name, port, addresses, status ->
             ServiceInfo(name, port, addresses, status)
-        }
-    ) { pairingCode, deviceName, clients, info ->
+        },
+        wifiDirectController.state
+    ) { pairingCode, deviceName, clients, info, wifiDirect ->
         MonitorUiState(
             pairingCode = pairingCode,
             pairingCodeValid = PairingCode.isValid(pairingCode),
@@ -56,7 +64,9 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             addresses = info.addresses,
             status = info.status.ifEmpty { waitingForParentStatus },
             connectedClients = clients,
-            isLoading = info.name.isEmpty()
+            isLoading = info.name.isEmpty(),
+            wifiDirectState = wifiDirect,
+            wifiDirectSupported = wifiDirectSupported
         )
     }.stateIn(
         viewModelScope,
@@ -118,5 +128,18 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         prefs.edit()
             .putString(MonitorService.PREF_KEY_DEVICE_NAME, trimmed)
             .apply()
+    }
+
+    fun startWifiDirect() {
+        wifiDirectController.startChildAdvertising(uiState.value.port, uiState.value.serviceName)
+    }
+
+    fun stopWifiDirect() {
+        wifiDirectController.stop()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        wifiDirectController.stop()
     }
 }

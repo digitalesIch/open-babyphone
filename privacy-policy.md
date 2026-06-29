@@ -10,8 +10,9 @@ https://github.com/digitalesIch/open-babyphone.
 
 Open Babyphone is designed for devices on the same Wi-Fi or local network.
 Advanced users may connect across a trusted VPN by entering the child device
-address manually. The app does not require an account or project-operated server
-for normal use.
+address manually. The app also supports an optional Wi-Fi Direct connection for
+devices that are not on the same Wi-Fi network. The app does not require an
+account or project-operated server for normal use.
 
 ## Information Processed by the App
 
@@ -35,6 +36,12 @@ This information stays on the device and is not sent to the project maintainers.
 
 Audio is transmitted directly between the child and parent devices. Open
 Babyphone does not route audio through project-operated servers.
+
+When Wi-Fi Direct is used, the child and parent devices form a direct Wi-Fi
+peer-to-peer group. Audio and handshake data travel over that local P2P link.
+Wi-Fi Direct requires nearby-devices permission on Android 13+ or location
+permission on earlier versions for peer discovery. Open Babyphone does not
+derive or store location information from Wi-Fi Direct APIs.
 
 The child device generates a pairing code by default. When a non-empty pairing
 code is configured, audio transport is encrypted with ChaCha20-Poly1305 and the
