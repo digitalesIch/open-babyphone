@@ -24,8 +24,9 @@ flow and not a remote-access product goal.
 - Internet-based remote listening is outside the current product direction
 - Hosted relays, accounts, push services, and paid SaaS dependencies are not part
   of the planned architecture
-- Video, AI, sleep tracking, and extra sensors can be revisited only after the
-  core audio monitor is reliable, understandable, and release-ready
+- Video can be explored after the core audio monitor is reliable, understandable,
+  and release-ready; AI, sleep tracking, and extra sensors remain out of scope
+  until the core product is stable
 
 ## Current Baseline
 
@@ -237,6 +238,29 @@ as a coupled package.
 - Add UI controls on child device: start/stop white noise, volume, sound type
 - Add UI indicator on parent device: noise suppression active
 - Test: baby audibility with white noise running and suppression active
+
+### 5f. Explore Local Video Mode
+
+Goal: evaluate whether Open Babyphone should add an optional local video mode
+after the core audio monitor is reliable, understandable, and release-ready.
+
+Video mode must preserve the existing product direction: same Wi-Fi/LAN first,
+no accounts, no hosted relay, no cloud recording, and no internet-based remote
+viewing.
+
+This is a research and product-design item, not an immediate implementation
+commitment.
+
+- Explore CameraX-based child video capture
+- Evaluate local video streaming options with low latency and acceptable battery use
+- Keep audio monitoring reliable when video is enabled
+- Decide whether video is parent-initiated, child-enabled, or both
+- Add clear child-side camera-active indicators
+- Add parent-side video status, pause/resume, and audio-only fallback
+- Consider bandwidth limits for multiple parent devices
+- Define privacy/security behavior for video transport and pairing
+- Test on OnePlus 3T (LineageOS 18.1) and modern Android devices
+- Document battery, heat, network, and low-light limitations
 
 ## Immediate Technical Risk Backlog
 

@@ -45,9 +45,11 @@ the detailed plan.
 
 ## Scope
 
-Open Babyphone is designed for local audio monitoring at home. It is not a video
-monitor, a medical or safety-certified device, or a replacement for responsible
-supervision.
+Open Babyphone is designed for local audio monitoring at home. It is not a
+medical or safety-certified device, or a replacement for responsible supervision.
+
+Video mode is a possible future local-only addition, not part of the current
+release scope.
 
 Internet-based remote monitoring, hosted relay infrastructure, accounts, push
 services, and recurring SaaS dependencies are outside the current product scope.
