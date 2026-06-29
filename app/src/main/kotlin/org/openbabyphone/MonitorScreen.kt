@@ -70,6 +70,12 @@ import org.openbabyphone.ui.theme.Motion
 import org.openbabyphone.viewmodel.MonitorViewModel
 import org.openbabyphone.viewmodel.MonitorUiState
 import org.openbabyphone.WifiDirectState
+import org.openbabyphone.WifiDirectPermissions
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.remember
+import androidx.core.content.ContextCompat
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,6 +92,40 @@ fun MonitorScreen(
     val serviceInformationDescription = stringResource(R.string.service_information_content_description)
     val serviceStatusDescription = stringResource(R.string.service_status_content_description, uiState.status)
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
+    var wifiDirectPermissionDenied by remember { mutableStateOf(false) }
+    val wifiDirectPermission = remember { WifiDirectPermissions.requiredPermission() }
+    val wifiDirectPermissions = remember { arrayOf(wifiDirectPermission) }
+
+    val wifiDirectPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        val allGranted = wifiDirectPermissions.all { perm ->
+            results[perm] == true || ContextCompat.checkSelfPermission(
+                context, perm
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        }
+        if (allGranted) {
+            wifiDirectPermissionDenied = false
+            viewModel.startWifiDirect()
+        } else {
+            wifiDirectPermissionDenied = true
+        }
+    }
+
+    val onStartWifiDirect: () -> Unit = {
+        wifiDirectPermissionDenied = false
+        val allGranted = wifiDirectPermissions.all { perm ->
+            ContextCompat.checkSelfPermission(
+                context, perm
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        }
+        if (allGranted) {
+            viewModel.startWifiDirect()
+        } else {
+            wifiDirectPermissionLauncher.launch(wifiDirectPermissions)
+        }
+    }
 
     DisposableEffect(isMonitoring) {
         val binding = if (isMonitoring) bindMonitorService(context) else null
@@ -132,8 +172,9 @@ fun MonitorScreen(
                             viewModel.stopWifiDirect()
                             isMonitoring = false
                         },
-                        onStartWifiDirect = { viewModel.startWifiDirect() },
+                        onStartWifiDirect = onStartWifiDirect,
                         onStopWifiDirect = { viewModel.stopWifiDirect() },
+                        wifiDirectPermissionDenied = wifiDirectPermissionDenied,
                         serviceInformationDescription = serviceInformationDescription,
                         serviceStatusDescription = serviceStatusDescription
                     )
@@ -253,6 +294,7 @@ private fun MonitoringSection(
     onStopMonitoring: () -> Unit,
     onStartWifiDirect: () -> Unit,
     onStopWifiDirect: () -> Unit,
+    wifiDirectPermissionDenied: Boolean,
     serviceInformationDescription: String,
     serviceStatusDescription: String
 ) {
@@ -361,7 +403,8 @@ private fun MonitoringSection(
             WifiDirectCard(
                 uiState = uiState,
                 onStart = onStartWifiDirect,
-                onStop = onStopWifiDirect
+                onStop = onStopWifiDirect,
+                permissionDenied = wifiDirectPermissionDenied
             )
 
             Spacer(modifier = Modifier.height(Spacing.space16))
@@ -382,7 +425,8 @@ private fun MonitoringSection(
 private fun WifiDirectCard(
     uiState: MonitorUiState,
     onStart: () -> Unit,
-    onStop: () -> Unit
+    onStop: () -> Unit,
+    permissionDenied: Boolean
 ) {
     if (!uiState.wifiDirectSupported) return
     Card(
@@ -401,6 +445,16 @@ private fun WifiDirectCard(
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(modifier = Modifier.height(Spacing.space12))
+                if (permissionDenied) {
+                    Text(
+                        text = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU)
+                            stringResource(R.string.wifi_direct_permission_nearby)
+                        else stringResource(R.string.wifi_direct_permission_location),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.height(Spacing.space8))
+                }
                 when (val s = uiState.wifiDirectState) {
                     WifiDirectState.Idle,
                     is WifiDirectState.Error -> {
