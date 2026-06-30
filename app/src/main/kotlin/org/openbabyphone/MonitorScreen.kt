@@ -471,41 +471,70 @@ private fun MonitoringSection(
     }
 
     if (showPairingDialog) {
-        AlertDialog(
-            onDismissRequest = { showPairingDialog = false },
-            title = { Text(stringResource(R.string.pair_parent_device_title)) },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    if (uiState.qrPayload.isNotEmpty()) {
-                        QrCode(
-                            content = uiState.qrPayload,
-                            modifier = Modifier.testTag("pairing_dialog_qr_code")
-                        )
-                        Spacer(modifier = Modifier.height(Spacing.space8))
-                    }
-                    Text(
-                        text = uiState.pairingCode,
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.testTag("pairing_dialog_pairing_code")
-                    )
-                    Spacer(modifier = Modifier.height(Spacing.space8))
-                    Text(
-                        stringResource(R.string.pair_parent_device_instructions),
-                        style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showPairingDialog = false }) {
-                    Text(stringResource(R.string.close))
-                }
-            }
+        PairParentDeviceDialog(
+            uiState = uiState,
+            onDismiss = { showPairingDialog = false }
         )
     }
+}
+
+@Composable
+private fun PairParentDeviceDialog(
+    uiState: MonitorUiState,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.pair_parent_device_title)) },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                if (uiState.qrPayload.isNotEmpty()) {
+                    QrCode(
+                        content = uiState.qrPayload,
+                        modifier = Modifier.testTag("pairing_dialog_qr_code")
+                    )
+                    Spacer(modifier = Modifier.height(Spacing.space8))
+                }
+                Text(
+                    text = stringResource(R.string.pairing_code_title),
+                    style = MaterialTheme.typography.labelMedium
+                )
+                Spacer(modifier = Modifier.height(Spacing.space4))
+                Text(
+                    text = uiState.pairingCode,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.testTag("pairing_dialog_pairing_code")
+                )
+                Spacer(modifier = Modifier.height(Spacing.space8))
+                Text(
+                    text = pluralStringResource(
+                        R.plurals.connected_clients,
+                        uiState.connectedClients,
+                        uiState.connectedClients
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.testTag("pairing_dialog_parent_count")
+                )
+                Spacer(modifier = Modifier.height(Spacing.space8))
+                Text(
+                    stringResource(R.string.pair_parent_device_instructions),
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.close))
+            }
+        }
+    )
 }
 
 @Composable

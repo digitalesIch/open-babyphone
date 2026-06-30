@@ -63,6 +63,42 @@ class MonitorScreenTest {
         composeTestRule.onNodeWithTag("loading_card").assertIsDisplayed()
     }
 
+    @Test
+    fun monitorScreen_showsAddParentDeviceButtonDuringMonitoring() {
+        composeTestRule.setContent {
+            MonitorScreen(onNavigateBack = {}, bindMonitorService = { fakeBinding(it) })
+        }
+
+        composeTestRule.onNodeWithText("Start Monitoring").performClick()
+        composeTestRule.onNodeWithTag("add_parent_device_button").assertIsDisplayed()
+    }
+
+    @Test
+    fun monitorScreen_addParentDeviceDialog_showsQrCodeAndPairingCode() {
+        composeTestRule.setContent {
+            MonitorScreen(onNavigateBack = {}, bindMonitorService = { fakeBinding(it) })
+        }
+
+        composeTestRule.onNodeWithText("Start Monitoring").performClick()
+        composeTestRule.onNodeWithTag("add_parent_device_button").performClick()
+
+        composeTestRule.onNodeWithTag("pairing_dialog_qr_code").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("pairing_dialog_pairing_code").assertIsDisplayed()
+    }
+
+    @Test
+    fun monitorScreen_addParentDeviceDialog_canBeClosed() {
+        composeTestRule.setContent {
+            MonitorScreen(onNavigateBack = {}, bindMonitorService = { fakeBinding(it) })
+        }
+
+        composeTestRule.onNodeWithText("Start Monitoring").performClick()
+        composeTestRule.onNodeWithTag("add_parent_device_button").performClick()
+        composeTestRule.onNodeWithText("Close").performClick()
+
+        composeTestRule.onNodeWithTag("add_parent_device_button").assertIsDisplayed()
+    }
+
     private fun fakeBinding(context: Context): ServiceConnectionManager.ServiceBinding {
         val connection = object : ServiceConnection {
             override fun onServiceConnected(name: android.content.ComponentName?, service: android.os.IBinder?) = Unit
