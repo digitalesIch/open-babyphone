@@ -65,7 +65,6 @@ class ListenService : Service() {
         private set
     private var lastAddress: String? = null
     private var lastPort: Int = 0
-    private var lastPairingCode: String? = null
 
     private val monitoringAudioAttributes = AudioAttributes.Builder()
         .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -92,6 +91,7 @@ class ListenService : Service() {
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
         Log.i(TAG, "Received start id $startId")
         createNotificationChannel()
+        notificationManager.cancel(ALERT_NOTIFICATION_ID)
         intent.extras?.let {
             val name = it.getString("name")
             childDeviceName = name
@@ -101,12 +101,11 @@ class ListenService : Service() {
             val pairingCode = it.getString("pairingCode")
             lastAddress = address
             lastPort = port
-            lastPairingCode = pairingCode
             ListenServiceRepository.startConnecting(name ?: "", getString(R.string.connecting))
             if (BuildConfig.DEBUG) {
                 Log.d(TAG, "Connecting to $address:$port")
             }
-            val n = buildNotification(name, address, port, pairingCode)
+            val n = buildForegroundNotification(name)
             ServiceCompat.startForeground(this, ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
             stopListenThread()
             doListen(address, port, pairingCode)
@@ -149,25 +148,17 @@ class ListenService : Service() {
 
     override fun onBind(intent: Intent): IBinder = binder
 
-    private fun buildNotification(name: String?, address: String?, port: Int, pairingCode: String?): Notification {
+    private fun buildForegroundNotification(name: String?): Notification {
         val text = getText(R.string.listening)
-        val listenUri = Uri.Builder()
-            .scheme("quiet-engine")
-            .authority("listen")
-            .appendQueryParameter("address", address ?: "")
-            .appendQueryParameter("port", port.toString())
-            .appendQueryParameter("name", name ?: "")
-            .appendQueryParameter("pairingCode", pairingCode ?: "")
-            .appendQueryParameter("resumeOnly", "true")
-            .build()
+        val resumeUri = buildResumeUri()
         val deepLinkIntent = Intent(Intent.ACTION_VIEW).apply {
             setClassName(this@ListenService, "org.openbabyphone.MainActivity")
-            data = listenUri
+            data = resumeUri
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
         val contentIntent = PendingIntent.getActivity(
             this,
-            0,
+            FOREGROUND_REQUEST_CODE,
             deepLinkIntent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
@@ -179,6 +170,22 @@ class ListenService : Service() {
             .setContentTitle(text)
             .setContentText(name)
             .setContentIntent(contentIntent)
+            .build()
+    }
+
+    /**
+     * Builds a resume deep-link URI without pairing code. The parent activity
+     * re-binds to the running ListenService via `resumeOnly=true` and does not
+     * need the pairing code for resuming an active session.
+     */
+    private fun buildResumeUri(): Uri {
+        return Uri.Builder()
+            .scheme("quiet-engine")
+            .authority("listen")
+            .appendQueryParameter("address", lastAddress ?: "")
+            .appendQueryParameter("port", lastPort.toString())
+            .appendQueryParameter("name", childDeviceName ?: "")
+            .appendQueryParameter("resumeOnly", "true")
             .build()
     }
 
@@ -206,26 +213,13 @@ class ListenService : Service() {
     }
 
     private fun sendConnectionLostAlert() {
-        val alertIntent = Intent(Intent.ACTION_VIEW).apply {
-            setClassName(this@ListenService, "org.openbabyphone.MainActivity")
-            data = Uri.Builder()
-                .scheme("quiet-engine")
-                .authority("listen")
-                .appendQueryParameter("address", lastAddress ?: "")
-                .appendQueryParameter("port", lastPort.toString())
-                .appendQueryParameter("name", childDeviceName ?: "")
-                .appendQueryParameter("pairingCode", lastPairingCode ?: "")
-                .appendQueryParameter("resumeOnly", "true")
-                .build()
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-        }
-        val contentIntent = PendingIntent.getActivity(
-            this,
-            ALERT_REQUEST_CODE,
-            alertIntent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-        val notification = NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
+        val notification = buildConnectionLostAlertNotification()
+        notificationManager.notify(ALERT_NOTIFICATION_ID, notification)
+    }
+
+    private fun buildConnectionLostAlertNotification(): Notification {
+        val contentIntent = buildResumePendingIntent(ALERT_REQUEST_CODE)
+        return NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
             .setSmallIcon(R.drawable.listening_notification)
             .setContentTitle(getString(R.string.connection_lost_alert_title))
             .setContentText(getString(R.string.connection_lost_alert_text))
@@ -235,7 +229,20 @@ class ListenService : Service() {
             .setContentIntent(contentIntent)
             .setAutoCancel(true)
             .build()
-        notificationManager.notify(ALERT_NOTIFICATION_ID, notification)
+    }
+
+    private fun buildResumePendingIntent(requestCode: Int): PendingIntent {
+        val resumeIntent = Intent(Intent.ACTION_VIEW).apply {
+            setClassName(this@ListenService, "org.openbabyphone.MainActivity")
+            data = buildResumeUri()
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        return PendingIntent.getActivity(
+            this,
+            requestCode,
+            resumeIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
     }
 
     inner class ListenBinder : Binder() {
@@ -604,6 +611,7 @@ class ListenService : Service() {
         const val ID = 902938409
         private const val ALERT_NOTIFICATION_ID = 902938410
         private const val ALERT_REQUEST_CODE = 1
+        private const val FOREGROUND_REQUEST_CODE = 0
         private const val MAX_RECONNECT_ATTEMPTS = 5
         private const val RECONNECT_DELAY_MS = 2000L
         private const val SOCKET_READ_TIMEOUT_MS = 1000
