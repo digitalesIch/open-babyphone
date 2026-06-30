@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -45,6 +46,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -187,12 +189,12 @@ fun MonitorScreen(
     }
 
     if (showResetPairingDialog) {
-        androidx.compose.material3.AlertDialog(
+        AlertDialog(
             onDismissRequest = { showResetPairingDialog = false },
             title = { Text(stringResource(R.string.reset_pairing)) },
             text = { Text(stringResource(R.string.reset_pairing_confirmation)) },
             confirmButton = {
-                androidx.compose.material3.TextButton(onClick = {
+                TextButton(onClick = {
                     viewModel.resetPairing()
                     showResetPairingDialog = false
                 }) {
@@ -200,7 +202,7 @@ fun MonitorScreen(
                 }
             },
             dismissButton = {
-                androidx.compose.material3.TextButton(onClick = { showResetPairingDialog = false }) {
+                TextButton(onClick = { showResetPairingDialog = false }) {
                     Text(stringResource(R.string.cancel))
                 }
             }
@@ -333,6 +335,8 @@ private fun MonitoringSection(
     serviceInformationDescription: String,
     serviceStatusDescription: String
 ) {
+    var showPairingDialog by remember { mutableStateOf(false) }
+
     AnimatedVisibility(
         visible = true,
         enter = fadeIn(animationSpec = tween(Motion.DurationMedium)) +
@@ -435,6 +439,17 @@ private fun MonitoringSection(
 
             Spacer(modifier = Modifier.height(Spacing.space16))
 
+            OutlinedButton(
+                onClick = { showPairingDialog = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("add_parent_device_button")
+            ) {
+                Text(stringResource(R.string.add_parent_device))
+            }
+
+            Spacer(modifier = Modifier.height(Spacing.space16))
+
             WifiDirectCard(
                 uiState = uiState,
                 onStart = onStartWifiDirect,
@@ -453,6 +468,43 @@ private fun MonitoringSection(
                 Text(stringResource(R.string.stop_monitoring))
             }
         }
+    }
+
+    if (showPairingDialog) {
+        AlertDialog(
+            onDismissRequest = { showPairingDialog = false },
+            title = { Text(stringResource(R.string.pair_parent_device_title)) },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    if (uiState.qrPayload.isNotEmpty()) {
+                        QrCode(
+                            content = uiState.qrPayload,
+                            modifier = Modifier.testTag("pairing_dialog_qr_code")
+                        )
+                        Spacer(modifier = Modifier.height(Spacing.space8))
+                    }
+                    Text(
+                        text = uiState.pairingCode,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.testTag("pairing_dialog_pairing_code")
+                    )
+                    Spacer(modifier = Modifier.height(Spacing.space8))
+                    Text(
+                        stringResource(R.string.pair_parent_device_instructions),
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showPairingDialog = false }) {
+                    Text(stringResource(R.string.close))
+                }
+            }
+        )
     }
 }
 
