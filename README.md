@@ -111,9 +111,6 @@ the child drops that connection without blocking the others.
 - A local network both devices can reach; trusted VPN is an advanced fallback
 - Wi-Fi Direct support is optional and not available on all devices
 
-The Android application ID, Android namespace, and internal Kotlin package are
-all `org.openbabyphone`.
-
 ## Without Existing Wi-Fi
 
 Open Babyphone does not need internet access, but both devices need a local
