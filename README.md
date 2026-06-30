@@ -4,9 +4,11 @@
   <img src="docs/social-preview.png" alt="Open Babyphone" width="600">
 </p>
 
-[![CI](https://github.com/digitalesIch/open-babyphone/actions/workflows/ci.yml/badge.svg)](https://github.com/digitalesIch/open-babyphone/actions/workflows/ci.yml)
-[![License: GPLv3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
-[![Android](https://img.shields.io/badge/Android-11%2B-brightgreen.svg)](#requirements)
+<p align="center">
+  <a href="https://github.com/digitalesIch/open-babyphone/actions/workflows/ci.yml"><img src="https://github.com/digitalesIch/open-babyphone/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPLv3-blue.svg" alt="License: GPLv3"></a>
+  <a href="#requirements"><img src="https://img.shields.io/badge/Android-11%2B-brightgreen.svg" alt="Android 11+"></a>
+</p>
 
 Open Babyphone is an open-source Android baby monitor for local networks. It
 turns two Android devices into a simple audio monitor for home use: one device
