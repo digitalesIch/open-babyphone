@@ -99,6 +99,18 @@ class MonitorScreenTest {
         composeTestRule.onNodeWithTag("add_parent_device_button").assertIsDisplayed()
     }
 
+    @Test
+    fun monitorScreen_showsMicrophoneSensitivityCard() {
+        composeTestRule.setContent {
+            MonitorScreen(onNavigateBack = {}, bindMonitorService = { fakeBinding(it) })
+        }
+
+        composeTestRule.onNodeWithTag("microphone_sensitivity_card").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("sensitivity_normal").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("sensitivity_high").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("sensitivity_very_high").assertIsDisplayed()
+    }
+
     private fun fakeBinding(context: Context): ServiceConnectionManager.ServiceBinding {
         val connection = object : ServiceConnection {
             override fun onServiceConnected(name: android.content.ComponentName?, service: android.os.IBinder?) = Unit

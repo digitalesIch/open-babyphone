@@ -22,6 +22,7 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.content.SharedPreferences
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.net.ConnectivityManager
@@ -62,6 +63,8 @@ class MonitorService : Service() {
     private var pairingCodeSnapshot: String = ""
     private var streamSessionId: ByteArray? = null
     private var streamKey: ByteArray? = null
+    @Volatile private var microphoneGain: Float = 1.0f
+    private var prefsListener: SharedPreferences.OnSharedPreferenceChangeListener? = null
 
     private val pairingCode: String
         get() = pairingCodeSnapshot
@@ -238,6 +241,10 @@ class MonitorService : Service() {
                         Log.e(TAG, "AudioRecord read error: $read")
                         break
                     }
+                    val gain = microphoneGain
+                    if (gain > 1.0f) {
+                        MicrophoneSensitivity.applyGain(pcmBuffer, read, gain)
+                    }
                     val encoded = AudioCodecDefines.CODEC.encode(pcmBuffer, read, ulawBuffer, 0)
                     val timestampMs = (System.currentTimeMillis() - sessionStartTime).toInt()
                     val frame = FrameCodec.encodeFrame(ulawBuffer.copyOf(encoded), seqNum++, timestampMs, key, sessionId)
@@ -275,12 +282,16 @@ class MonitorService : Service() {
         this.childIdentityStore = ChildDeviceIdentityStore(this)
         this.currentPort = ConnectionConstants.DEFAULT_PORT
         this.currentSocket = null
+        registerMicrophonePrefsListener()
     }
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
         Log.i(TAG, "Received start id $startId")
-        pairingCodeSnapshot = getSharedPreferences(PAIRING_PREFS_NAME, MODE_PRIVATE)
-            .getString(PREF_KEY_PAIRING_CODE, "") ?: ""
+        val prefs = getSharedPreferences(PAIRING_PREFS_NAME, MODE_PRIVATE)
+        pairingCodeSnapshot = prefs.getString(PREF_KEY_PAIRING_CODE, "") ?: ""
+        microphoneGain = MicrophoneSensitivity.fromPreferenceValue(
+            prefs.getString(PREF_KEY_MICROPHONE_SENSITIVITY, null)
+        ).gain
         createNotificationChannel()
         val n = buildNotification()
         ServiceCompat.startForeground(this, ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
@@ -486,6 +497,19 @@ class MonitorService : Service() {
         super.onDestroy()
     }
 
+    private fun registerMicrophonePrefsListener() {
+        val prefs = getSharedPreferences(PAIRING_PREFS_NAME, MODE_PRIVATE)
+        prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == PREF_KEY_MICROPHONE_SENSITIVITY) {
+                microphoneGain = MicrophoneSensitivity.fromPreferenceValue(
+                    prefs.getString(PREF_KEY_MICROPHONE_SENSITIVITY, null)
+                ).gain
+                Log.i(TAG, "Microphone sensitivity changed, gain=$microphoneGain")
+            }
+        }
+        prefs.registerOnSharedPreferenceChangeListener(prefsListener)
+    }
+
     override fun onBind(intent: Intent): IBinder = binder
 
     inner class MonitorBinder : Binder() {
@@ -500,6 +524,7 @@ class MonitorService : Service() {
         const val PAIRING_PREFS_NAME = "pairing"
         const val PREF_KEY_PAIRING_CODE = "pairingCode"
         const val PREF_KEY_DEVICE_NAME = "deviceName"
+        const val PREF_KEY_MICROPHONE_SENSITIVITY = "microphoneSensitivity"
         private const val AUTH_TIMEOUT_MS = 10_000
     }
 }

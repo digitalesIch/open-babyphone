@@ -168,7 +168,8 @@ fun MonitorScreen(
                         onPairingCodeChange = { viewModel.updatePairingCode(it) },
                         onDeviceNameChange = { viewModel.updateDeviceName(it) },
                         onStartMonitoring = { isMonitoring = true },
-                        onResetPairing = { showResetPairingDialog = true }
+                        onResetPairing = { showResetPairingDialog = true },
+                        onSensitivityChange = { viewModel.updateMicrophoneSensitivity(it) }
                     )
                 } else {
                     MonitoringSection(
@@ -181,7 +182,8 @@ fun MonitorScreen(
                         onStopWifiDirect = { viewModel.stopWifiDirect() },
                         wifiDirectPermissionDenied = wifiDirectPermissionDenied,
                         serviceInformationDescription = serviceInformationDescription,
-                        serviceStatusDescription = serviceStatusDescription
+                        serviceStatusDescription = serviceStatusDescription,
+                        onSensitivityChange = { viewModel.updateMicrophoneSensitivity(it) }
                     )
                 }
             }
@@ -218,7 +220,8 @@ private fun SetupSection(
     onPairingCodeChange: (String) -> Unit,
     onDeviceNameChange: (String) -> Unit,
     onStartMonitoring: () -> Unit,
-    onResetPairing: () -> Unit
+    onResetPairing: () -> Unit,
+    onSensitivityChange: (MicrophoneSensitivity) -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -313,6 +316,13 @@ private fun SetupSection(
 
     Spacer(modifier = Modifier.height(Spacing.space16))
 
+    MicrophoneSensitivityCard(
+        uiState = uiState,
+        onSensitivityChange = onSensitivityChange
+    )
+
+    Spacer(modifier = Modifier.height(Spacing.space16))
+
     Button(
         onClick = onStartMonitoring,
         enabled = uiState.pairingCodeValid,
@@ -324,6 +334,50 @@ private fun SetupSection(
     }
 }
 
+@Composable
+private fun MicrophoneSensitivityCard(
+    uiState: MonitorUiState,
+    onSensitivityChange: (MicrophoneSensitivity) -> Unit
+) {
+    val normalLabel = stringResource(R.string.microphone_sensitivity_normal)
+    val highLabel = stringResource(R.string.microphone_sensitivity_high)
+    val veryHighLabel = stringResource(R.string.microphone_sensitivity_very_high)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("microphone_sensitivity_card"),
+        content = {
+            Column(modifier = Modifier.padding(Spacing.space16)) {
+                Text(
+                    stringResource(R.string.microphone_sensitivity_title),
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Spacer(modifier = Modifier.height(Spacing.space8))
+                Text(
+                    stringResource(R.string.microphone_sensitivity_description),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(Spacing.space12))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.space8)
+                ) {
+                    val labels = listOf(normalLabel, highLabel, veryHighLabel)
+                    MicrophoneSensitivity.entries.forEachIndexed { index, level ->
+                        androidx.compose.material3.FilterChip(
+                            selected = uiState.microphoneSensitivity == level,
+                            onClick = { onSensitivityChange(level) },
+                            label = { Text(labels[index]) },
+                            modifier = Modifier.testTag("sensitivity_${level.preferenceValue}")
+                        )
+                    }
+                }
+            }
+        }
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MonitoringSection(
@@ -333,7 +387,8 @@ private fun MonitoringSection(
     onStopWifiDirect: () -> Unit,
     wifiDirectPermissionDenied: Boolean,
     serviceInformationDescription: String,
-    serviceStatusDescription: String
+    serviceStatusDescription: String,
+    onSensitivityChange: (MicrophoneSensitivity) -> Unit
 ) {
     var showPairingDialog by remember { mutableStateOf(false) }
 
@@ -436,6 +491,13 @@ private fun MonitoringSection(
                     }
                 )
             }
+
+            Spacer(modifier = Modifier.height(Spacing.space16))
+
+            MicrophoneSensitivityCard(
+                uiState = uiState,
+                onSensitivityChange = onSensitivityChange
+            )
 
             Spacer(modifier = Modifier.height(Spacing.space16))
 
