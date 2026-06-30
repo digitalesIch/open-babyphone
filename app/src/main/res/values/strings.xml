@@ -85,6 +85,9 @@
     <string name="wifi_direct_searching">Searching for child devices…</string>
     <string name="wifi_direct_connecting">Connecting to %1$s…</string>
     <string name="wifi_direct_not_supported">Wi-Fi Direct is not supported on this device</string>
+    <string name="wifi_direct_connection_details">Connection details</string>
+    <string name="wifi_direct_discovery_status">Discovery status</string>
+    <string name="wifi_direct_available_devices">Available child devices</string>
     <string name="wifi_direct_permission_nearby">Nearby devices permission is required to discover child devices via Wi-Fi Direct. Please grant the permission to continue.</string>
     <string name="wifi_direct_permission_location">Location permission is required to discover child devices via Wi-Fi Direct. Please grant the permission and enable Location to continue.</string>
     <string name="known_children_title">Known child devices</string>
