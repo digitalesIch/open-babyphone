@@ -2,6 +2,7 @@
 <resources>
 
     <string name="app_name">Open Babyphone</string>
+    <string name="app_tagline">Turn two phones into your new babyphone.</string>
     <string name="use_as_parent_device">Use as Parent Device</string>
     <string name="use_as_child_device">Use as Child Device</string>
     <string name="child_description">Device is placed with baby, and sends audio to a paired parent device</string>

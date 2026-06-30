@@ -20,6 +20,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -39,6 +41,7 @@ import org.openbabyphone.ui.theme.Spacing
 fun StartScreen(
     onNavigateToMonitor: () -> Unit,
     onNavigateToDiscover: () -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -111,12 +114,27 @@ fun StartScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            BrandMark(size = 64.dp)
+
+            Spacer(modifier = Modifier.height(Spacing.space16))
+
             Text(
                 text = stringResource(R.string.app_name),
-                style = MaterialTheme.typography.headlineLarge,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(bottom = Spacing.space32)
+                style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.W900),
+                textAlign = TextAlign.Center
             )
+
+            Spacer(modifier = Modifier.height(Spacing.space8))
+
+            Text(
+                text = stringResource(R.string.app_tagline),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = Spacing.space16)
+            )
+
+            Spacer(modifier = Modifier.height(Spacing.space32))
 
             Button(
                 onClick = {
@@ -149,11 +167,12 @@ fun StartScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(Spacing.space16))
+            Spacer(modifier = Modifier.height(Spacing.space8))
 
             Text(
                 text = stringResource(R.string.child_description),
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = Spacing.space16)
             )
@@ -191,14 +210,21 @@ fun StartScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(Spacing.space16))
+            Spacer(modifier = Modifier.height(Spacing.space8))
 
             Text(
                 text = stringResource(R.string.parent_description),
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = Spacing.space16)
             )
+
+            Spacer(modifier = Modifier.height(Spacing.space32))
+
+            TextButton(onClick = onNavigateToSettings) {
+                Text(stringResource(R.string.settings))
+            }
         }
     }
 }
