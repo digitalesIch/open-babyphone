@@ -63,6 +63,9 @@ class ListenService : Service() {
     val volumeHistory = VolumeHistory(16384)
     var childDeviceName: String? = null
         private set
+    private var lastAddress: String? = null
+    private var lastPort: Int = 0
+    private var lastPairingCode: String? = null
 
     private val monitoringAudioAttributes = AudioAttributes.Builder()
         .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -83,6 +86,7 @@ class ListenService : Service() {
         super.onCreate()
         this.notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         this.audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
+        createAlertNotificationChannel()
     }
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
@@ -95,6 +99,9 @@ class ListenService : Service() {
             val address = it.getString("address")
             val port = it.getInt("port")
             val pairingCode = it.getString("pairingCode")
+            lastAddress = address
+            lastPort = port
+            lastPairingCode = pairingCode
             ListenServiceRepository.startConnecting(name ?: "", getString(R.string.connecting))
             if (BuildConfig.DEBUG) {
                 Log.d(TAG, "Connecting to $address:$port")
@@ -112,6 +119,7 @@ class ListenService : Service() {
         stopListenThread()
         abandonAudioFocus()
         ListenServiceRepository.updateConnected(false)
+        notificationManager.cancel(ALERT_NOTIFICATION_ID)
 
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         Toast.makeText(this, R.string.stopped, Toast.LENGTH_SHORT).show()
@@ -183,6 +191,53 @@ class ListenService : Service() {
         notificationManager.createNotificationChannel(serviceChannel)
     }
 
+    private fun createAlertNotificationChannel() {
+        val alertChannel = NotificationChannel(
+            ALERT_CHANNEL_ID,
+            getString(R.string.connection_lost_alert_channel),
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 500, 200, 500, 200, 500)
+            enableLights(true)
+            lightColor = android.graphics.Color.RED
+        }
+        notificationManager.createNotificationChannel(alertChannel)
+    }
+
+    private fun sendConnectionLostAlert() {
+        val alertIntent = Intent(Intent.ACTION_VIEW).apply {
+            setClassName(this@ListenService, "org.openbabyphone.MainActivity")
+            data = Uri.Builder()
+                .scheme("quiet-engine")
+                .authority("listen")
+                .appendQueryParameter("address", lastAddress ?: "")
+                .appendQueryParameter("port", lastPort.toString())
+                .appendQueryParameter("name", childDeviceName ?: "")
+                .appendQueryParameter("pairingCode", lastPairingCode ?: "")
+                .appendQueryParameter("resumeOnly", "true")
+                .build()
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        val contentIntent = PendingIntent.getActivity(
+            this,
+            ALERT_REQUEST_CODE,
+            alertIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        val notification = NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
+            .setSmallIcon(R.drawable.listening_notification)
+            .setContentTitle(getString(R.string.connection_lost_alert_title))
+            .setContentText(getString(R.string.connection_lost_alert_text))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setContentIntent(contentIntent)
+            .setAutoCancel(true)
+            .build()
+        notificationManager.notify(ALERT_NOTIFICATION_ID, notification)
+    }
+
     inner class ListenBinder : Binder() {
         val service: ListenService
             get() = this@ListenService
@@ -221,6 +276,7 @@ class ListenService : Service() {
                         shouldReconnect = false
                     } else {
                         reconnectAttempts = 0
+                        notificationManager.cancel(ALERT_NOTIFICATION_ID)
                         ListenServiceRepository.updateConnected(true, getString(R.string.listening))
                         val streamResult = streamAudio(socket, sessionInfo.key, sessionInfo.sessionId)
                         shouldReconnect = !streamResult
@@ -514,6 +570,7 @@ class ListenService : Service() {
     }
 
     private fun playAlert() {
+        sendConnectionLostAlert()
         requestAudioFocus()
         val mp = MediaPlayer.create(this, R.raw.upward_beep_chromatic_fifths, monitoringAudioAttributes, 0)
         if (mp != null) {
@@ -543,7 +600,10 @@ class ListenService : Service() {
     companion object {
         private const val TAG = "ListenService"
         const val CHANNEL_ID = TAG
+        const val ALERT_CHANNEL_ID = "connection_lost_alert"
         const val ID = 902938409
+        private const val ALERT_NOTIFICATION_ID = 902938410
+        private const val ALERT_REQUEST_CODE = 1
         private const val MAX_RECONNECT_ATTEMPTS = 5
         private const val RECONNECT_DELAY_MS = 2000L
         private const val SOCKET_READ_TIMEOUT_MS = 1000

@@ -97,4 +97,11 @@
     <string name="reset_pairing_confirmation">This will generate a new pairing code. All parent devices must re-scan the QR code to reconnect. Continue?</string>
     <string name="confirm">Confirm</string>
     <string name="cancel">Cancel</string>
+    <string name="connection_lost_alert_channel">Connection alerts</string>
+    <string name="connection_lost_alert_title">Connection lost</string>
+    <string name="connection_lost_alert_text">The child device connection was lost.</string>
+    <string name="add_parent_device">Add Parent Device</string>
+    <string name="pair_parent_device_title">Pair a Parent Device</string>
+    <string name="pair_parent_device_instructions">Open Open Babyphone on the parent device and scan this code.</string>
+    <string name="close">Close</string>
 </resources>
