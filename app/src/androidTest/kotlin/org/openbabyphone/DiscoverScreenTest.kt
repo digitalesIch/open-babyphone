@@ -30,7 +30,7 @@ class DiscoverScreenTest {
     }
 
     @Test
-    fun discoverScreen_advancedSectionCollapsible_AddressButtonRevealed() {
+    fun discoverScreen_advancedSection_showsAddressInputButton() {
         composeTestRule.setContent {
             DiscoverScreen(
                 onNavigateBack = {},
@@ -39,8 +39,7 @@ class DiscoverScreenTest {
             )
         }
         composeTestRule.onNodeWithTag("advanced_section").assertIsDisplayed()
-        composeTestRule.onNodeWithTag("advanced_toggle").performClick()
-        composeTestRule.onNodeWithText("Manual connection (advanced)").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("address_input_button").assertIsDisplayed()
     }
 
     @Test
@@ -69,7 +68,7 @@ class DiscoverScreenTest {
     }
 
     @Test
-    fun discoverScreen_advancedSection_wifiDirectButtonRevealed() {
+    fun discoverScreen_advancedSection_showsWifiDirectButton() {
         composeTestRule.setContent {
             DiscoverScreen(
                 onNavigateBack = {},
@@ -79,7 +78,6 @@ class DiscoverScreenTest {
             )
         }
         composeTestRule.onNodeWithTag("advanced_section").assertIsDisplayed()
-        composeTestRule.onNodeWithTag("advanced_toggle").performClick()
         composeTestRule.onNodeWithTag("wifi_direct_button").assertIsDisplayed()
     }
 }

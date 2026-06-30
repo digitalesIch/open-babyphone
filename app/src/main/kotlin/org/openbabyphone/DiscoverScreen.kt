@@ -15,8 +15,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -24,7 +22,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -37,7 +34,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -118,7 +114,7 @@ fun DiscoverScreen(
                 if (uiState.trustedChildren.isNotEmpty()) {
                     OdSectionHeader(
                         title = stringResource(R.string.known_children_title),
-                        helper = stringResource(R.string.known_children_empty),
+                        helper = stringResource(R.string.known_children_helper),
                         modifier = Modifier.padding(bottom = Spacing.space8)
                     )
                     Column(
@@ -369,24 +365,13 @@ fun DiscoverScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(Spacing.space12)
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("advanced_toggle"),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                OdCardTitle(stringResource(R.string.manual_connection))
-                                OdCardBody(stringResource(R.string.advanced_section_description))
-                            }
-                            TextButton(
-                                onClick = onNavigateToAddressInput,
-                                modifier = Modifier.testTag("address_input_button")
-                            ) {
-                                Text("›", style = MaterialTheme.typography.headlineSmall)
-                            }
-                        }
+                        OdCardTitle(stringResource(R.string.manual_connection))
+                        OdCardBody(stringResource(R.string.advanced_section_description))
+                        OdOutlinedActionButton(
+                            text = stringResource(R.string.enter_address_title),
+                            onClick = onNavigateToAddressInput,
+                            modifier = Modifier.testTag("address_input_button")
+                        )
                         OdOutlinedActionButton(
                             text = stringResource(R.string.wifi_direct_connection),
                             onClick = onNavigateToWifiDirect,

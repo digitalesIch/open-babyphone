@@ -20,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -125,6 +126,9 @@ fun OdOutlinedActionButton(
         onClick = onClick,
         enabled = enabled,
         shape = MaterialTheme.shapes.small,
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = MaterialTheme.colorScheme.onSurface
+        ),
         modifier = modifier
             .fillMaxWidth()
             .defaultMinSize(minHeight = 48.dp)
@@ -151,6 +155,25 @@ fun OdSurfaceButton(
         modifier = modifier
             .fillMaxWidth()
             .defaultMinSize(minHeight = 48.dp)
+    ) {
+        Text(text, fontWeight = FontWeight.W700)
+    }
+}
+
+@Composable
+fun OdTextButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    TextButton(
+        onClick = onClick,
+        enabled = enabled,
+        colors = ButtonDefaults.textButtonColors(
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+        ),
+        modifier = modifier
     ) {
         Text(text, fontWeight = FontWeight.W700)
     }
