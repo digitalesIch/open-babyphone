@@ -1,7 +1,7 @@
 # Open Babyphone
 
 <p align="center">
-  <img src="docs/design/app-ui-redesign-preview.png" alt="Open Babyphone UI preview" width="600">
+  <img src="docs/social-preview.png" alt="Open Babyphone" width="600">
 </p>
 
 [![CI](https://github.com/digitalesIch/open-babyphone/actions/workflows/ci.yml/badge.svg)](https://github.com/digitalesIch/open-babyphone/actions/workflows/ci.yml)
