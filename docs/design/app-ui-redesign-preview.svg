@@ -14,7 +14,9 @@
   <g transform="translate(20,48)">
     <rect width="160" height="320" rx="20" fill="#101827" stroke="rgba(255,255,255,0.12)"/>
     <rect x="55" y="40" width="50" height="50" rx="10" fill="url(#g)"/>
-    <text x="80" y="72" text-anchor="middle" font-family="sans-serif" font-size="20" font-weight="950" fill="#080b12">OB</text>
+    <rect x="64" y="52" width="10" height="22" rx="2.5" fill="none" stroke="#080b12" stroke-width="1.5"/>
+    <rect x="86" y="52" width="10" height="22" rx="2.5" fill="none" stroke="#080b12" stroke-width="1.5"/>
+    <path d="M76 63 Q78 59 80 63 T84 63" fill="none" stroke="#080b12" stroke-width="1.5" stroke-linecap="round"/>
     <text x="80" y="105" text-anchor="middle" font-family="sans-serif" font-size="9" font-weight="800" fill="#f6f7fb">Open Babyphone</text>
     <text x="80" y="120" text-anchor="middle" font-family="sans-serif" font-size="7" fill="#a5b2c8">Turn two phones into a babyphone.</text>
     <rect x="16" y="140" width="128" height="48" rx="8" fill="url(#g)"/>
