@@ -1,19 +1,18 @@
 package org.openbabyphone
 
 import org.openbabyphone.ui.theme.Spacing
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -60,92 +59,93 @@ fun DiscoverAddressScreen(
         },
         contentWindowInsets = WindowInsets.safeDrawing
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .consumeWindowInsets(innerPadding)
-                .padding(Spacing.space16)
-                .widthIn(max = 600.dp)
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .consumeWindowInsets(innerPadding),
+            contentAlignment = Alignment.TopCenter
         ) {
-            Text(
-                stringResource(R.string.enter_address_instructions),
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(bottom = Spacing.space24)
-            )
-
-            OutlinedTextField(
-                value = ipAddress,
-                onValueChange = { ipAddress = it },
-                label = { Text(stringResource(R.string.ip_address)) },
-                placeholder = { Text(stringResource(R.string.example_address)) },
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("ip_address_field"),
-                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                    keyboardType = KeyboardType.Uri,
-                    imeAction = ImeAction.Next
-                ),
-                singleLine = true,
-                textStyle = MaterialTheme.typography.bodyLarge
-            )
-
-            Spacer(modifier = Modifier.height(Spacing.space16))
-
-            OutlinedTextField(
-                value = port,
-                onValueChange = { port = it.filter { char -> char.isDigit() } },
-                label = { Text(stringResource(R.string.port_title)) },
-                placeholder = { Text(stringResource(R.string.example_port)) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("port_field"),
-                isError = port.isNotBlank() && !isPortValid,
-                supportingText = {
-                    if (port.isNotBlank() && !isPortValid) {
-                        Text(stringResource(R.string.invalid_port))
-                    }
-                },
-                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                    keyboardType = KeyboardType.Number,
-                    imeAction = ImeAction.Next
-                ),
-                singleLine = true,
-                textStyle = MaterialTheme.typography.bodyLarge
-            )
-
-            Spacer(modifier = Modifier.height(Spacing.space16))
-
-            OutlinedTextField(
-                value = pairingCode,
-                onValueChange = { pairingCode = it },
-                label = { Text(stringResource(R.string.pairing_code_optional)) },
-                placeholder = { Text(stringResource(R.string.example_pairing_code)) },
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                    keyboardType = KeyboardType.Ascii,
-                    imeAction = ImeAction.Done
-                ),
-                singleLine = true,
-                textStyle = MaterialTheme.typography.bodyLarge
-            )
-
-            Spacer(modifier = Modifier.height(Spacing.space32))
-
-            Button(
-                onClick = {
-                    if (canConnect) {
-                        onConnect(ipAddress, parsedPort ?: ConnectionConstants.DEFAULT_PORT, pairingCode)
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("connect_button"),
-                enabled = canConnect
+                    .widthIn(max = 600.dp)
+                    .fillMaxSize()
+                    .padding(Spacing.space16)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(Spacing.space16)
             ) {
-                Text(stringResource(R.string.connect))
+                OdSectionHeader(
+                    title = stringResource(R.string.enter_address_title),
+                    helper = stringResource(R.string.enter_address_instructions)
+                )
+
+                OdOutlinedCard {
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.space16)) {
+                        OutlinedTextField(
+                            value = ipAddress,
+                            onValueChange = { ipAddress = it },
+                            label = { Text(stringResource(R.string.ip_address)) },
+                            placeholder = { Text(stringResource(R.string.example_address)) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("ip_address_field"),
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                keyboardType = KeyboardType.Uri,
+                                imeAction = ImeAction.Next
+                            ),
+                            singleLine = true,
+                            textStyle = MaterialTheme.typography.bodyLarge
+                        )
+
+                        OutlinedTextField(
+                            value = port,
+                            onValueChange = { port = it.filter { char -> char.isDigit() } },
+                            label = { Text(stringResource(R.string.port_title)) },
+                            placeholder = { Text(stringResource(R.string.example_port)) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("port_field"),
+                            isError = port.isNotBlank() && !isPortValid,
+                            supportingText = {
+                                if (port.isNotBlank() && !isPortValid) {
+                                    Text(stringResource(R.string.invalid_port))
+                                }
+                            },
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                keyboardType = KeyboardType.Number,
+                                imeAction = ImeAction.Next
+                            ),
+                            singleLine = true,
+                            textStyle = MaterialTheme.typography.bodyLarge
+                        )
+
+                        OutlinedTextField(
+                            value = pairingCode,
+                            onValueChange = { pairingCode = it },
+                            label = { Text(stringResource(R.string.pairing_code_optional)) },
+                            placeholder = { Text(stringResource(R.string.example_pairing_code)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                keyboardType = KeyboardType.Ascii,
+                                imeAction = ImeAction.Done
+                            ),
+                            singleLine = true,
+                            textStyle = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+
+                OdPrimaryButton(
+                    text = stringResource(R.string.connect),
+                    onClick = {
+                        if (canConnect) {
+                            onConnect(ipAddress, parsedPort ?: ConnectionConstants.DEFAULT_PORT, pairingCode)
+                        }
+                    },
+                    modifier = Modifier.testTag("connect_button"),
+                    enabled = canConnect
+                )
             }
         }
     }
