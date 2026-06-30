@@ -16,10 +16,15 @@ Covers:
 - Audio protocol: `FrameCodec`, `FrameHeader`, `G711UCodec`, `JitterBuffer`
 - Client management: `ClientManager` lifecycle and queue behavior
 - Crypto: `CryptoHelper` key derivation and encrypt/decrypt round-trip
-- Volume: `VolumeStatistics` ring buffer and normalization
-- Pairing: `PairingCode` validation
+- Volume: `VolumeStatistics` ring buffer and normalization, `VolumeHistory`
+- Pairing: `PairingCode` validation, `PairingCodeGenerator`, `PairingQrCode` parsing
 - Handshake: protocol handshake serialization
 - ViewModels: `DiscoverViewModel`, `MonitorViewModel`, `ListenViewModel`
+- Trusted child: `TrustedChildStore` persistence and lookup
+- Microphone: `MicrophoneSensitivity` gain levels
+- Wi-Fi Direct: `WifiDirectErrorsTest`, `WifiDirectTxtRecordParserTest`
+- Listen service: `ListenServiceAlertTest`
+- Device name: `DeviceNameTest`
 
 ### Instrumentation Tests (Device/Emulator)
 
@@ -28,8 +33,8 @@ Run with:
     # ./gradlew connectedDebugAndroidTest
 
 Covers:
-- Crypto: `CryptoHelper` JNI/libsodium on-device behavior
-- Compose UI: `DiscoverScreen`, `MonitorScreen`, `DiscoverAddressScreen`
+- Crypto: `CryptoHelper` JNI/libsodium on-device behavior, `FrameCodecCryptoInstrumentedTest`
+- Compose UI: `StartScreen`, `DiscoverScreen`, `MonitorScreen`, `DiscoverAddressScreen`
 - Handshake: on-device challenge-response
 
 ### Lint

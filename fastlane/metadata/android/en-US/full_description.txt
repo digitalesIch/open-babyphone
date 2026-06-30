@@ -1,7 +1,8 @@
 <p>Open Babyphone turns two Android devices into a simple local audio baby monitor.</p>
 <p>Use one device near the child and one with the parent. The child device advertises itself on the same Wi-Fi or local network, and the parent device connects to play the audio stream.</p>
 <p>The app is open source and built for straightforward in-home use. Normal setup does not require an account or project-operated server.</p>
-<p>Features include local discovery, QR/code pairing, encrypted audio transport when a pairing code is configured, reconnect handling, and support for up to 5 parent devices listening to the same child device.</p>
+<p>Features include local discovery, QR code pairing, trusted child pairing that remembers known devices, encrypted audio transport when a pairing code is configured, microphone sensitivity control, reconnect handling, and support for up to 5 parent devices listening to the same child device.</p>
+<p>An experimental Wi-Fi Direct mode is available for direct device-to-device connection without an existing Wi-Fi network.</p>
 <p>Open Babyphone is in active development, with the current focus on overnight reliability, clear setup, and F-Droid readiness.</p>
 <p>The project is an independent fork of Child Monitor, which itself is a fork of Protect Baby Monitor.</p>
 <p>Open Babyphone works on Android 11 (R) and newer, i.e. Android SDK 30.</p>

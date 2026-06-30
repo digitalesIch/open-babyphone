@@ -1,7 +1,28 @@
 Open Babyphone (fork of Child Monitor)
-=======================================
+======================================
 
-June 2026: Initial fork release
+June 2026: 1.1.0-alpha.3
+
+  * App icon redesigned to paired-phones brand mark (#135)
+  * All runtime screens redesigned with Open Design brand palette and components (#138, #140)
+  * Website landing page updated with brand mark (#136)
+  * Monochrome themed launcher icon added (#109)
+  * Microphone sensitivity control on child device: Normal, High, Very high (#127)
+  * One-time trusted child pairing flow: parents remember known children and reconnect without re-scanning (#117)
+  * Add parent devices while child monitoring is active (#116)
+  * Connection-lost alert hardened: pairing code removed from deep links (#132)
+  * Active parent pairing dialog polished (#133)
+  * Wi-Fi Direct experimental connection mode (#77)
+  * QR code scanner in parent mode for child pairing
+  * Parent-side audio focus request with AudioFocusRequest and AudioTrack.Builder
+  * ListenService playback thread InterruptedException handling (#102)
+  * Public docs rewritten with friendlier, product-oriented tone (#101)
+  * Explicit Android data extraction rules (#108)
+  * Real-device reliability test matrix expanded to 40 scenarios
+  * Power management and OEM battery optimization guidance documented
+  * Version bumped to 1.1.0-alpha.3 (versionCode 18)
+
+June 2026: Initial fork release (1.1.0-alpha)
 
   * Project renamed to Open Babyphone
   * Migrated the Android application ID to `org.openbabyphone` before public release
@@ -18,7 +39,7 @@ June 2026: Initial fork release
   * Trusted VPN use is treated as an advanced manual setup note, not the normal setup flow
 
 Child Monitor (original project)
-=================================
+================================
 
 Sun Jan 3, 2016: Release 0.2
 

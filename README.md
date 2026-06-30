@@ -1,5 +1,9 @@
 # Open Babyphone
 
+<p align="center">
+  <img src="docs/design/app-ui-redesign-preview.png" alt="Open Babyphone UI preview" width="600">
+</p>
+
 [![CI](https://github.com/digitalesIch/open-babyphone/actions/workflows/ci.yml/badge.svg)](https://github.com/digitalesIch/open-babyphone/actions/workflows/ci.yml)
 [![License: GPLv3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 [![Android](https://img.shields.io/badge/Android-11%2B-brightgreen.svg)](#requirements)
@@ -28,6 +32,9 @@ through trusted VPN or unusual LAN setups with manual address entry.
 - Protocol versioning and capability negotiation for future codec migration
 - Multi-parent listening from one child device, with up to 5 parent devices
 - Parent-side reconnect behavior and a small jitter buffer
+- Trusted child pairing: parents remember known children and reconnect without re-scanning
+- Microphone sensitivity control on the child device (Normal, High, Very high)
+- Open Design brand UI with cyan/blue accent palette and paired-phones brand mark
 - GitHub Actions CI for release build, unit tests, and Android lint
 - Unit and instrumentation tests for codec, framing, crypto, jitter buffer,
   handshake, and client management
@@ -145,8 +152,8 @@ hotspot, and Open Babyphone still communicates locally.
 - The child device does not need a SIM card.
 - Both devices must remain within range of the local wireless link.
 
-WiFi Direct support is not implemented yet. It is a future local-only option for
-direct device-to-device connections without a normal hotspot.
+WiFi Direct is experimental and OEM/ROM-dependent. If discovery or connection
+fails, use a Wi-Fi hotspot or manual address entry instead.
 
 ## Building From Source
 

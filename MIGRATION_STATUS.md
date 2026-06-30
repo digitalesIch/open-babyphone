@@ -1,33 +1,39 @@
-# Material 3 Expressive Migration - Final Status
+# Material 3 + Open Design Migration - Status
 
-## ✅ All Phases Complete
+This document tracks the UI migration from legacy XML views to Jetpack Compose
+with Material 3, and the subsequent Open Design brand redesign.
 
-### Phase 1: Foundation & Dependencies (100%)
+For current build versions, see `AGENTS.md` and `app/build.gradle`.
+
+## Phase 1: Foundation & Dependencies (Complete)
+
 - minSdkVersion 30 (Android 11), compileSdk 34
-- Compose BOM 2024.05.00 + Material 3
-- Navigation Compose 2.8.0-beta05 (Type-Safe)
+- Compose BOM 2024.09.03 + Material 3
+- Navigation Compose 2.8.9 (Type-Safe)
 - Kotlin Serialization for Type-Safe Routes
 - Theme with Dynamic Color (SDK 31+) + M3 Fallback
 - Edge-to-Edge Support
 
-### Phase 2: Architecture (100%)
+## Phase 2: Architecture (Complete)
+
 - Single-Activity Architecture (MainActivity)
 - Navigation Compose with Type-Safe Routes
 - ViewModel Architecture with StateFlow
 - Repository Pattern for Service State
 
-### Phase 3: Screen Migration & Service-Integration (100%)
-- 5 Compose Screens (Start, Monitor, Discover, DiscoverAddress, Listen)
+## Phase 3: Screen Migration & Service-Integration (Complete)
+
+- 6 Compose Screens (Start, Monitor, Discover, DiscoverAddress, DiscoverWifiDirect, Listen)
 - MonitorService & ListenService integrated via Repository pattern
 - mDNS Discovery with NSD Manager
 - VolumeView migrated to Compose Canvas
+- Wi-Fi Direct screen for experimental P2P connection
 
-### Phase 4: UX Polish (100%)
+## Phase 4: UX Polish (Complete)
 
 **WP0: String Externalization**
 - All hardcoded strings replaced with `stringResource()` calls
 - English-only throughout the app
-- 7 new string resources added
 
 **WP1: Theme & Design System**
 - M3 Expressive default Typography and Shapes
@@ -60,27 +66,40 @@
 - Error state with retry button
 - M3 Expressive component styling
 
-### Phase 5: Cleanup & Testing (100%)
-- 15 legacy files deleted (Activities, XML layouts, theme styles, unused helpers)
+## Phase 5: Cleanup & Testing (Complete)
+
+- Legacy Activities and XML layouts removed
 - AndroidManifest cleaned up
 - Deep-Link support (`quiet-engine://listen`)
-- 24 Unit Tests (Robolectric) + 3 Compose UI Test Suites
+- Unit tests covering codec, framing, jitter buffer, crypto, client management,
+  handshake, ViewModels, pairing QR, trusted child store, microphone sensitivity,
+  Wi-Fi Direct errors and TXT records, volume statistics and history
+- Instrumentation tests covering crypto JNI, Compose UI screens, frame codec crypto
 - All tests passing
 - Lint passing
 
----
+## Phase 6: Open Design Brand Redesign (Complete)
 
-## 📊 Final Metrics
+- App icon redesigned to paired-phones brand mark (#135)
+- Brand palette: cyan `#5FF2D2`, blue `#5DA8FF`, night canvas `#080B12`
+- Open Design components: `BrandMark`, `OdStatusPill` in `OpenDesignComponents.kt`
+- All runtime screens redesigned to match Open Design mockups (#138, #140)
+- StartScreen, MonitorScreen, DiscoverScreen, DiscoverAddressScreen,
+  DiscoverWifiDirectScreen, ListenScreen
+- Website landing page updated with brand mark (#136)
+- Android 12+ dynamic color disabled by default for stable brand palette
+- Monochrome themed icon added (#109)
+- Design handoff document: `docs/design/app-ui-redesign.md`
+
+## Final Metrics
 
 | Metric | Value |
 |--------|-------|
-| **Build** | ✅ SUCCESSFUL (Debug + Release) |
-| **Unit Tests** | 24/24 passing |
-| **UI Test Suites** | 3 (StartScreen, DiscoverScreen, DiscoverAddressScreen) |
+| **Build** | Successful (Debug + Release) |
+| **Unit test files** | 21 |
+| **Instrumentation test files** | 7 |
 | **Lint** | Passing |
 | **Min SDK** | 30 (Android 11) |
 | **Target SDK** | 34 |
-| **Compose BOM** | 2024.05.00 |
-| **Navigation** | Compose 2.8.0-beta05 (Type-Safe) |
-
-**Migration: 100% Complete** 🎉
+| **Compose BOM** | 2024.09.03 |
+| **Navigation** | Compose 2.8.9 (Type-Safe) |

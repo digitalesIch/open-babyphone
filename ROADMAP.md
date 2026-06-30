@@ -262,9 +262,12 @@ commitment.
 - Test on OnePlus 3T (LineageOS 18.1) and modern Android devices
 - Document battery, heat, network, and low-light limitations
 
-## Immediate Technical Risk Backlog
+## Issue Backlog
 
-These items are tracked as GitHub issues and should be handled before a public beta:
+These items are tracked as GitHub issues. Closed items are listed for reference;
+open items should be handled before or during public beta.
+
+### Closed
 
 - #2 Remove or guard production logs containing local network details
 - #13 Centralize service type, default port, and discovery naming constants
@@ -273,7 +276,6 @@ These items are tracked as GitHub issues and should be handled before a public b
 - #21 Keep the Android application ID, namespace, and internal package aligned on `org.openbabyphone` before release
 - #22 Finish the Material UX refresh for monitor, discovery, and listen screens
 - #23 Stop exposing device model and legacy `ChildMonitor` name in NSD
-- #24 Define and run an overnight reliability test matrix on real devices
 - #25 Add protocol versioning and capability negotiation
 - #26 Update the privacy policy and security model whenever pairing/encryption defaults change
 - #27 Make pairing default-safe with generated codes and a QR/code parent flow
@@ -283,8 +285,25 @@ These items are tracked as GitHub issues and should be handled before a public b
 - #47 Avoid AEAD nonce reuse when multiple parents authenticate in the same session
 - #51 Add multi-parent integration test
 - #52 Document multi-parent support in README and UI
+- #54 Move manual address entry to explicit advanced path
+- #58 Add user-configurable device name for NSD discovery
+- #101 Rewrite public docs with friendlier, product-oriented tone
+- #102 Handle InterruptedException in ListenService playback thread
+- #116 Allow adding parent devices while child monitoring is active
+- #117 Add one-time trusted child pairing flow
+- #127 Add child microphone sensitivity control
+- #135 Redesign app icon to paired-phones brand mark
+- #136 Use paired-phones brand mark on website
+- #138 App UI redesign (Open Design)
+- #140 Redesign secondary parent connection screens
+
+### Open
+
+- #24 Define and run an overnight reliability test matrix on real devices
 - #69 Migrate audio codec from G.711 u-law to Opus (depends on #25)
 - #70 Add white noise on child device with noise suppression on parent device (depends on #69)
 - #77 Add WiFi Direct connection support
 - #78 Explore Wi-Fi Aware (NAN) for local peer-to-peer connections
 - #87 Add parent-side comfort noise for connection reassurance
+- #103 Explore child battery status on parent device
+- #137 Use system colors setting (dynamic color toggle)
