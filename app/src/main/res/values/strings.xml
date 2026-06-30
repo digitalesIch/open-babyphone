@@ -2,6 +2,7 @@
 <resources>
 
     <string name="app_name">Open Babyphone</string>
+    <string name="app_tagline">Turn two phones into your new babyphone.</string>
     <string name="use_as_parent_device">Use as Parent Device</string>
     <string name="use_as_child_device">Use as Child Device</string>
     <string name="child_description">Device is placed with baby, and sends audio to a paired parent device</string>
@@ -88,6 +89,7 @@
     <string name="wifi_direct_permission_location">Location permission is required to discover child devices via Wi-Fi Direct. Please grant the permission and enable Location to continue.</string>
     <string name="known_children_title">Known child devices</string>
     <string name="known_children_empty">No known child devices yet. Scan the QR code on a child device to add it here.</string>
+    <string name="known_children_helper">Connect to a known child device when it is online on the same network.</string>
     <string name="forget_child">Forget</string>
     <string name="connect_to_child">Connect</string>
     <string name="pairing_reset_notice">Pairing was reset on this child. Scan the QR code again to reconnect.</string>

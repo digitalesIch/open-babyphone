@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="400" viewBox="0 0 960 400" role="img" aria-labelledby="title desc">
+  <title id="title">Open Babyphone App UI Redesign — Dark Theme</title>
+  <desc id="desc">Five phone mockups: Start, Child Setup, Child Monitoring, Parent Discover, Parent Listen, in the Open Babyphone brand palette.</desc>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#5ff2d2"/>
+      <stop offset="100%" stop-color="#5da8ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="400" fill="#080b12"/>
+  <text x="480" y="28" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="16" font-weight="850" fill="url(#g)">Open Babyphone — App UI Redesign</text>
+
+  <!-- Phone 1: Start -->
+  <g transform="translate(20,48)">
+    <rect width="160" height="320" rx="20" fill="#101827" stroke="rgba(255,255,255,0.12)"/>
+    <rect x="55" y="40" width="50" height="50" rx="10" fill="url(#g)"/>
+    <rect x="64" y="52" width="10" height="22" rx="2.5" fill="none" stroke="#080b12" stroke-width="1.5"/>
+    <rect x="86" y="52" width="10" height="22" rx="2.5" fill="none" stroke="#080b12" stroke-width="1.5"/>
+    <path d="M76 63 Q78 59 80 63 T84 63" fill="none" stroke="#080b12" stroke-width="1.5" stroke-linecap="round"/>
+    <text x="80" y="105" text-anchor="middle" font-family="sans-serif" font-size="9" font-weight="800" fill="#f6f7fb">Open Babyphone</text>
+    <text x="80" y="120" text-anchor="middle" font-family="sans-serif" font-size="7" fill="#a5b2c8">Turn two phones into a babyphone.</text>
+    <rect x="16" y="140" width="128" height="48" rx="8" fill="url(#g)"/>
+    <text x="80" y="162" text-anchor="middle" font-family="sans-serif" font-size="8" font-weight="800" fill="#080b12">Use as Child Device</text>
+    <text x="80" y="174" text-anchor="middle" font-family="sans-serif" font-size="6" fill="#080b12" opacity="0.7">Placed with baby, sends audio</text>
+    <rect x="16" y="196" width="128" height="48" rx="8" fill="none" stroke="rgba(255,255,255,0.12)"/>
+    <text x="80" y="218" text-anchor="middle" font-family="sans-serif" font-size="8" font-weight="700" fill="#f6f7fb">Use as Parent Device</text>
+    <text x="80" y="230" text-anchor="middle" font-family="sans-serif" font-size="6" fill="#a5b2c8">Pairs with child, plays audio</text>
+    <text x="80" y="298" text-anchor="middle" font-family="sans-serif" font-size="7" font-weight="700" fill="#a5b2c8">Settings</text>
+    <text x="80" y="345" text-anchor="middle" font-family="sans-serif" font-size="8" font-weight="700" fill="#5ff2d2">1. Start</text>
+  </g>
+
+  <!-- Phone 2: Child Setup -->
+  <g transform="translate(208,48)">
+    <rect width="160" height="320" rx="20" fill="#101827" stroke="rgba(255,255,255,0.12)"/>
+    <text x="12" y="24" font-family="sans-serif" font-size="10" font-weight="850" fill="#f6f7fb">← Child Device</text>
+    <rect x="12" y="36" width="136" height="60" rx="8" fill="none" stroke="rgba(255,255,255,0.12)"/>
+    <text x="20" y="50" font-family="sans-serif" font-size="7" font-weight="850" fill="#f6f7fb">Device name</text>
+    <rect x="20" y="56" width="120" height="14" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.12)"/>
+    <text x="26" y="66" font-family="sans-serif" font-size="6" fill="#a5b2c8">e.g. Nursery</text>
+    <rect x="12" y="104" width="136" height="140" rx="8" fill="none" stroke="rgba(255,255,255,0.12)"/>
+    <text x="20" y="118" font-family="sans-serif" font-size="7" font-weight="850" fill="#f6f7fb">Pairing code:</text>
+    <rect x="20" y="124" width="120" height="14" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.12)"/>
+    <text x="26" y="134" font-family="sans-serif" font-size="6" fill="#a5b2c8">babyroom42</text>
+    <rect x="56" y="146" width="48" height="48" rx="4" fill="#fff"/>
+    <g fill="#000">
+      <rect x="58" y="148" width="3" height="3"/><rect x="62" y="148" width="3" height="3"/><rect x="66" y="148" width="3" height="3"/><rect x="94" y="148" width="3" height="3"/><rect x="98" y="148" width="3" height="3"/><rect x="102" y="148" width="3" height="3"/>
+      <rect x="58" y="152" width="3" height="3"/><rect x="94" y="152" width="3" height="3"/><rect x="102" y="152" width="3" height="3"/>
+      <rect x="58" y="156" width="3" height="3"/><rect x="98" y="156" width="3" height="3"/><rect x="102" y="156" width="3" height="3"/>
+      <rect x="58" y="160" width="3" height="3"/><rect x="62" y="160" width="3" height="3"/><rect x="66" y="160" width="3" height="3"/><rect x="98" y="160" width="3" height="3"/>
+      <rect x="62" y="164" width="3" height="3"/><rect x="66" y="164" width="3" height="3"/><rect x="98" y="164" width="3" height="3"/>
+      <rect x="62" y="168" width="3" height="3"/><rect x="66" y="168" width="3" height="3"/><rect x="98" y="168" width="3" height="3"/><rect x="102" y="168" width="3" height="3"/>
+      <rect x="58" y="172" width="3" height="3"/><rect x="62" y="172" width="3" height="3"/><rect x="66" y="172" width="3" height="3"/><rect x="94" y="172" width="3" height="3"/><rect x="98" y="172" width="3" height="3"/><rect x="102" y="172" width="3" height="3"/>
+    </g>
+    <rect x="12" y="252" width="136" height="28" rx="8" fill="url(#g)"/>
+    <text x="80" y="270" text-anchor="middle" font-family="sans-serif" font-size="8" font-weight="850" fill="#080b12">Start Monitoring</text>
+    <text x="80" y="345" text-anchor="middle" font-family="sans-serif" font-size="8" font-weight="700" fill="#5ff2d2">2. Child Setup</text>
+  </g>
+
+  <!-- Phone 3: Child Monitoring -->
+  <g transform="translate(396,48)">
+    <rect width="160" height="320" rx="20" fill="#101827" stroke="rgba(255,255,255,0.12)"/>
+    <text x="12" y="24" font-family="sans-serif" font-size="10" font-weight="850" fill="#f6f7fb">← Child Device</text>
+    <rect x="12" y="36" width="136" height="40" rx="8" fill="none" stroke="rgba(255,255,255,0.12)"/>
+    <text x="20" y="48" font-family="sans-serif" font-size="7" font-weight="850" fill="#f6f7fb">Service:</text>
+    <text x="20" y="64" font-family="sans-serif" font-size="8" fill="#a5b2c8">Open Babyphone</text>
+    <rect x="12" y="84" width="136" height="28" rx="8" fill="none" stroke="rgba(255,255,255,0.12)"/>
+    <text x="20" y="96" font-family="sans-serif" font-size="7" font-weight="850" fill="#f6f7fb">Port:</text>
+    <text x="120" y="96" text-anchor="end" font-family="monospace" font-size="8" fill="#a5b2c8">10000</text>
+    <rect x="12" y="120" width="136" height="56" rx="8" fill="none" stroke="rgba(255,255,255,0.12)"/>
+    <text x="20" y="132" font-family="sans-serif" font-size="7" font-weight="850" fill="#f6f7fb">Addresses:</text>
+    <text x="20" y="146" font-family="monospace" font-size="6" fill="#a5b2c8">192.168.1.42</text>
+    <text x="20" y="160" font-family="monospace" font-size="6" fill="#a5b2c8">fe80::1a2b:3c4d</text>
+    <rect x="12" y="184" width="136" height="44" rx="8" fill="none" stroke="rgba(255,255,255,0.12)"/>
+    <circle cx="22" cy="198" r="3" fill="#5ff2d2"/>
+    <text x="30" y="201" font-family="sans-serif" font-size="7" font-weight="700" fill="#f6f7fb">Connected: 2 parents</text>
+    <text x="20" y="220" font-family="sans-serif" font-size="8" font-weight="700" fill="#5ff2d2">Streaming...</text>
+    <rect x="12" y="236" width="136" height="28" rx="8" fill="none" stroke="rgba(255,255,255,0.12)"/>
+    <text x="80" y="254" text-anchor="middle" font-family="sans-serif" font-size="8" font-weight="700" fill="#f6f7fb">Stop Monitoring</text>
+    <text x="80" y="345" text-anchor="middle" font-family="sans-serif" font-size="8" font-weight="700" fill="#5ff2d2">3. Child Monitoring</text>
+  </g>
+
+  <!-- Phone 4: Parent Discover -->
+  <g transform="translate(584,48)">
+    <rect width="160" height="320" rx="20" fill="#101827" stroke="rgba(255,255,255,0.12)"/>
+    <text x="12" y="24" font-family="sans-serif" font-size="10" font-weight="850" fill="#f6f7fb">← Parent Device</text>
+    <text x="12" y="44" font-family="sans-serif" font-size="8" font-weight="850" fill="#f6f7fb">Discover Child on Network</text>
+    <text x="12" y="56" font-family="sans-serif" font-size="6" fill="#a5b2c8">Select child from discovered devices</text>
+    <rect x="12" y="64" width="136" height="44" rx="8" fill="none" stroke="rgba(255,255,255,0.12)"/>
+    <text x="20" y="80" font-family="sans-serif" font-size="8" font-weight="700" fill="#f6f7fb">Nursery</text>
+    <rect x="110" y="74" width="3" height="6" fill="#5ff2d2"/><rect x="115" y="72" width="3" height="8" fill="#5ff2d2"/><rect x="120" y="70" width="3" height="10" fill="#5ff2d2"/><rect x="125" y="68" width="3" height="12" fill="#5ff2d2"/>
+    <rect x="20" y="88" width="100" height="12" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.12)"/>
+    <text x="26" y="97" font-family="sans-serif" font-size="5" fill="#a5b2c8">Pairing code (optional)</text>
+    <rect x="112" y="92" width="32" height="10" rx="5" fill="url(#g)"/>
+    <text x="128" y="100" text-anchor="middle" font-family="sans-serif" font-size="5" font-weight="800" fill="#080b12">Connect</text>
+    <rect x="12" y="116" width="136" height="44" rx="8" fill="none" stroke="rgba(255,255,255,0.12)"/>
+    <text x="20" y="132" font-family="sans-serif" font-size="8" font-weight="700" fill="#f6f7fb">Living Room</text>
+    <rect x="110" y="126" width="3" height="6" fill="#5ff2d2"/><rect x="115" y="124" width="3" height="8" fill="#5ff2d2"/><rect x="120" y="122" width="3" height="10" fill="#5ff2d2"/>
+    <rect x="20" y="140" width="100" height="12" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.12)"/>
+    <text x="26" y="149" font-family="sans-serif" font-size="5" fill="#a5b2c8">Pairing code (optional)</text>
+    <rect x="112" y="144" width="32" height="10" rx="5" fill="url(#g)"/>
+    <text x="128" y="152" text-anchor="middle" font-family="sans-serif" font-size="5" font-weight="800" fill="#080b12">Connect</text>
+    <rect x="12" y="168" width="136" height="36" rx="8" fill="none" stroke="rgba(255,255,255,0.12)"/>
+    <text x="20" y="182" font-family="sans-serif" font-size="7" font-weight="850" fill="#f6f7fb">Manual connection (advanced)</text>
+    <text x="20" y="194" font-family="sans-serif" font-size="5" fill="#a5b2c8">For VPN or unusual setups</text>
+    <text x="138" y="188" text-anchor="end" font-family="sans-serif" font-size="10" fill="#a5b2c8">›</text>
+    <text x="80" y="345" text-anchor="middle" font-family="sans-serif" font-size="8" font-weight="700" fill="#5ff2d2">4. Parent Discover</text>
+  </g>
+
+  <!-- Phone 5: Parent Listen -->
+  <g transform="translate(772,48)">
+    <rect width="160" height="320" rx="20" fill="#101827" stroke="rgba(255,255,255,0.12)"/>
+    <text x="12" y="24" font-family="sans-serif" font-size="10" font-weight="850" fill="#f6f7fb">← Parent Device</text>
+    <text x="12" y="48" font-family="sans-serif" font-size="7" font-weight="700" fill="#a5b2c8" letter-spacing="0.5">CONNECTED TO:</text>
+    <text x="12" y="64" font-family="sans-serif" font-size="10" font-weight="800" fill="#f6f7fb">Nursery</text>
+    <text x="12" y="84" font-family="sans-serif" font-size="7" font-weight="700" fill="#a5b2c8" letter-spacing="0.5">STATUS:</text>
+    <rect x="12" y="90" width="100" height="22" rx="11" fill="rgba(95,242,210,0.15)"/>
+    <circle cx="24" cy="101" r="3" fill="#5ff2d2"/>
+    <text x="34" y="104" font-family="sans-serif" font-size="8" font-weight="700" fill="#5ff2d2">Listening...</text>
+    <rect x="12" y="122" width="136" height="140" rx="8" fill="#1a2235"/>
+    <path d="M20,180 Q35,150 50,180 T80,180 Q95,140 110,180 T140,180" stroke="#5ff2d2" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <path d="M20,180 Q35,210 50,180 T80,180 Q95,220 110,180 T140,180" stroke="#5ff2d2" stroke-width="1.5" fill="none" opacity="0.4" stroke-linecap="round"/>
+    <rect x="12" y="272" width="136" height="28" rx="8" fill="none" stroke="rgba(255,255,255,0.12)"/>
+    <text x="80" y="290" text-anchor="middle" font-family="sans-serif" font-size="8" font-weight="700" fill="#f6f7fb">Disconnect</text>
+    <text x="80" y="345" text-anchor="middle" font-family="sans-serif" font-size="8" font-weight="700" fill="#5ff2d2">5. Parent Listen</text>
+  </g>
+</svg>

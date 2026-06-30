@@ -16,9 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -30,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -39,6 +38,7 @@ import org.openbabyphone.ui.theme.Spacing
 fun StartScreen(
     onNavigateToMonitor: () -> Unit,
     onNavigateToDiscover: () -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -111,14 +111,30 @@ fun StartScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            BrandMark(size = 64.dp)
+
+            Spacer(modifier = Modifier.height(Spacing.space16))
+
             Text(
                 text = stringResource(R.string.app_name),
-                style = MaterialTheme.typography.headlineLarge,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(bottom = Spacing.space32)
+                style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.W900),
+                textAlign = TextAlign.Center
             )
 
-            Button(
+            Spacer(modifier = Modifier.height(Spacing.space8))
+
+            Text(
+                text = stringResource(R.string.app_tagline),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = Spacing.space16)
+            )
+
+            Spacer(modifier = Modifier.height(Spacing.space32))
+
+            OdPrimaryButton(
+                text = stringResource(R.string.use_as_child_device),
                 onClick = {
                     val allGranted = childPermissions.all { perm ->
                         ContextCompat.checkSelfPermission(
@@ -132,12 +148,8 @@ fun StartScreen(
                         childPermissionLauncher.launch(childPermissions)
                     }
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("child_device_button")
-            ) {
-                Text(stringResource(R.string.use_as_child_device))
-            }
+                modifier = Modifier.testTag("child_device_button")
+            )
 
             if (childPermissionDenied) {
                 Spacer(modifier = Modifier.height(Spacing.space8))
@@ -149,18 +161,20 @@ fun StartScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(Spacing.space16))
+            Spacer(modifier = Modifier.height(Spacing.space8))
 
             Text(
                 text = stringResource(R.string.child_description),
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = Spacing.space16)
             )
 
             Spacer(modifier = Modifier.height(Spacing.space32))
 
-            OutlinedButton(
+            OdOutlinedActionButton(
+                text = stringResource(R.string.use_as_parent_device),
                 onClick = {
                     val allGranted = parentPermissions.all { perm ->
                         ContextCompat.checkSelfPermission(
@@ -174,12 +188,8 @@ fun StartScreen(
                         parentPermissionLauncher.launch(parentPermissions)
                     }
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("parent_device_button")
-            ) {
-                Text(stringResource(R.string.use_as_parent_device))
-            }
+                modifier = Modifier.testTag("parent_device_button")
+            )
 
             if (parentPermissionDenied) {
                 Spacer(modifier = Modifier.height(Spacing.space8))
@@ -191,13 +201,22 @@ fun StartScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(Spacing.space16))
+            Spacer(modifier = Modifier.height(Spacing.space8))
 
             Text(
                 text = stringResource(R.string.parent_description),
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = Spacing.space16)
+            )
+
+            Spacer(modifier = Modifier.height(Spacing.space32))
+
+            OdTextButton(
+                text = stringResource(R.string.settings),
+                onClick = onNavigateToSettings,
+                modifier = Modifier.testTag("settings_button")
             )
         }
     }

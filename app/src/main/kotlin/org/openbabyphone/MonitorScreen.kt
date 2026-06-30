@@ -141,7 +141,7 @@ fun MonitorScreen(
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            AppLargeTopAppBar(
+            AppTopAppBar(
                 title = stringResource(R.string.child_device),
                 onNavigateBack = onNavigateBack,
                 scrollBehavior = scrollBehavior
@@ -223,13 +223,12 @@ private fun SetupSection(
     onResetPairing: () -> Unit,
     onSensitivityChange: (MicrophoneSensitivity) -> Unit
 ) {
-    Card(
+    OdOutlinedCard(
         modifier = Modifier
             .fillMaxWidth()
             .testTag("device_name_card"),
         content = {
-            Column(modifier = Modifier.padding(Spacing.space16)) {
-                Text(stringResource(R.string.device_name_title), style = MaterialTheme.typography.titleLarge)
+            OdCardTitle(stringResource(R.string.device_name_title))
                 Spacer(modifier = Modifier.height(Spacing.space8))
                 OutlinedTextField(
                     value = uiState.deviceName,
@@ -243,26 +242,21 @@ private fun SetupSection(
                     textStyle = MaterialTheme.typography.bodyLarge
                 )
                 Spacer(modifier = Modifier.height(Spacing.space8))
-                Text(
-                    stringResource(R.string.device_name_description),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
+                OdCardBody(stringResource(R.string.device_name_description))
         }
     )
 
     Spacer(modifier = Modifier.height(Spacing.space16))
 
-    Card(
+    OdOutlinedCard(
         modifier = Modifier
             .fillMaxWidth()
             .testTag("pairing_card"),
         content = {
             Column(
-                modifier = Modifier.padding(Spacing.space16),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(stringResource(R.string.pairing_code_title), style = MaterialTheme.typography.titleLarge)
+                OdCardTitle(stringResource(R.string.pairing_code_title), modifier = Modifier.fillMaxWidth())
                 Spacer(modifier = Modifier.height(Spacing.space8))
                 OutlinedTextField(
                     value = uiState.pairingCode,
@@ -282,10 +276,7 @@ private fun SetupSection(
                     textStyle = MaterialTheme.typography.bodyLarge
                 )
                 Spacer(modifier = Modifier.height(Spacing.space8))
-                Text(
-                    stringResource(R.string.monitoring_setup_hint),
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                OdCardBody(stringResource(R.string.monitoring_setup_hint))
 
                 if (uiState.pairingCode.isNotEmpty() && uiState.pairingCodeValid) {
                     Spacer(modifier = Modifier.height(Spacing.space16))
@@ -300,15 +291,14 @@ private fun SetupSection(
                         textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(Spacing.space8))
-                    OutlinedButton(
+                    OdOutlinedActionButton(
+                        text = stringResource(R.string.reset_pairing),
                         onClick = onResetPairing,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("reset_pairing_button"),
                         enabled = !isMonitoring
-                    ) {
-                        Text(stringResource(R.string.reset_pairing))
-                    }
+                    )
                 }
             }
         }
@@ -323,15 +313,14 @@ private fun SetupSection(
 
     Spacer(modifier = Modifier.height(Spacing.space16))
 
-    Button(
+    OdPrimaryButton(
+        text = stringResource(R.string.start_monitoring),
         onClick = onStartMonitoring,
         enabled = uiState.pairingCodeValid,
         modifier = Modifier
             .fillMaxWidth()
             .testTag("monitoring_toggle_button")
-    ) {
-        Text(stringResource(R.string.start_monitoring))
-    }
+    )
 }
 
 @Composable
@@ -343,21 +332,14 @@ private fun MicrophoneSensitivityCard(
     val highLabel = stringResource(R.string.microphone_sensitivity_high)
     val veryHighLabel = stringResource(R.string.microphone_sensitivity_very_high)
 
-    Card(
+    OdOutlinedCard(
         modifier = Modifier
             .fillMaxWidth()
             .testTag("microphone_sensitivity_card"),
         content = {
-            Column(modifier = Modifier.padding(Spacing.space16)) {
-                Text(
-                    stringResource(R.string.microphone_sensitivity_title),
-                    style = MaterialTheme.typography.titleLarge
-                )
+                OdCardTitle(stringResource(R.string.microphone_sensitivity_title))
                 Spacer(modifier = Modifier.height(Spacing.space8))
-                Text(
-                    stringResource(R.string.microphone_sensitivity_description),
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                OdCardBody(stringResource(R.string.microphone_sensitivity_description))
                 Spacer(modifier = Modifier.height(Spacing.space12))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -373,7 +355,6 @@ private fun MicrophoneSensitivityCard(
                         )
                     }
                 }
-            }
         }
     )
 }
@@ -421,73 +402,67 @@ private fun MonitoringSection(
                     }
                 )
             } else {
-                Card(
+                OdOutlinedCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("service_info_card")
                         .semantics { contentDescription = serviceInformationDescription },
                     content = {
-                        Column(modifier = Modifier.padding(Spacing.space16)) {
-                            Text(stringResource(R.string.service_title), style = MaterialTheme.typography.titleLarge)
-                            Spacer(modifier = Modifier.height(Spacing.space8))
-                            Text(uiState.serviceName, style = MaterialTheme.typography.bodyLarge)
-                            Spacer(modifier = Modifier.height(Spacing.space8))
-                            Text(stringResource(R.string.service_description), style = MaterialTheme.typography.bodyMedium)
+                        OdCardTitle(stringResource(R.string.service_title))
+                        Spacer(modifier = Modifier.height(Spacing.space8))
+                        Text(uiState.serviceName, style = MaterialTheme.typography.bodyLarge)
+                        Spacer(modifier = Modifier.height(Spacing.space8))
+                        OdCardBody(stringResource(R.string.service_description))
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(Spacing.space16))
+
+                OdOutlinedCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("connection_info_card"),
+                    content = {
+                        OdCardTitle(stringResource(R.string.port_title))
+                        Spacer(modifier = Modifier.height(Spacing.space8))
+                        OdMonoText(uiState.port.toString())
+                        Spacer(modifier = Modifier.height(Spacing.space16))
+                        OdCardTitle(stringResource(R.string.address_title))
+                        Spacer(modifier = Modifier.height(Spacing.space8))
+                        if (uiState.addresses.isEmpty()) {
+                            OdCardBody(stringResource(R.string.not_connected))
+                        } else {
+                            uiState.addresses.forEach { address ->
+                                OdMonoText(address, modifier = Modifier.padding(vertical = Spacing.space2))
+                            }
                         }
                     }
                 )
 
                 Spacer(modifier = Modifier.height(Spacing.space16))
 
-                Card(
+                OdOutlinedCard(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("connection_info_card"),
+                        .testTag("monitoring_status_card"),
                     content = {
-                        Column(modifier = Modifier.padding(Spacing.space16)) {
-                            Text(stringResource(R.string.port_title), style = MaterialTheme.typography.titleLarge)
-                            Spacer(modifier = Modifier.height(Spacing.space8))
-                            Text(uiState.port.toString(), style = MaterialTheme.typography.bodyLarge)
-                            Spacer(modifier = Modifier.height(Spacing.space16))
-                            Text(stringResource(R.string.address_title), style = MaterialTheme.typography.titleLarge)
-                            Spacer(modifier = Modifier.height(Spacing.space8))
-                            if (uiState.addresses.isEmpty()) {
-                                Text(
-                                    stringResource(R.string.not_connected),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            } else {
-                                uiState.addresses.forEach { address ->
-                                    Text(address, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = Spacing.space2))
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(Spacing.space16))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    pluralStringResource(
-                                        R.plurals.connected_clients,
-                                        uiState.connectedClients,
-                                        uiState.connectedClients
-                                    ),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    modifier = Modifier.testTag("client_count_text")
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(Spacing.space8))
-                            Text(
-                                uiState.status,
-                                style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier
-                                    .testTag("status_text")
-                                    .semantics { contentDescription = serviceStatusDescription }
-                            )
-                        }
+                        OdStatusPill(
+                            text = pluralStringResource(
+                                R.plurals.connected_clients,
+                                uiState.connectedClients,
+                                uiState.connectedClients
+                            ),
+                            modifier = Modifier.testTag("client_count_text")
+                        )
+                        Spacer(modifier = Modifier.height(Spacing.space8))
+                        Text(
+                            uiState.status,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .testTag("status_text")
+                                .semantics { contentDescription = serviceStatusDescription }
+                        )
                     }
                 )
             }
@@ -501,34 +476,36 @@ private fun MonitoringSection(
 
             Spacer(modifier = Modifier.height(Spacing.space16))
 
-            OutlinedButton(
-                onClick = { showPairingDialog = true },
+            OdOutlinedCard(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag("add_parent_device_button")
+                    .testTag("monitoring_advanced_card")
             ) {
-                Text(stringResource(R.string.add_parent_device))
+                OdCardTitle(stringResource(R.string.advanced_section_title))
+                Spacer(modifier = Modifier.height(Spacing.space8))
+                OdOutlinedActionButton(
+                    text = stringResource(R.string.add_parent_device),
+                    onClick = { showPairingDialog = true },
+                    modifier = Modifier.testTag("add_parent_device_button")
+                )
+                Spacer(modifier = Modifier.height(Spacing.space16))
+                WifiDirectCard(
+                    uiState = uiState,
+                    onStart = onStartWifiDirect,
+                    onStop = onStopWifiDirect,
+                    permissionDenied = wifiDirectPermissionDenied
+                )
             }
 
             Spacer(modifier = Modifier.height(Spacing.space16))
 
-            WifiDirectCard(
-                uiState = uiState,
-                onStart = onStartWifiDirect,
-                onStop = onStopWifiDirect,
-                permissionDenied = wifiDirectPermissionDenied
-            )
-
-            Spacer(modifier = Modifier.height(Spacing.space16))
-
-            Button(
+            OdSurfaceButton(
+                text = stringResource(R.string.stop_monitoring),
                 onClick = onStopMonitoring,
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("monitoring_toggle_button")
-            ) {
-                Text(stringResource(R.string.stop_monitoring))
-            }
+            )
         }
     }
 
