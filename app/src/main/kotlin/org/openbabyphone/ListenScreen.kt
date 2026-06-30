@@ -1,7 +1,6 @@
 package org.openbabyphone
 
 import org.openbabyphone.ui.theme.Spacing
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -17,8 +16,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -31,6 +28,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
@@ -64,15 +62,6 @@ fun ListenScreen(
     val uiState by viewModel.uiState.collectAsState()
     val unknownLabel = stringResource(R.string.unknown_device)
     val volumeVisualizationDescription = stringResource(R.string.volume_visualization_content_description)
-    val statusColor by animateColorAsState(
-        targetValue = when {
-            uiState.isError -> MaterialTheme.colorScheme.errorContainer
-            uiState.isConnected -> MaterialTheme.colorScheme.primaryContainer
-            else -> MaterialTheme.colorScheme.surfaceVariant
-        },
-        label = "statusColor"
-    )
-
     DisposableEffect(address, port, name, pairingCode, resumeOnly) {
         val binding = ServiceConnectionManager.bindListenService(
             context,
@@ -103,64 +92,50 @@ fun ListenScreen(
                     .fillMaxSize()
                     .padding(Spacing.space16)
             ) {
-                Text(
-                    stringResource(R.string.connected_to),
-                    style = MaterialTheme.typography.titleLarge
-                )
-
-                Spacer(modifier = Modifier.height(Spacing.space8))
-
-                Text(
-                    text = uiState.childDeviceName.ifEmpty { name.ifEmpty { unknownLabel } },
-                    style = MaterialTheme.typography.bodyLarge
+                OdConnectionInfo(
+                    label = stringResource(R.string.connected_to),
+                    value = {
+                        Text(
+                            text = uiState.childDeviceName.ifEmpty { name.ifEmpty { unknownLabel } },
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 )
 
                 Spacer(modifier = Modifier.height(Spacing.space24))
 
-                Text(
-                    stringResource(R.string.status),
-                    style = MaterialTheme.typography.titleLarge
-                )
-
-                Spacer(modifier = Modifier.height(Spacing.space8))
-
-                Row(
-                    modifier = Modifier
-                        .background(statusColor, MaterialTheme.shapes.small)
-                        .padding(horizontal = Spacing.space12, vertical = Spacing.space8)
-                        .semantics {
-                            liveRegion = LiveRegionMode.Polite
-                            contentDescription = uiState.status
-                        },
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    StatusIndicator(
-                        color = when {
-                            uiState.isError -> MaterialTheme.colorScheme.error
-                            uiState.isConnected -> MaterialTheme.colorScheme.primary
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+                OdConnectionInfo(
+                    label = stringResource(R.string.status),
+                    value = {
+                        Row(
+                            modifier = Modifier.semantics {
+                                liveRegion = LiveRegionMode.Polite
+                                contentDescription = uiState.status
+                            },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OdStatusPill(
+                                text = uiState.status,
+                                active = uiState.isConnected || uiState.isReconnecting
+                            )
+                            if (uiState.isReconnecting) {
+                                Spacer(modifier = Modifier.width(Spacing.space8))
+                                CircularProgressIndicator(
+                                    modifier = Modifier
+                                        .size(Spacing.space16)
+                                        .testTag("reconnecting_spinner"),
+                                    strokeWidth = 2.dp
+                                )
+                            }
                         }
-                    )
-                    Spacer(modifier = Modifier.width(Spacing.space8))
-                    Text(
-                        uiState.status,
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    if (uiState.isReconnecting) {
-                        Spacer(modifier = Modifier.width(Spacing.space8))
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .size(Spacing.space16)
-                                .testTag("reconnecting_spinner"),
-                            strokeWidth = 2.dp
-                        )
                     }
-                }
+                )
 
                 Spacer(modifier = Modifier.height(Spacing.space24))
 
                 if (uiState.isError) {
-                    Card(
+                    OdOutlinedCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("error_card"),
@@ -184,14 +159,15 @@ fun ListenScreen(
                                     color = MaterialTheme.colorScheme.error
                                 )
                                 Spacer(modifier = Modifier.height(Spacing.space16))
-                                Button(onClick = onNavigateBack) {
-                                    Text(stringResource(R.string.retry))
-                                }
+                                OdPrimaryButton(
+                                    text = stringResource(R.string.retry),
+                                    onClick = onNavigateBack
+                                )
                             }
                         }
                     )
                 } else if (!uiState.isConnected) {
-                    Card(
+                    OdOutlinedCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("waiting_card"),
@@ -217,35 +193,40 @@ fun ListenScreen(
 
                     Spacer(modifier = Modifier.height(Spacing.space16))
 
-                    Button(
+                    OdOutlinedActionButton(
+                        text = stringResource(R.string.disconnect),
                         onClick = onNavigateBack,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("disconnect_button")
-                    ) {
-                        Text(stringResource(R.string.disconnect))
-                    }
+                    )
                 } else {
-                    VolumeCanvas(
-                        volumeHistory = uiState.volumeHistory,
-                        volumeNorm = uiState.volumeNorm,
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f)
-                            .testTag("volume_canvas")
-                            .semantics { contentDescription = volumeVisualizationDescription }
-                    )
+                            .clip(MaterialTheme.shapes.small)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        VolumeCanvas(
+                            volumeHistory = uiState.volumeHistory,
+                            volumeNorm = uiState.volumeNorm,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .testTag("volume_canvas")
+                                .semantics { contentDescription = volumeVisualizationDescription }
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(Spacing.space16))
 
-                    Button(
+                    OdOutlinedActionButton(
+                        text = stringResource(R.string.disconnect),
                         onClick = onNavigateBack,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("disconnect_button")
-                    ) {
-                        Text(stringResource(R.string.disconnect))
-                    }
+                    )
                 }
             }
         }
