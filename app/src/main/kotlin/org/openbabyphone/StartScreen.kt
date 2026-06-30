@@ -16,11 +16,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -136,7 +133,8 @@ fun StartScreen(
 
             Spacer(modifier = Modifier.height(Spacing.space32))
 
-            Button(
+            OdPrimaryButton(
+                text = stringResource(R.string.use_as_child_device),
                 onClick = {
                     val allGranted = childPermissions.all { perm ->
                         ContextCompat.checkSelfPermission(
@@ -150,12 +148,8 @@ fun StartScreen(
                         childPermissionLauncher.launch(childPermissions)
                     }
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("child_device_button")
-            ) {
-                Text(stringResource(R.string.use_as_child_device))
-            }
+                modifier = Modifier.testTag("child_device_button")
+            )
 
             if (childPermissionDenied) {
                 Spacer(modifier = Modifier.height(Spacing.space8))
@@ -179,7 +173,8 @@ fun StartScreen(
 
             Spacer(modifier = Modifier.height(Spacing.space32))
 
-            OutlinedButton(
+            OdOutlinedActionButton(
+                text = stringResource(R.string.use_as_parent_device),
                 onClick = {
                     val allGranted = parentPermissions.all { perm ->
                         ContextCompat.checkSelfPermission(
@@ -193,12 +188,8 @@ fun StartScreen(
                         parentPermissionLauncher.launch(parentPermissions)
                     }
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("parent_device_button")
-            ) {
-                Text(stringResource(R.string.use_as_parent_device))
-            }
+                modifier = Modifier.testTag("parent_device_button")
+            )
 
             if (parentPermissionDenied) {
                 Spacer(modifier = Modifier.height(Spacing.space8))
@@ -222,9 +213,11 @@ fun StartScreen(
 
             Spacer(modifier = Modifier.height(Spacing.space32))
 
-            TextButton(onClick = onNavigateToSettings) {
-                Text(stringResource(R.string.settings))
-            }
+            OdTextButton(
+                text = stringResource(R.string.settings),
+                onClick = onNavigateToSettings,
+                modifier = Modifier.testTag("settings_button")
+            )
         }
     }
 }

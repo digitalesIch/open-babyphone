@@ -12,17 +12,24 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 // Open Babyphone brand palette — see docs/design/app-ui-redesign.md
+// Brand accents are shared across themes for the logo gradient and pills.
+// Light theme uses darker tonal variants for primary/secondary so text and
+// outlined controls stay WCAG AA legible on white/soft-white surfaces.
 private val NightCanvas = Color(0xFF080B12)
 private val DeepPanel = Color(0xFF101827)
 private val SurfaceVariantDark = Color(0xFF1A2235)
 private val SoftWhite = Color(0xFFF6F7FB)
 private val QuietBlueGrey = Color(0xFFA5B2C8)
-private val LiveAudioCyan = Color(0xFF5FF2D2)
-private val NetworkBlue = Color(0xFF5DA8FF)
+internal val LiveAudioCyan = Color(0xFF5FF2D2)
+internal val NetworkBlue = Color(0xFF5DA8FF)
 private val SoftWhiteBg = Color(0xFFF6F7FB)
 private val DeepPanelFg = Color(0xFF101827)
 private val MutedLight = Color(0xFF5A6A82)
 private val SurfaceVariantLight = Color(0xFFE8ECF2)
+private val LiveAudioCyanLight = Color(0xFF006B5E)
+private val NetworkBlueLight = Color(0xFF0256A9)
+private val CyanTintLight = Color(0xFFB8F5EA)
+private val BlueTintLight = Color(0xFFD6EBFF)
 
 private val DarkColorScheme = darkColorScheme(
     primary = LiveAudioCyan,
@@ -51,18 +58,18 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = LiveAudioCyan,
-    onPrimary = NightCanvas,
-    primaryContainer = LiveAudioCyan,
-    onPrimaryContainer = NightCanvas,
-    secondary = NetworkBlue,
-    onSecondary = SoftWhite,
-    secondaryContainer = NetworkBlue,
-    onSecondaryContainer = SoftWhite,
-    tertiary = NetworkBlue,
-    onTertiary = SoftWhite,
-    tertiaryContainer = NetworkBlue,
-    onTertiaryContainer = SoftWhite,
+    primary = LiveAudioCyanLight,
+    onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = CyanTintLight,
+    onPrimaryContainer = LiveAudioCyanLight,
+    secondary = NetworkBlueLight,
+    onSecondary = Color(0xFFFFFFFF),
+    secondaryContainer = BlueTintLight,
+    onSecondaryContainer = NetworkBlueLight,
+    tertiary = NetworkBlueLight,
+    onTertiary = Color(0xFFFFFFFF),
+    tertiaryContainer = BlueTintLight,
+    onTertiaryContainer = NetworkBlueLight,
     error = Color(0xFFBA1A1A),
     onError = Color(0xFFFFFFFF),
     errorContainer = Color(0xFFFFDAD6),

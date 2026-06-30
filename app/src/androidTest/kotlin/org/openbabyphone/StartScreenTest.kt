@@ -3,6 +3,7 @@ package org.openbabyphone
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Rule
@@ -65,10 +66,23 @@ class StartScreenTest {
         composeTestRule.setContent {
             StartScreen(
                 onNavigateToMonitor = {},
-                onNavigateToDiscover = {}
+                onNavigateToDiscover = {},
+                onNavigateToSettings = {}
             )
         }
         composeTestRule.onNodeWithText("Pairs with child device and plays received audio")
             .assertIsDisplayed()
+    }
+
+    @Test
+    fun startScreen_displaysSettingsButton() {
+        composeTestRule.setContent {
+            StartScreen(
+                onNavigateToMonitor = {},
+                onNavigateToDiscover = {},
+                onNavigateToSettings = {}
+            )
+        }
+        composeTestRule.onNodeWithTag("settings_button").assertIsDisplayed()
     }
 }

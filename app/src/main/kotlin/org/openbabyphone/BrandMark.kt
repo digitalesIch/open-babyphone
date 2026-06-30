@@ -23,31 +23,33 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import org.openbabyphone.ui.theme.LiveAudioCyan
+import org.openbabyphone.ui.theme.NetworkBlue
 
 @Composable
 fun BrandMark(
     modifier: Modifier = Modifier,
     size: Dp = 56.dp
 ) {
-    val cyan = MaterialTheme.colorScheme.primary
-    val blue = MaterialTheme.colorScheme.secondary
+    val cyan = LiveAudioCyan
+    val blue = NetworkBlue
     val iconColor = MaterialTheme.colorScheme.background
 
     Box(
         modifier = modifier
             .size(size)
             .clip(RoundedCornerShape(size * 0.21f))
-            .background(Brush.linearGradient(listOf(cyan, blue)))
+            .background(Brush.linearGradient(listOf(cyan, blue))),
+        contentAlignment = Alignment.Center
     ) {
         PairedPhonesGlyph(
             color = iconColor,
