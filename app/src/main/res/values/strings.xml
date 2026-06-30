@@ -104,4 +104,9 @@
     <string name="pair_parent_device_title">Pair a Parent Device</string>
     <string name="pair_parent_device_instructions">Open Open Babyphone on the parent device and scan this code.</string>
     <string name="close">Close</string>
+    <string name="microphone_sensitivity_title">Microphone sensitivity</string>
+    <string name="microphone_sensitivity_description">Increase this if the parent device hears the room too quietly. Higher settings may distort loud sounds.</string>
+    <string name="microphone_sensitivity_normal">Normal</string>
+    <string name="microphone_sensitivity_high">High</string>
+    <string name="microphone_sensitivity_very_high">Very high</string>
 </resources>

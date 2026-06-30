@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import org.openbabyphone.ConnectionConstants
 import org.openbabyphone.ChildDeviceIdentityStore
 import org.openbabyphone.DeviceName
+import org.openbabyphone.MicrophoneSensitivity
 import org.openbabyphone.PairingCode
 import org.openbabyphone.PairingCodeGenerator
 import org.openbabyphone.MonitorService
@@ -32,18 +33,28 @@ data class MonitorUiState(
     val isLoading: Boolean = true,
     val wifiDirectState: WifiDirectState = WifiDirectState.Idle,
     val wifiDirectSupported: Boolean = true,
-    val qrPayload: String = ""
+    val qrPayload: String = "",
+    val microphoneSensitivity: MicrophoneSensitivity = MicrophoneSensitivity.NORMAL
 )
 
 class MonitorViewModel(application: Application) : AndroidViewModel(application) {
     private val _pairingCode = MutableStateFlow("")
     private val _deviceName = MutableStateFlow("")
+    private val _microphoneSensitivity = MutableStateFlow(MicrophoneSensitivity.NORMAL)
     private val loadingLabel = application.getString(R.string.loading)
     private val waitingForParentStatus = application.getString(R.string.waiting_for_parent)
 
     private val childIdentityStore = ChildDeviceIdentityStore(application)
     private val wifiDirectController = WifiDirectController(application)
     private val wifiDirectSupported = wifiDirectController.isSupported()
+
+    private data class ServiceInfo(
+        val name: String,
+        val port: Int,
+        val addresses: List<String>,
+        val status: String,
+        val microphoneSensitivity: MicrophoneSensitivity
+    )
 
     val uiState: StateFlow<MonitorUiState> = combine(
         _pairingCode,
@@ -53,9 +64,10 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             MonitorServiceRepository.serviceName,
             MonitorServiceRepository.port,
             MonitorServiceRepository.addresses,
-            MonitorServiceRepository.status
-        ) { name, port, addresses, status ->
-            ServiceInfo(name, port, addresses, status)
+            MonitorServiceRepository.status,
+            _microphoneSensitivity
+        ) { name, port, addresses, status, micSensitivity ->
+            ServiceInfo(name, port, addresses, status, micSensitivity)
         },
         wifiDirectController.state
     ) { pairingCode, deviceName, clients, info, wifiDirect ->
@@ -82,19 +94,13 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             isLoading = info.name.isEmpty(),
             wifiDirectState = wifiDirect,
             wifiDirectSupported = wifiDirectSupported,
-            qrPayload = qrPayload
+            qrPayload = qrPayload,
+            microphoneSensitivity = info.microphoneSensitivity
         )
     }.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5000),
         MonitorUiState(serviceName = loadingLabel, status = waitingForParentStatus)
-    )
-
-    private data class ServiceInfo(
-        val name: String,
-        val port: Int,
-        val addresses: List<String>,
-        val status: String
     )
 
     init {
@@ -114,6 +120,10 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         }
         val savedDeviceName = prefs.getString(MonitorService.PREF_KEY_DEVICE_NAME, "") ?: ""
         _deviceName.value = savedDeviceName
+        val savedSensitivity = MicrophoneSensitivity.fromPreferenceValue(
+            prefs.getString(MonitorService.PREF_KEY_MICROPHONE_SENSITIVITY, null)
+        )
+        _microphoneSensitivity.value = savedSensitivity
     }
 
     fun updatePairingCode(code: String) {
@@ -144,6 +154,17 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         )
         prefs.edit()
             .putString(MonitorService.PREF_KEY_DEVICE_NAME, trimmed)
+            .apply()
+    }
+
+    fun updateMicrophoneSensitivity(sensitivity: MicrophoneSensitivity) {
+        _microphoneSensitivity.value = sensitivity
+        val prefs = getApplication<Application>().getSharedPreferences(
+            MonitorService.PAIRING_PREFS_NAME,
+            Application.MODE_PRIVATE
+        )
+        prefs.edit()
+            .putString(MonitorService.PREF_KEY_MICROPHONE_SENSITIVITY, sensitivity.preferenceValue)
             .apply()
     }
 
