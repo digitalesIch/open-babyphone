@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 200 200" role="img" aria-labelledby="title desc">
+  <title id="title">Open Babyphone app icon</title>
+  <desc id="desc">Paired-phones brand mark: two phone outlines connected by a sound wave, rendered in the brand gradient (cyan #5ff2d2 to blue #5da8ff). Used as the Android launcher foreground, monochrome themed-icon, and notification icon.</desc>
+  <defs>
+    <linearGradient id="app-icon-gradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#5ff2d2"/>
+      <stop offset="100%" stop-color="#5da8ff"/>
+    </linearGradient>
+  </defs>
+  <!-- Left phone -->
+  <rect x="28" y="50" width="44" height="80" rx="10" fill="none" stroke="url(#app-icon-gradient)" stroke-width="5"/>
+  <!-- Right phone -->
+  <rect x="128" y="50" width="44" height="80" rx="10" fill="none" stroke="url(#app-icon-gradient)" stroke-width="5"/>
+  <!-- Primary sound wave -->
+  <path d="M78 90 Q88 80 98 90 T118 90" fill="none" stroke="url(#app-icon-gradient)" stroke-width="5" stroke-linecap="round"/>
+  <!-- Secondary waves (upper) -->
+  <path d="M82 75 Q92 62 102 75 T118 75" fill="none" stroke="url(#app-icon-gradient)" stroke-width="4" stroke-linecap="round" opacity="0.5"/>
+  <!-- Secondary waves (lower) -->
+  <path d="M82 105 Q92 95 102 105 T118 105" fill="none" stroke="url(#app-icon-gradient)" stroke-width="4" stroke-linecap="round" opacity="0.5"/>
+</svg>
