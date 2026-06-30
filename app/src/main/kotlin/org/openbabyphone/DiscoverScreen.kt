@@ -69,7 +69,6 @@ fun DiscoverScreen(
     val childAddedLabel = stringResource(R.string.child_added_to_known)
     val scanPrompt = stringResource(R.string.scan_qr_code_prompt)
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    var advancedExpanded by rememberSaveable { mutableStateOf(false) }
     var scanErrorMessage by remember { mutableStateOf<String?>(null) }
     var scanSuccessMessage by remember { mutableStateOf<String?>(null) }
     var forgetChildId by remember { mutableStateOf<String?>(null) }
@@ -95,7 +94,7 @@ fun DiscoverScreen(
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            AppLargeTopAppBar(
+            AppTopAppBar(
                 title = stringResource(R.string.parent_device),
                 onNavigateBack = onNavigateBack,
                 scrollBehavior = scrollBehavior
@@ -117,10 +116,9 @@ fun DiscoverScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 if (uiState.trustedChildren.isNotEmpty()) {
-                    Text(
-                        stringResource(R.string.known_children_title),
-                        style = MaterialTheme.typography.titleLarge,
-                        textAlign = TextAlign.Center,
+                    OdSectionHeader(
+                        title = stringResource(R.string.known_children_title),
+                        helper = stringResource(R.string.known_children_empty),
                         modifier = Modifier.padding(bottom = Spacing.space8)
                     )
                     Column(
@@ -131,7 +129,7 @@ fun DiscoverScreen(
                     ) {
                         uiState.trustedChildren.forEach { child ->
                             val isOnline = uiState.devices.any { it.childId == child.childId }
-                            Card(
+                            OdOutlinedCard(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .testTag("known_child_${child.childId}")
@@ -143,18 +141,21 @@ fun DiscoverScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            child.displayName.ifEmpty { stringResource(R.string.unknown_device) },
-                                            style = MaterialTheme.typography.bodyLarge
-                                        )
-                                        Text(
-                                            if (isOnline) child.childId else stringResource(R.string.trusted_child_not_found),
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
-                                    }
-                                    Button(
-                                        onClick = {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                child.displayName.ifEmpty { stringResource(R.string.unknown_device) },
+                                                style = MaterialTheme.typography.bodyLarge
+                                            )
+                                            Text(
+                                                if (isOnline) child.childId else stringResource(R.string.trusted_child_not_found),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        OdSignalBars(strength = if (isOnline) 4 else 0)
+                                        Spacer(modifier = Modifier.height(Spacing.space8))
+                                        Button(
+                                            onClick = {
                                             val device = uiState.devices.firstOrNull { it.childId == child.childId }
                                             if (device != null) {
                                                 val code = viewModel.pairingCodeFor(device)
@@ -184,29 +185,20 @@ fun DiscoverScreen(
                     Spacer(modifier = Modifier.height(Spacing.space24))
                 }
 
-                Text(
-                    stringResource(R.string.discover_child),
-                    style = MaterialTheme.typography.titleLarge,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(bottom = Spacing.space8)
+                OdSectionHeader(
+                    title = stringResource(R.string.discover_child),
+                    helper = stringResource(R.string.discover_child_description),
+                    modifier = Modifier.padding(bottom = Spacing.space12)
                 )
 
-                Button(
+                OdPrimaryButton(
+                    text = if (uiState.isDiscovering) stopLabel else stringResource(R.string.discover_child),
                     onClick = {
                         if (uiState.isDiscovering) viewModel.stopDiscovery() else viewModel.startDiscovery()
                     },
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("discover_button")
-                ) {
-                    Text(if (uiState.isDiscovering) stopLabel else stringResource(R.string.discover_child))
-                }
-
-                Spacer(modifier = Modifier.height(Spacing.space16))
-                Text(
-                    stringResource(R.string.discover_child_description),
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(Spacing.space16))
 
@@ -224,7 +216,8 @@ fun DiscoverScreen(
 
                 Spacer(modifier = Modifier.height(Spacing.space8))
 
-                OutlinedButton(
+                OdOutlinedActionButton(
+                    text = stringResource(R.string.scan_qr_code),
                     onClick = {
                         scanErrorMessage = null
                         scanSuccessMessage = null
@@ -241,9 +234,7 @@ fun DiscoverScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("scan_qr_button")
-                ) {
-                    Text(stringResource(R.string.scan_qr_code))
-                }
+                )
 
                 scanErrorMessage?.let { message ->
                     Spacer(modifier = Modifier.height(Spacing.space8))
@@ -290,36 +281,41 @@ fun DiscoverScreen(
                             uiState.devices.forEach { device ->
                                 val key = "${device.address}:${device.port}"
                                 val trustStatus = uiState.trustedChildStatuses[key]
-                                Card(
+                                OdOutlinedCard(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .testTag("device_${device.address}")
                                 ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(Spacing.space16),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(device.visibleName, style = MaterialTheme.typography.bodyLarge)
-                                            Text("${device.address}:${device.port}", style = MaterialTheme.typography.bodySmall)
+                                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.space8)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(device.visibleName, style = MaterialTheme.typography.bodyLarge)
+                                                Text(
+                                                    "${device.address}:${device.port}",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                            OdSignalBars()
+                                        }
                                             if (trustStatus == DeviceTrustStatus.PairingReset) {
-                                                Spacer(modifier = Modifier.height(Spacing.space4))
                                                 Text(
                                                     stringResource(R.string.pairing_reset_notice),
                                                     style = MaterialTheme.typography.bodySmall,
                                                     color = MaterialTheme.colorScheme.error
                                                 )
                                             }
-                                        }
-                                        Button(onClick = {
-                                            val code = viewModel.pairingCodeFor(device)
-                                            onNavigateToListen(device.address, device.port, device.visibleName, code)
-                                        }) {
-                                            Text(connectLabel)
-                                        }
+                                        OdPrimaryButton(
+                                            text = connectLabel,
+                                            onClick = {
+                                                val code = viewModel.pairingCodeFor(device)
+                                                onNavigateToListen(device.address, device.port, device.visibleName, code)
+                                            }
+                                        )
                                     }
                                 }
                             }
@@ -335,15 +331,14 @@ fun DiscoverScreen(
                         )
                     }
                     else -> {
-                        Card(
+                        OdOutlinedCard(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag("empty_state_card"),
                             content = {
                                 Column(
                                     modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(Spacing.space24),
+                                        .fillMaxWidth(),
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
                                     Icon(
@@ -365,15 +360,14 @@ fun DiscoverScreen(
 
                 Spacer(modifier = Modifier.height(Spacing.space32))
 
-                Card(
+                OdOutlinedCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("advanced_section")
                 ) {
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(Spacing.space16)
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.space12)
                     ) {
                         Row(
                             modifier = Modifier
@@ -382,44 +376,22 @@ fun DiscoverScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(
-                                stringResource(R.string.advanced_section_title),
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                            IconButton(onClick = { advancedExpanded = !advancedExpanded }) {
-                                Icon(
-                                    imageVector = if (advancedExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                                    contentDescription = if (advancedExpanded) "Collapse" else "Expand"
-                                )
+                            Column(modifier = Modifier.weight(1f)) {
+                                OdCardTitle(stringResource(R.string.manual_connection))
+                                OdCardBody(stringResource(R.string.advanced_section_description))
                             }
-                        }
-
-                        if (advancedExpanded) {
-                            Spacer(modifier = Modifier.height(Spacing.space8))
-                            Text(
-                                stringResource(R.string.advanced_section_description),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.height(Spacing.space12))
-                            OutlinedButton(
+                            TextButton(
                                 onClick = onNavigateToAddressInput,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("address_input_button")
+                                modifier = Modifier.testTag("address_input_button")
                             ) {
-                                Text(stringResource(R.string.manual_connection))
-                            }
-                            Spacer(modifier = Modifier.height(Spacing.space8))
-                            OutlinedButton(
-                                onClick = onNavigateToWifiDirect,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("wifi_direct_button")
-                            ) {
-                                Text(stringResource(R.string.wifi_direct_connection))
+                                Text("›", style = MaterialTheme.typography.headlineSmall)
                             }
                         }
+                        OdOutlinedActionButton(
+                            text = stringResource(R.string.wifi_direct_connection),
+                            onClick = onNavigateToWifiDirect,
+                            modifier = Modifier.testTag("wifi_direct_button")
+                        )
                     }
                 }
             }
