@@ -12,12 +12,14 @@ import org.openbabyphone.viewmodel.ListenViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.lang.ref.WeakReference
 
 object ServiceConnectionManager {
     data class ServiceBinding(
         val intent: Intent,
         val connection: ServiceConnection,
-        val bound: Boolean
+        val bound: Boolean,
+        val clearCallbacks: () -> Unit = {}
     )
 
     private val _monitorServiceConnected = MutableStateFlow(false)
@@ -67,11 +69,14 @@ object ServiceConnectionManager {
             ContextCompat.startForegroundService(context, intent)
         }
 
+        var serviceRef: WeakReference<ListenService>? = null
+
         val connection = object : ServiceConnection {
             override fun onServiceConnected(className: ComponentName, service: IBinder) {
                 _listenServiceConnected.value = true
                 val binder = service as ListenService.ListenBinder
                 val listenService = binder.service
+                serviceRef = WeakReference(listenService)
 
                 // Set up callbacks to update ViewModel
                 listenService.onUpdate = {
@@ -89,15 +94,23 @@ object ServiceConnectionManager {
 
             override fun onServiceDisconnected(className: ComponentName) {
                 _listenServiceConnected.value = false
+                serviceRef?.get()?.clearCallbacks()
+                serviceRef = null
             }
         }
 
         val flags = if (resumeOnly) 0 else Context.BIND_AUTO_CREATE
         val bound = context.bindService(intent, connection, flags)
-        return ServiceBinding(intent, connection, bound)
+        return ServiceBinding(
+            intent = intent,
+            connection = connection,
+            bound = bound,
+            clearCallbacks = { serviceRef?.get()?.clearCallbacks() }
+        )
     }
 
     fun unbindAndStopService(context: Context, binding: ServiceBinding) {
+        binding.clearCallbacks()
         if (binding.bound) {
             try {
                 context.unbindService(binding.connection)
@@ -109,6 +122,7 @@ object ServiceConnectionManager {
     }
 
     fun unbindService(context: Context, binding: ServiceBinding) {
+        binding.clearCallbacks()
         if (binding.bound) {
             try {
                 context.unbindService(binding.connection)

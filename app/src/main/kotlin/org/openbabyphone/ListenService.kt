@@ -253,6 +253,13 @@ class ListenService : Service() {
     var onError: (() -> Unit)? = null
     var onUpdate: (() -> Unit)? = null
     var onStatusChange: ((String) -> Unit)? = null
+
+    fun clearCallbacks() {
+        onError = null
+        onUpdate = null
+        onStatusChange = null
+    }
+
     private var reconnectAttempts = 0
     private val jitterBuffer = JitterBuffer()
 
