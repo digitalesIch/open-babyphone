@@ -118,7 +118,6 @@ class ListenService : Service() {
         stopListenThread()
         abandonAudioFocus()
         ListenServiceRepository.updateConnected(false)
-        notificationManager.cancel(ALERT_NOTIFICATION_ID)
 
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         Toast.makeText(this, R.string.stopped, Toast.LENGTH_SHORT).show()
@@ -266,9 +265,7 @@ class ListenService : Service() {
     private fun doListen(address: String?, port: Int, pairingCode: String?) {
         if (port !in VALID_PORT_RANGE) {
             Log.e(TAG, "Invalid socket port")
-            ListenServiceRepository.updateError(getString(R.string.disconnected))
-            playAlert()
-            onError?.invoke()
+            handleTerminalConnectionFailure()
             return
         }
         isRunning = true
@@ -287,6 +284,7 @@ class ListenService : Service() {
                     if (sessionInfo == null) {
                         Log.e(TAG, "Handshake failed")
                         socket.close()
+                        handleTerminalConnectionFailure()
                         shouldReconnect = false
                     } else {
                         reconnectAttempts = 0
@@ -305,9 +303,7 @@ class ListenService : Service() {
                             Thread.sleep(RECONNECT_DELAY_MS)
                         } else {
                             Log.e(TAG, "Max reconnect attempts reached")
-                            ListenServiceRepository.updateError(getString(R.string.disconnected))
-                            playAlert()
-                            onError?.invoke()
+                            handleTerminalConnectionFailure()
                             shouldReconnect = false
                         }
                     }
@@ -331,23 +327,28 @@ class ListenService : Service() {
                             } else {
                                 Log.e(TAG, "Connection failed after $MAX_RECONNECT_ATTEMPTS attempts")
                             }
-                            ListenServiceRepository.updateError(getString(R.string.disconnected))
-                            playAlert()
-                            onError?.invoke()
+                            handleTerminalConnectionFailure()
                             shouldReconnect = false
                         }
                     }
                 } catch (e: IllegalArgumentException) {
                     Log.e(TAG, "Invalid socket parameters", e)
-                    ListenServiceRepository.updateError(getString(R.string.disconnected))
-                    playAlert()
-                    onError?.invoke()
+                    handleTerminalConnectionFailure()
                     shouldReconnect = false
                 }
             } while (shouldReconnect && isRunning)
         }
         this.listenThread = lt
         lt.start()
+    }
+
+    private fun handleTerminalConnectionFailure() {
+        isRunning = false
+        ListenServiceRepository.updateError(getString(R.string.disconnected))
+        playAlert()
+        onError?.invoke()
+        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        stopSelf()
     }
 
     private data class SessionInfo(val sessionId: ByteArray, val key: ByteArray?)
