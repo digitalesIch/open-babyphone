@@ -77,6 +77,15 @@ Remaining items:
 - Add focused unit or instrumentation tests for service lifecycle, reconnect, and failure states
 - Maintain a real-device test matrix across old and modern Android versions (see [docs/testing.md](docs/testing.md))
 
+### 2b. Session State and Reconnect Hardening
+
+Goal: make session lifecycle and reconnect behavior stable and type-safe.
+
+- #145 Replace string-based service status with typed session state models
+- #148 Fix ListenScreen retry to reconnect in place instead of navigating back
+- #152 Persist and display last-known child address for trusted-child reconnect
+- #146 Guard child back navigation and move session state into MonitorViewModel
+
 ### 2a. Support Multiple Simultaneous Parent Devices (Completed)
 
 Goal: make multi-parent listening reliable enough for real household use.
@@ -109,6 +118,12 @@ Goal: make normal use simple enough for tired parents at night.
 - Improve parent-side essentials: connected child, stream health, alert state, volume visualization
 - Reduce Toast-based feedback for important states and prefer persistent UI state
 - Improve accessibility labels, text scaling, contrast, and landscape/tablet behavior
+- #147 Restructure DiscoverScreen into guided parent connection flow with auto-start after QR scan
+- #150 Surface no-network and empty-discovery states with actionable guidance
+- #149 Add parent-side mute toggle that keeps the stream alive
+- #151 Wire Settings button and migrate SettingsActivity into Compose navigation
+- #137 Add setting to use system dynamic colors
+- #22 Runtime screen redesign (parent listening and child broadcasting)
 
 ### 3a. Parent-Side Comfort Noise
 
@@ -262,6 +277,31 @@ commitment.
 - Test on OnePlus 3T (LineageOS 18.1) and modern Android devices
 - Document battery, heat, network, and low-light limitations
 
+### 5g. Explore Visual Loud-Sound Indicators and Lock-Screen Alerts
+
+Goal: evaluate how loud or urgent sounds can be represented more clearly, and how
+parent alerts can work when the parent screen is locked or off.
+
+This is a research and product-design item, not an immediate implementation
+commitment.
+
+- Explore threshold-based visual changes in the parent listen screen
+- Explore multi-level loudness states (normal, elevated, loud, critical)
+- Evaluate lock-screen and off-screen notification behavior
+- Consider vibration or optional wake-screen for critical sounds
+- Avoid false alarm fatigue and stressful flashing visuals
+- Respect Android background execution and notification policies
+
+### 5h. Upgrade Kotlin to 2.x
+
+Goal: upgrade Kotlin to enable Compose Preview Screenshot Testing and modern
+tooling.
+
+- Upgrade Kotlin from 1.9.25 to 2.x
+- Upgrade Compose compiler extension accordingly
+- Enable Compose Preview Screenshot Testing (`screenshot-validation-api`)
+- Re-evaluate `GradleDependency` lint suppression after upgrade (#83)
+
 ## Issue Backlog
 
 These items are tracked as GitHub issues. Closed items are listed for reference;
@@ -299,11 +339,24 @@ open items should be handled before or during public beta.
 
 ### Open
 
+- #22 Finish the Material UX refresh for monitor, discovery, and listen screens
 - #24 Define and run an overnight reliability test matrix on real devices
+- #61 Visual-Polish-Sequenz: Branding, Theming, Layout & Design Tokens (may be superseded by #138/#140)
 - #69 Migrate audio codec from G.711 u-law to Opus (depends on #25)
 - #70 Add white noise on child device with noise suppression on parent device (depends on #69)
 - #77 Add WiFi Direct connection support
 - #78 Explore Wi-Fi Aware (NAN) for local peer-to-peer connections
+- #83 Upgrade Kotlin to 2.x to enable Compose Preview Screenshot Testing
 - #87 Add parent-side comfort noise for connection reassurance
 - #103 Explore child battery status on parent device
-- #137 Use system colors setting (dynamic color toggle)
+- #116 Allow adding parent devices while child monitoring is active (may be resolved by #131)
+- #128 Explore visual loud-sound indicators and lock-screen/off-screen parent alerts
+- #137 Add setting to use system dynamic colors
+- #145 Replace string-based service status with typed session state models
+- #146 Guard child back navigation and move session state into MonitorViewModel
+- #147 Restructure DiscoverScreen into guided parent connection flow with auto-start after QR scan
+- #148 Fix ListenScreen retry to reconnect in place instead of navigating back
+- #149 Add parent-side mute toggle that keeps the stream alive
+- #150 Surface no-network and empty-discovery states with actionable guidance
+- #151 Wire Settings button and migrate SettingsActivity into Compose navigation
+- #152 Persist and display last-known child address for trusted-child reconnect
