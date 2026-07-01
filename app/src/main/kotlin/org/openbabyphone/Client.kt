@@ -20,6 +20,7 @@ import android.util.Log
 import java.io.IOException
 import java.net.Socket
 import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.atomic.AtomicInteger
 
 class Client(
     val socket: Socket,
@@ -33,7 +34,8 @@ class Client(
     }
 
     private val frameQueue = ArrayBlockingQueue<ByteArray>(QUEUE_CAPACITY)
-    private var droppedFrames = 0
+    private val totalDroppedFrames = AtomicInteger(0)
+    private val consecutiveDroppedFrames = AtomicInteger(0)
     private var sendThread: Thread? = null
     @Volatile private var isRunning = false
 
@@ -48,9 +50,11 @@ class Client(
                     try {
                         out.write(frame)
                         out.flush()
+                        consecutiveDroppedFrames.set(0)
                     } catch (e: IOException) {
                         Log.e(TAG, "Failed to send frame to client $id", e)
-                        droppedFrames += MAX_DROPPED_FRAMES
+                        totalDroppedFrames.addAndGet(MAX_DROPPED_FRAMES)
+                        consecutiveDroppedFrames.set(MAX_DROPPED_FRAMES)
                         break
                     }
                 }
@@ -69,17 +73,20 @@ class Client(
         }
         val success = frameQueue.offer(frame)
         if (!success) {
-            droppedFrames++
-            Log.w(TAG, "Queue full for client $id, dropped frame $droppedFrames/$MAX_DROPPED_FRAMES")
+            totalDroppedFrames.incrementAndGet()
+            val consecutiveDrops = consecutiveDroppedFrames.incrementAndGet()
+            Log.w(TAG, "Queue full for client $id, consecutive dropped frame $consecutiveDrops/$MAX_DROPPED_FRAMES")
         }
         return success
     }
 
     fun shouldDisconnect(): Boolean {
-        return droppedFrames >= MAX_DROPPED_FRAMES
+        return consecutiveDroppedFrames.get() >= MAX_DROPPED_FRAMES
     }
 
-    fun getDroppedFrameCount(): Int = droppedFrames
+    fun getDroppedFrameCount(): Int = totalDroppedFrames.get()
+
+    fun getConsecutiveDroppedFrameCount(): Int = consecutiveDroppedFrames.get()
 
     fun stop() {
         isRunning = false
