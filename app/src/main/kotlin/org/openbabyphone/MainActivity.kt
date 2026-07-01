@@ -1,5 +1,6 @@
 package org.openbabyphone
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -18,6 +19,7 @@ import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -28,6 +30,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navDeepLink
 import androidx.navigation.toRoute
+import kotlinx.coroutines.flow.MutableSharedFlow
 import org.openbabyphone.navigation.Discover
 import org.openbabyphone.navigation.DiscoverAddress
 import org.openbabyphone.navigation.DiscoverWifiDirect
@@ -42,6 +45,14 @@ val LocalWindowWidthSizeClass = staticCompositionLocalOf {
 }
 
 class MainActivity : ComponentActivity() {
+    private val newIntents = MutableSharedFlow<Intent>(extraBufferCapacity = 1)
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        newIntents.tryEmit(intent)
+    }
+
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -55,6 +66,9 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val windowSizeClass = calculateWindowSizeClass(this@MainActivity)
                     val navController = rememberNavController()
+                    LaunchedEffect(navController) {
+                        newIntents.collect { navController.handleDeepLink(it) }
+                    }
 
                     androidx.compose.runtime.CompositionLocalProvider(
                         LocalWindowWidthSizeClass provides windowSizeClass.widthSizeClass
@@ -126,6 +140,9 @@ class MainActivity : ComponentActivity() {
                                 deepLinks = listOf(
                                     navDeepLink {
                                         uriPattern = "quiet-engine://listen?address={address}&port={port}&name={name}&pairingCode={pairingCode}&resumeOnly={resumeOnly}"
+                                    },
+                                    navDeepLink {
+                                        uriPattern = "quiet-engine://listen?address={address}&port={port}&name={name}&resumeOnly={resumeOnly}"
                                     }
                                 )
                             ) { backStackEntry ->
