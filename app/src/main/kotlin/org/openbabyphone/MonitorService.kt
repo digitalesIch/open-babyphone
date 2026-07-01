@@ -39,6 +39,7 @@ import org.openbabyphone.BuildConfig
 import org.openbabyphone.audio.FrameCodec
 import org.openbabyphone.service.MonitorServiceRepository
 import java.io.IOException
+import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.locks.ReentrantLock
@@ -326,41 +327,13 @@ class MonitorService : Service() {
         this.connectionToken = currentToken
         mt = Thread {
             while (this.connectionToken == currentToken) {
-                try {
-                    ServerSocket(this.currentPort).use { serverSocket ->
-                        this.currentSocket = serverSocket
-                        val localPort = serverSocket.localPort
-                        registerService(localPort)
-                        startAudioProducer()
-
-                        while (this.connectionToken == currentToken && !Thread.currentThread().isInterrupted) {
-                            if (!clientManager.canAcceptMoreClients()) {
-                                Log.i(TAG, "Max clients reached, waiting for disconnect")
-                                capacityLock.lock()
-                                try {
-                                    while (!clientManager.canAcceptMoreClients() && this.connectionToken == currentToken && !Thread.currentThread().isInterrupted) {
-                                        capacityCondition.await()
-                                    }
-                                } finally {
-                                    capacityLock.unlock()
-                                }
-                                if (this.connectionToken != currentToken || Thread.currentThread().isInterrupted) {
-                                    break
-                                }
-                            }
-
-                            val socket = serverSocket.accept()
-                            Log.i(TAG, "Connection from parent device received")
-                            if (!handleClient(socket)) {
-                                try {
-                                    socket.close()
-                                } catch (e: IOException) {
-                                    Log.d(TAG, "Failed to close rejected parent socket", e)
-                                }
-                            }
-                        }
+                val portToBind = currentPort
+                val serverSocket = try {
+                    ServerSocket().apply {
+                        reuseAddress = true
+                        bind(InetSocketAddress(portToBind))
                     }
-                } catch (e: Exception) {
+                } catch (e: IOException) {
                     if (this.connectionToken == currentToken) {
                         this.currentPort++
                         if (BuildConfig.DEBUG) {
@@ -368,6 +341,60 @@ class MonitorService : Service() {
                         } else {
                             Log.e(TAG, "Failed to open server socket, trying next port")
                         }
+                    }
+                    continue
+                }
+
+                serverSocket.use {
+                    this.currentSocket = it
+                    val localPort = it.localPort
+                    registerService(localPort)
+                    startAudioProducer()
+
+                    while (this.connectionToken == currentToken && !Thread.currentThread().isInterrupted) {
+                        if (!clientManager.canAcceptMoreClients()) {
+                            Log.i(TAG, "Max clients reached, waiting for disconnect")
+                            capacityLock.lock()
+                            try {
+                                while (!clientManager.canAcceptMoreClients() && this.connectionToken == currentToken && !Thread.currentThread().isInterrupted) {
+                                    capacityCondition.await()
+                                }
+                            } catch (e: InterruptedException) {
+                                Thread.currentThread().interrupt()
+                            } finally {
+                                capacityLock.unlock()
+                            }
+                            if (this.connectionToken != currentToken || Thread.currentThread().isInterrupted) {
+                                break
+                            }
+                        }
+
+                        val socket = try {
+                            it.accept()
+                        } catch (e: IOException) {
+                            if (this.connectionToken == currentToken && !Thread.currentThread().isInterrupted) {
+                                Log.w(TAG, "Failed while accepting parent connection", e)
+                            }
+                            continue
+                        }
+
+                        Log.i(TAG, "Connection from parent device received")
+                        val accepted = try {
+                            handleClient(socket)
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to handle parent connection", e)
+                            false
+                        }
+                        if (!accepted) {
+                            try {
+                                socket.close()
+                            } catch (e: IOException) {
+                                Log.d(TAG, "Failed to close rejected parent socket", e)
+                            }
+                        }
+                    }
+                    if (this.currentSocket === it) {
+                        this.currentSocket = null
                     }
                 }
             }

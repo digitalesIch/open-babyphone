@@ -156,6 +156,24 @@ class DiscoverViewModelTest {
     }
 
     @Test
+    fun `recordLastKnownChildAddress updates trusted child in ui state`() {
+        val payload = PairingQrCode.buildPayload(
+            childId = "childId1",
+            pairingId = "pairId1",
+            name = "Nursery",
+            pairingCode = "code1"
+        )
+        viewModel.handleQrScan(payload)
+
+        viewModel.recordLastKnownChildAddress("childId1", "__VG_IPV4_7d0c5d0f3f3b__", 10000)
+
+        val trusted = viewModel.uiState.value.trustedChildren.single()
+        assertEquals("__VG_IPV4_7d0c5d0f3f3b__", trusted.lastKnownAddress)
+        assertEquals(10000, trusted.lastKnownPort)
+        assertTrue(trusted.lastSeenAt > 0)
+    }
+
+    @Test
     fun `forgetChild removes trusted child`() {
         val payload = PairingQrCode.buildPayload(
             childId = "childId1",
