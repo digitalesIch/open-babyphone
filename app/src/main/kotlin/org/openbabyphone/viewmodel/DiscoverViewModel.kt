@@ -99,6 +99,12 @@ class DiscoverViewModel(application: Application) : AndroidViewModel(application
         _uiState.value = _uiState.value.copy(trustedChildren = trustedChildStore.getAll())
     }
 
+    internal fun recordLastKnownChildAddress(childId: String?, address: String, port: Int) {
+        if (childId == null) return
+        trustedChildStore.updateLastKnown(childId, address, port)
+        refreshTrustedChildren()
+    }
+
     fun updatePairingCode(code: String) {
         if (!PairingCode.isValid(code)) {
             return
@@ -258,6 +264,7 @@ class DiscoverViewModel(application: Application) : AndroidViewModel(application
                     pairingId = pairingId,
                     displayName = displayName
                 )
+                recordLastKnownChildAddress(childId, hostAddress, serviceInfo.port)
                 if (discoveredDevices.none { it.address == device.address && it.port == device.port }) {
                     discoveredDevices.add(device)
                     _uiState.value = _uiState.value.copy(devices = discoveredDevices.toList())
