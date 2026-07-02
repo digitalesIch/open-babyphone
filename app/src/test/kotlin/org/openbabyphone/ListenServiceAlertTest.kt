@@ -1,10 +1,13 @@
 package org.openbabyphone
 
 import android.app.Application
+import android.app.Notification
 import android.app.NotificationManager
 import android.content.Intent
 import android.net.Uri
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -61,6 +64,40 @@ class ListenServiceAlertTest {
         )
         assertTrue("Resume URI should have resumeOnly=true", data.getQueryParameter("resumeOnly") == "true")
         assertTrue("Resume URI should have address", data.getQueryParameter("address") == "192.168.1.1")
+
+        controller.destroy()
+    }
+
+    @Test
+    fun `terminal listen failure removes foreground notification and keeps alert notification`() {
+        val intent = Intent(context, ListenService::class.java).apply {
+            putExtra("name", "Nursery")
+            putExtra("address", "192.168.1.1")
+            putExtra("port", 0)
+            putExtra("pairingCode", "secretCode123")
+        }
+
+        val controller = Robolectric.buildService(ListenService::class.java, intent)
+        controller.create()
+        controller.startCommand(0, 0)
+
+        val nm = context.getSystemService(NotificationManager::class.java)
+        val shadowNm = org.robolectric.Shadows.shadowOf(nm) as ShadowNotificationManager
+        val notifications = shadowNm.activeNotifications
+
+        assertNull(
+            "Foreground service notification should be removed after terminal failure",
+            notifications.firstOrNull { it.id == ListenService.ID }
+        )
+        val alert = notifications.firstOrNull {
+            it.notification.extras.getString(Notification.EXTRA_TITLE) ==
+                context.getString(R.string.connection_lost_alert_title)
+        }
+        assertNotNull("Connection-lost alert notification should remain visible", alert)
+        assertEquals(
+            context.getString(R.string.connection_lost_alert_text),
+            alert!!.notification.extras.getString(Notification.EXTRA_TEXT)
+        )
 
         controller.destroy()
     }
