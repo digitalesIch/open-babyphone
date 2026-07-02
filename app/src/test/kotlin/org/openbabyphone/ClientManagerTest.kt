@@ -96,6 +96,53 @@ class ClientManagerTest {
     }
 
     @Test
+    fun successfulWrites_ResetConsecutiveDroppedFramesAfterShortBurst() {
+        val manager = ClientManager()
+        val writeStarted = java.util.concurrent.CountDownLatch(1)
+        val writeBlock = java.util.concurrent.CountDownLatch(1)
+        val socket = mock(Socket::class.java)
+        `when`(socket.getOutputStream()).thenReturn(object : OutputStream() {
+            override fun write(b: Int) = Unit
+
+            override fun write(b: ByteArray, off: Int, len: Int) {
+                writeStarted.countDown()
+                try {
+                    writeBlock.await()
+                } catch (e: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    throw IOException(e)
+                }
+            }
+        })
+
+        val client = manager.addClient(socket, "test")
+        assertNotNull(client)
+
+        manager.broadcastFrame(ByteArray(100))
+        assertTrue(
+            "Client send thread should start blocking",
+            writeStarted.await(5, java.util.concurrent.TimeUnit.SECONDS)
+        )
+
+        repeat(Client.QUEUE_CAPACITY + 10) {
+            manager.broadcastFrame(ByteArray(100))
+        }
+
+        assertTrue(client!!.getDroppedFrameCount() > 0)
+        assertFalse("Short transient burst should stay below disconnect threshold", client.shouldDisconnect())
+
+        writeBlock.countDown()
+        val deadline = System.currentTimeMillis() + 2_000
+        while (client.getConsecutiveDroppedFrameCount() != 0 && System.currentTimeMillis() < deadline) {
+            Thread.sleep(10)
+        }
+
+        assertEquals(0, client.getConsecutiveDroppedFrameCount())
+        assertFalse(client.shouldDisconnect())
+        client.stop()
+    }
+
+    @Test
     fun getClientCount_CorrectCount() {
         val manager = ClientManager()
         val sockets = mutableListOf<Socket>()
