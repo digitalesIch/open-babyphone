@@ -69,6 +69,46 @@ class ListenServiceAlertTest {
     }
 
     @Test
+    fun `alert notification resume intent does not contain pairing code`() {
+        val intent = Intent(context, ListenService::class.java).apply {
+            putExtra("name", "Nursery")
+            putExtra("address", "192.168.1.1")
+            putExtra("port", 0)
+            putExtra("pairingCode", "secretCode123")
+        }
+
+        val controller = Robolectric.buildService(ListenService::class.java, intent)
+        controller.create()
+        controller.startCommand(0, 0)
+
+        val nm = context.getSystemService(NotificationManager::class.java)
+        val shadowNm = org.robolectric.Shadows.shadowOf(nm) as ShadowNotificationManager
+        val notifications = shadowNm.activeNotifications
+
+        val alert = notifications.firstOrNull {
+            it.notification.extras.getString(Notification.EXTRA_TITLE) ==
+                context.getString(R.string.connection_lost_alert_title)
+        }
+        assertNotNull("Connection-lost alert notification should exist", alert)
+
+        val contentIntent = alert!!.notification.contentIntent
+        assertNotNull("Alert content intent should exist", contentIntent)
+
+        val shadowPendingIntent = org.robolectric.Shadows.shadowOf(contentIntent) as ShadowPendingIntent
+        val savedIntent = shadowPendingIntent.savedIntent
+        assertNotNull("Saved intent should exist", savedIntent)
+        val data: Uri? = savedIntent!!.data
+        assertNotNull("Alert deep link URI should exist", data)
+        assertFalse(
+            "Alert resume URI must not contain pairingCode",
+            data!!.queryParameterNames.contains("pairingCode")
+        )
+        assertTrue("Alert resume URI should have resumeOnly=true", data.getQueryParameter("resumeOnly") == "true")
+
+        controller.destroy()
+    }
+
+    @Test
     fun `terminal listen failure removes foreground notification and keeps alert notification`() {
         val intent = Intent(context, ListenService::class.java).apply {
             putExtra("name", "Nursery")
