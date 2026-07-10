@@ -48,6 +48,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
@@ -90,7 +91,8 @@ fun MonitorScreen(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
-    var isMonitoring by rememberSaveable { mutableStateOf(false) }
+    val isMonitoring = uiState.isMonitoring
+    var showStopMonitoringDialog by rememberSaveable { mutableStateOf(false) }
     val serviceInformationDescription = stringResource(R.string.service_information_content_description)
     val serviceStatusDescription = stringResource(R.string.service_status_content_description, uiState.status)
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -131,6 +133,10 @@ fun MonitorScreen(
 
     var showResetPairingDialog by remember { mutableStateOf(false) }
 
+    BackHandler(enabled = isMonitoring) {
+        showStopMonitoringDialog = true
+    }
+
     DisposableEffect(isMonitoring) {
         val binding = if (isMonitoring) bindMonitorService(context) else null
         onDispose {
@@ -167,7 +173,7 @@ fun MonitorScreen(
                         isMonitoring = isMonitoring,
                         onPairingCodeChange = { viewModel.updatePairingCode(it) },
                         onDeviceNameChange = { viewModel.updateDeviceName(it) },
-                        onStartMonitoring = { isMonitoring = true },
+                        onStartMonitoring = { viewModel.startMonitoring() },
                         onResetPairing = { showResetPairingDialog = true },
                         onSensitivityChange = { viewModel.updateMicrophoneSensitivity(it) }
                     )
@@ -176,7 +182,7 @@ fun MonitorScreen(
                         uiState = uiState,
                         onStopMonitoring = {
                             viewModel.stopWifiDirect()
-                            isMonitoring = false
+                            viewModel.stopMonitoring()
                         },
                         onStartWifiDirect = onStartWifiDirect,
                         onStopWifiDirect = { viewModel.stopWifiDirect() },
@@ -188,6 +194,28 @@ fun MonitorScreen(
                 }
             }
         }
+    }
+
+    if (showStopMonitoringDialog) {
+        AlertDialog(
+            onDismissRequest = { showStopMonitoringDialog = false },
+            title = { Text(stringResource(R.string.stop_monitoring)) },
+            text = { Text(stringResource(R.string.stop_monitoring_confirmation)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.stopWifiDirect()
+                    viewModel.stopMonitoring()
+                    showStopMonitoringDialog = false
+                }) {
+                    Text(stringResource(R.string.confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showStopMonitoringDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
     }
 
     if (showResetPairingDialog) {

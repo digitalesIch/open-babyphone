@@ -19,6 +19,7 @@ import org.openbabyphone.service.MonitorSessionState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 
@@ -32,6 +33,7 @@ data class MonitorUiState(
     val status: String = "",
     val connectedClients: Int = 0,
     val isLoading: Boolean = true,
+    val isMonitoring: Boolean = false,
     val wifiDirectState: WifiDirectState = WifiDirectState.Idle,
     val wifiDirectSupported: Boolean = true,
     val qrPayload: String = "",
@@ -49,11 +51,15 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     private val wifiDirectController = WifiDirectController(application)
     private val wifiDirectSupported = wifiDirectController.isSupported()
 
+    private val _isMonitoring = MutableStateFlow(false)
+    val isMonitoring: StateFlow<Boolean> = _isMonitoring.asStateFlow()
+
     private data class ServiceInfo(
         val name: String,
         val port: Int,
         val addresses: List<String>,
         val sessionState: MonitorSessionState,
+        val isMonitoring: Boolean,
         val microphoneSensitivity: MicrophoneSensitivity
     )
 
@@ -65,10 +71,16 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             MonitorServiceRepository.serviceName,
             MonitorServiceRepository.port,
             MonitorServiceRepository.addresses,
-            MonitorServiceRepository.sessionState,
-            _microphoneSensitivity
-        ) { name, port, addresses, sessionState, micSensitivity ->
-            ServiceInfo(name, port, addresses, sessionState, micSensitivity)
+            combine(
+                MonitorServiceRepository.sessionState,
+                _microphoneSensitivity,
+                _isMonitoring
+            ) { sessionState, micSensitivity, isMonitoring ->
+                Triple(sessionState, micSensitivity, isMonitoring)
+            }
+        ) { name, port, addresses, stateInfo ->
+            val (sessionState, micSensitivity, isMonitoring) = stateInfo
+            ServiceInfo(name, port, addresses, sessionState, isMonitoring, micSensitivity)
         },
         wifiDirectController.state
     ) { pairingCode, deviceName, clients, info, wifiDirect ->
@@ -104,6 +116,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             status = status.ifEmpty { waitingForParentStatus },
             connectedClients = clients,
             isLoading = info.name.isEmpty(),
+            isMonitoring = info.isMonitoring,
             wifiDirectState = wifiDirect,
             wifiDirectSupported = wifiDirectSupported,
             qrPayload = qrPayload,
@@ -167,6 +180,14 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         prefs.edit()
             .putString(MonitorService.PREF_KEY_DEVICE_NAME, trimmed)
             .apply()
+    }
+
+    fun startMonitoring() {
+        _isMonitoring.value = true
+    }
+
+    fun stopMonitoring() {
+        _isMonitoring.value = false
     }
 
     fun updateMicrophoneSensitivity(sensitivity: MicrophoneSensitivity) {
