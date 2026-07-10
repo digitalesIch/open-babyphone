@@ -21,21 +21,25 @@ import java.io.IOException
 import java.net.Socket
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 
 class Client(
     val socket: Socket,
     val id: Int,
-    val pairingCode: String
+    val pairingCode: String,
+    private val clock: () -> Long = System::currentTimeMillis
 ) {
     companion object {
         private const val TAG = "Client"
         const val QUEUE_CAPACITY = 100
         const val MAX_DROPPED_FRAMES = 50
+        const val SLOW_CLIENT_GRACE_MS = 10_000L
     }
 
     private val frameQueue = ArrayBlockingQueue<ByteArray>(QUEUE_CAPACITY)
     private val totalDroppedFrames = AtomicInteger(0)
     private val consecutiveDroppedFrames = AtomicInteger(0)
+    private val firstConsecutiveDropAtMs = AtomicLong(0L)
     private var sendThread: Thread? = null
     @Volatile private var isRunning = false
 
@@ -51,10 +55,12 @@ class Client(
                         out.write(frame)
                         out.flush()
                         consecutiveDroppedFrames.set(0)
+                        firstConsecutiveDropAtMs.set(0L)
                     } catch (e: IOException) {
                         Log.e(TAG, "Failed to send frame to client $id", e)
                         totalDroppedFrames.addAndGet(MAX_DROPPED_FRAMES)
                         consecutiveDroppedFrames.set(MAX_DROPPED_FRAMES)
+                        firstConsecutiveDropAtMs.set(clock())
                         break
                     }
                 }
@@ -75,13 +81,25 @@ class Client(
         if (!success) {
             totalDroppedFrames.incrementAndGet()
             val consecutiveDrops = consecutiveDroppedFrames.incrementAndGet()
+            if (consecutiveDrops == 1) {
+                firstConsecutiveDropAtMs.set(clock())
+            }
             Log.w(TAG, "Queue full for client $id, consecutive dropped frame $consecutiveDrops/$MAX_DROPPED_FRAMES")
         }
         return success
     }
 
     fun shouldDisconnect(): Boolean {
-        return consecutiveDroppedFrames.get() >= MAX_DROPPED_FRAMES
+        val drops = consecutiveDroppedFrames.get()
+        if (drops < MAX_DROPPED_FRAMES) {
+            return false
+        }
+        val firstDrop = firstConsecutiveDropAtMs.get()
+        if (firstDrop == 0L) {
+            return true
+        }
+        val elapsed = clock() - firstDrop
+        return elapsed >= SLOW_CLIENT_GRACE_MS
     }
 
     fun getDroppedFrameCount(): Int = totalDroppedFrames.get()

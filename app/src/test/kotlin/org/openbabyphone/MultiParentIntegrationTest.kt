@@ -185,7 +185,8 @@ class MultiParentIntegrationTest {
 
     @Test
     fun slowParentDropped_OtherParentsContinue() {
-        val manager = ClientManager()
+        var fakeNow = 0L
+        val manager = ClientManager { fakeNow }
 
         val fastSocket = mockSocketWithBlockingOutput()
         val fastClient = manager.addClient(fastSocket, "test")
@@ -214,13 +215,22 @@ class MultiParentIntegrationTest {
         assertTrue("Slow parent send thread should start",
             slowWriteStarted.await(5, TimeUnit.SECONDS))
 
+        fakeNow = 1_000L
         for (i in 0 until Client.QUEUE_CAPACITY + Client.MAX_DROPPED_FRAMES + 10) {
             manager.broadcastFrame(ByteArray(100))
-            if (i % 10 == 0) Thread.sleep(2)
         }
+
+        assertFalse("Slow parent should not be dropped within grace period",
+            manager.getClientCount() == 1)
+
+        Thread.sleep(200)
+        fakeNow = 1_000L + Client.SLOW_CLIENT_GRACE_MS + 1
+        manager.broadcastFrame(ByteArray(100))
 
         assertEquals(1, manager.getClientCount())
         assertTrue(slowClient!!.getDroppedFrameCount() >= Client.MAX_DROPPED_FRAMES)
+
+        slowWriteBlock.countDown()
 
         val fastWriteCount = AtomicInteger(0)
         val fastSocket2 = mock(Socket::class.java)
