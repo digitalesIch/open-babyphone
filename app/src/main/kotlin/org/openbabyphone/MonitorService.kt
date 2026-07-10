@@ -315,7 +315,7 @@ class MonitorService : Service() {
             }
         }
         ensureMonitorThread()
-        return START_NOT_STICKY
+        return START_REDELIVER_INTENT
     }
 
     private fun ensureMonitorThread() {
