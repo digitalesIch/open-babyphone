@@ -196,8 +196,12 @@ for details about the app's data handling and security model.
 
 ## Roadmap
 
-The current roadmap focuses on making the app reliable and easy to use before
-broad public distribution:
+The current strategic and operational roadmap is tracked in the GitHub Project:
+
+https://github.com/digitalesIch/open-babyphone/projects
+
+The current work focuses on making the app reliable and easy to use before broad
+public distribution:
 
 - Prove overnight reliability on real devices
 - Improve child/parent setup and status screens
@@ -205,7 +209,8 @@ broad public distribution:
 - Keep pairing and encrypted transport as the normal flow
 - Finalize F-Droid metadata, release notes, and signing documentation
 
-See [ROADMAP.md](ROADMAP.md) for the detailed plan.
+[ROADMAP.md](ROADMAP.md) is kept as a historical planning archive, not as the
+active roadmap source of truth.
 
 ## Contributing
 

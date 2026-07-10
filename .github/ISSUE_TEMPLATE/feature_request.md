@@ -19,6 +19,8 @@ A clear and concise description of any alternative solutions or features you've 
 **Additional context**
 Add any other context or screenshots about the feature request here.
 
+Accepted roadmap-relevant requests may be added by maintainers to the Open Babyphone Roadmap project.
+
 **Constraints**
 Please confirm that your proposal:
 - [ ] Does not require a central server, relay, cloud account, remote-access service, or paid SaaS infrastructure

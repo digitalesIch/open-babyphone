@@ -13,6 +13,17 @@ while developing Open Babyphone as a separate project for local-network baby
 monitoring. Same Wi-Fi or same LAN use is the core product goal; trusted VPN
 setups are treated as an advanced manual fallback, not as the normal setup flow.
 
+## Roadmap, Issues, And Project Board
+
+The current strategic and operational roadmap is maintained in the GitHub
+Project:
+
+    https://github.com/digitalesIch/open-babyphone/projects
+
+`ROADMAP.md` is kept as a historical planning archive. Concrete work is tracked
+as GitHub issues. Maintainers triage roadmap-relevant issues into the Project and
+set their phase/status there.
+
 ## Build Requirements
 
 Use JDK 21 when building the project. The Android app is configured with

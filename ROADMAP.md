@@ -1,4 +1,17 @@
-# Roadmap 2.0
+# Roadmap Archive
+
+This file is a historical roadmap snapshot. It is no longer the active roadmap.
+
+The current strategic and operational roadmap is tracked in the GitHub Project:
+
+https://github.com/digitalesIch/open-babyphone/projects
+
+Do not update this file for routine issue status changes. Keep it as historical
+context unless an explicit archive update is requested.
+
+---
+
+## Archived Roadmap 2.0
 
 This roadmap reflects the current product direction for Open Babyphone: a modern,
 open-source Android baby monitor for local home networks.

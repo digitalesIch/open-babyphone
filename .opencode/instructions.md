@@ -51,6 +51,22 @@ Before any write operation (commit, push, branch creation), always sync the loca
 This prevents stale local branches when multiple agent sessions work on the same repository.
 Never assume the local working copy is up to date with the remote.
 
+## Project Board Policy
+
+The active roadmap is the GitHub Project `Open Babyphone Roadmap` linked from:
+
+```bash
+https://github.com/digitalesIch/open-babyphone/projects
+```
+
+When creating or triaging roadmap-relevant issues:
+1. Add the issue to the Project.
+2. Set the `Phase` field.
+3. Use existing labels for priority and cluster.
+4. Do not update `ROADMAP.md` unless the user explicitly asks for an archive update.
+
+`ROADMAP.md` is a historical archive; issues plus the Project replace it for active roadmap tracking.
+
 ## Language Policy
 
 **All external-facing output must be in English only:**
