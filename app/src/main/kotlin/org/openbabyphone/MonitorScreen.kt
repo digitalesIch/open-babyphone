@@ -79,6 +79,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.remember
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,9 +90,11 @@ fun MonitorScreen(
     modifier: Modifier = Modifier,
     viewModel: MonitorViewModel = viewModel(),
     bindMonitorService: (Context) -> ServiceConnectionManager.ServiceBinding = ServiceConnectionManager::bindMonitorService,
-    unbindAndStopService: (Context, ServiceConnectionManager.ServiceBinding) -> Unit = ServiceConnectionManager::unbindAndStopService
+    unbindAndStopService: (Context, ServiceConnectionManager.ServiceBinding) -> Unit = ServiceConnectionManager::unbindAndStopService,
+    openBatteryOptimizationSettings: (Context) -> Unit = BatteryOptimization::openRequest
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val uiState by viewModel.uiState.collectAsState()
     val isMonitoring = uiState.isMonitoring
     var showStopMonitoringDialog by rememberSaveable { mutableStateOf(false) }
@@ -135,6 +140,16 @@ fun MonitorScreen(
 
     BackHandler(enabled = isMonitoring) {
         showStopMonitoringDialog = true
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshBatteryOptimizationStatus()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     DisposableEffect(isMonitoring) {
@@ -189,7 +204,8 @@ fun MonitorScreen(
                         wifiDirectPermissionDenied = wifiDirectPermissionDenied,
                         serviceInformationDescription = serviceInformationDescription,
                         serviceStatusDescription = serviceStatusDescription,
-                        onSensitivityChange = { viewModel.updateMicrophoneSensitivity(it) }
+                        onSensitivityChange = { viewModel.updateMicrophoneSensitivity(it) },
+                        onOpenBatteryOptimizationSettings = { openBatteryOptimizationSettings(context) }
                     )
                 }
             }
@@ -397,7 +413,8 @@ private fun MonitoringSection(
     wifiDirectPermissionDenied: Boolean,
     serviceInformationDescription: String,
     serviceStatusDescription: String,
-    onSensitivityChange: (MicrophoneSensitivity) -> Unit
+    onSensitivityChange: (MicrophoneSensitivity) -> Unit,
+    onOpenBatteryOptimizationSettings: () -> Unit
 ) {
     var showPairingDialog by remember { mutableStateOf(false) }
 
@@ -504,6 +521,11 @@ private fun MonitoringSection(
 
             Spacer(modifier = Modifier.height(Spacing.space16))
 
+            if (!uiState.batteryOptimizationIgnored) {
+                BatteryOptimizationCard(onOpenSettings = onOpenBatteryOptimizationSettings)
+                Spacer(modifier = Modifier.height(Spacing.space16))
+            }
+
             OdOutlinedCard(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -543,6 +565,28 @@ private fun MonitoringSection(
             onDismiss = { showPairingDialog = false }
         )
     }
+}
+
+@Composable
+private fun BatteryOptimizationCard(onOpenSettings: () -> Unit) {
+    OdOutlinedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("battery_optimization_card"),
+        content = {
+            OdCardTitle(stringResource(R.string.battery_optimization_title))
+            Spacer(modifier = Modifier.height(Spacing.space8))
+            OdCardBody(stringResource(R.string.battery_optimization_description))
+            Spacer(modifier = Modifier.height(Spacing.space12))
+            OdOutlinedActionButton(
+                text = stringResource(R.string.battery_optimization_action),
+                onClick = onOpenSettings,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("battery_optimization_button")
+            )
+        }
+    )
 }
 
 @Composable
