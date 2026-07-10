@@ -26,6 +26,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -71,7 +74,8 @@ fun ListenScreen(
     val uiState by viewModel.uiState.collectAsState()
     val unknownLabel = stringResource(R.string.unknown_device)
     val volumeVisualizationDescription = stringResource(R.string.volume_visualization_content_description)
-    DisposableEffect(address, port, name, pairingCode, resumeOnly) {
+    var retryToken by rememberSaveable { mutableIntStateOf(0) }
+    DisposableEffect(address, port, name, pairingCode, resumeOnly, retryToken) {
         val binding = ServiceConnectionManager.bindListenService(
             context,
             viewModel,
@@ -170,7 +174,14 @@ fun ListenScreen(
                                 Spacer(modifier = Modifier.height(Spacing.space16))
                                 OdPrimaryButton(
                                     text = stringResource(R.string.retry),
-                                    onClick = onNavigateBack
+                                    onClick = { retryToken++ },
+                                    modifier = Modifier.testTag("retry_button")
+                                )
+                                Spacer(modifier = Modifier.height(Spacing.space8))
+                                OdOutlinedActionButton(
+                                    text = stringResource(R.string.disconnect),
+                                    onClick = onNavigateBack,
+                                    modifier = Modifier.testTag("back_to_discovery_button")
                                 )
                             }
                         }
