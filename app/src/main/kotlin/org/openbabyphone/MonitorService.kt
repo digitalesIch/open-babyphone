@@ -83,7 +83,7 @@ class MonitorService : Service() {
                             val address = linkAddress.address
                             val hostAddress = address.hostAddress
                             if (!address.isLinkLocalAddress && !address.isLoopbackAddress && hostAddress != null) {
-                                addresses.add("$hostAddress (${networkInfo.typeName})")
+                                addresses.add(hostAddress)
                             }
                         }
                     }

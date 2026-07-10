@@ -140,7 +140,8 @@ fun DiscoverAddressScreen(
                     text = stringResource(R.string.connect),
                     onClick = {
                         if (canConnect) {
-                            onConnect(ipAddress, parsedPort ?: ConnectionConstants.DEFAULT_PORT, pairingCode)
+                            val normalizedAddress = ConnectionAddress.normalize(ipAddress)
+                            onConnect(normalizedAddress, parsedPort ?: ConnectionConstants.DEFAULT_PORT, pairingCode)
                         }
                     },
                     modifier = Modifier.testTag("connect_button"),
