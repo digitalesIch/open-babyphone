@@ -23,16 +23,17 @@ import java.io.OutputStream
 /**
  * Binary handshake protocol for Open Babyphone.
  *
- * Wire format (child → parent):
- *   magic[4]              = "OBP2"
- *   protocolVersion[2]    = big-endian protocol version (currently 2)
+ * Wire format (child -> parent):
+ *   magic[4]              = "OBP3"
+ *   protocolVersion[2]    = big-endian protocol version (currently 3)
  *   capabilities[2]       = big-endian capability bitmap
  *   sessionId[8]          = random per stream session
- *   authRequired[1]      = 0 (open) | 1 (pairing code required)
+ *   authRequired[1]       = 0 (open) | 1 (pairing code required)
  *   challenge[32]         = random, only present when authRequired == 1
  *   authNonce[12]         = random per-handshake nonce, only present when authRequired == 1
+ *   kdfSalt[16]           = per-installation random salt, only present when authRequired == 1
  *
- * Parent capability response (parent → child, after auth response if any):
+ * Parent capability response (parent -> child, after auth response if any):
  *   protocolVersion[2]    = parent protocol version
  *   capabilities[2]       = parent capability bitmap
  *
@@ -40,15 +41,23 @@ import java.io.OutputStream
  *   encryptedChallenge[48] = ChaCha20-Poly1305(challenge, key, nonce=authNonce)
  *     = 32 bytes challenge + 16 bytes auth tag
  *
+ * Key derivation:
+ *   key = Argon2id(pairingCode, kdfSalt, opsLimit=3, memLimit=16MiB)
+ *
+ * The kdfSalt is generated once per child installation and persisted. It is
+ * not secret and is sent in clear text in the handshake. Its purpose is to
+ * ensure that identical pairing codes on different installations derive
+ * different keys, preventing precomputation attacks across installations.
+ *
  * Capability bits:
  *   bit 0: G.711 u-law codec (8000 Hz)
  *   bit 1: Opus codec (reserved for future migration, see #69)
  */
 object Handshake {
-    const val MAGIC = "OBP2"
+    const val MAGIC = "OBP3"
     val MAGIC_BYTES: ByteArray = MAGIC.toByteArray(Charsets.US_ASCII)
 
-    const val PROTOCOL_VERSION: Int = 2
+    const val PROTOCOL_VERSION: Int = 3
 
     const val CAP_G711_ULAW: Int = 1 shl 0
     const val CAP_OPUS: Int = 1 shl 1
@@ -71,7 +80,8 @@ object Handshake {
         val sessionId: ByteArray,
         val authRequired: Boolean,
         val challenge: ByteArray?,
-        val authNonce: ByteArray?
+        val authNonce: ByteArray?,
+        val kdfSalt: ByteArray?
     ) {
         init {
             require(sessionId.size == CryptoHelper.SESSION_ID_SIZE) { "sessionId must be ${CryptoHelper.SESSION_ID_SIZE} bytes" }
@@ -82,9 +92,13 @@ object Handshake {
                 require(authNonce != null && authNonce.size == CryptoHelper.NONCE_SIZE) {
                     "authNonce must be ${CryptoHelper.NONCE_SIZE} bytes when authRequired"
                 }
+                require(kdfSalt != null && kdfSalt.size == CryptoHelper.SALT_SIZE) {
+                    "kdfSalt must be ${CryptoHelper.SALT_SIZE} bytes when authRequired"
+                }
             } else {
                 require(challenge == null) { "challenge must be null when auth not required" }
                 require(authNonce == null) { "authNonce must be null when auth not required" }
+                require(kdfSalt == null) { "kdfSalt must be null when auth not required" }
             }
         }
     }
@@ -106,12 +120,13 @@ object Handshake {
         authRequired: Boolean,
         challenge: ByteArray?,
         authNonce: ByteArray?,
+        kdfSalt: ByteArray?,
         protocolVersion: Int = PROTOCOL_VERSION,
         capabilities: Int = CURRENT_CAPABILITIES
     ) {
-        HandshakeMessage(protocolVersion, capabilities, sessionId, authRequired, challenge, authNonce)
+        HandshakeMessage(protocolVersion, capabilities, sessionId, authRequired, challenge, authNonce, kdfSalt)
         val size = if (authRequired) {
-            HANDSHAKE_HEADER_SIZE + CryptoHelper.CHALLENGE_SIZE + CryptoHelper.NONCE_SIZE
+            HANDSHAKE_HEADER_SIZE + CryptoHelper.CHALLENGE_SIZE + CryptoHelper.NONCE_SIZE + CryptoHelper.SALT_SIZE
         } else {
             HANDSHAKE_HEADER_SIZE
         }
@@ -126,10 +141,12 @@ object Handshake {
         System.arraycopy(sessionId, 0, buffer, offset, CryptoHelper.SESSION_ID_SIZE)
         offset += CryptoHelper.SESSION_ID_SIZE
         buffer[offset++] = if (authRequired) AUTH_MODE_PAIRING_CODE else AUTH_MODE_OPEN
-        if (authRequired && challenge != null && authNonce != null) {
+        if (authRequired && challenge != null && authNonce != null && kdfSalt != null) {
             System.arraycopy(challenge, 0, buffer, offset, CryptoHelper.CHALLENGE_SIZE)
             offset += CryptoHelper.CHALLENGE_SIZE
             System.arraycopy(authNonce, 0, buffer, offset, CryptoHelper.NONCE_SIZE)
+            offset += CryptoHelper.NONCE_SIZE
+            System.arraycopy(kdfSalt, 0, buffer, offset, CryptoHelper.SALT_SIZE)
         }
         output.write(buffer)
         output.flush()
@@ -171,7 +188,16 @@ object Handshake {
         } else {
             null
         }
-        return HandshakeMessage(protocolVersion, capabilities, sessionId, authRequired, challenge, authNonce)
+        val kdfSalt: ByteArray? = if (authRequired) {
+            val saltBuf = ByteArray(CryptoHelper.SALT_SIZE)
+            if (!readFully(input, saltBuf, 0, CryptoHelper.SALT_SIZE)) {
+                return null
+            }
+            saltBuf
+        } else {
+            null
+        }
+        return HandshakeMessage(protocolVersion, capabilities, sessionId, authRequired, challenge, authNonce, kdfSalt)
     }
 
     fun writeAuthResponse(output: OutputStream, encryptedChallenge: ByteArray) {

@@ -22,27 +22,49 @@ import org.junit.Test
 class CryptoHelperInstrumentedTest {
 
     private val testSessionId = ByteArray(8) { 0x42 }
+    private val testSalt = ByteArray(CryptoHelper.SALT_SIZE) { 0x66 }
 
     @Test
-    fun deriveKey_SameInput_SameOutput() {
+    fun deriveKey_SameInputSameSalt_SameOutput() {
         val pairingCode = "test123"
-        val key1 = CryptoHelper.deriveKey(pairingCode)
-        val key2 = CryptoHelper.deriveKey(pairingCode)
+        val key1 = CryptoHelper.deriveKey(pairingCode, testSalt)
+        val key2 = CryptoHelper.deriveKey(pairingCode, testSalt)
 
         assertArrayEquals(key1, key2)
     }
 
     @Test
     fun deriveKey_DifferentInput_DifferentOutput() {
-        val key1 = CryptoHelper.deriveKey("test123")
-        val key2 = CryptoHelper.deriveKey("test456")
+        val key1 = CryptoHelper.deriveKey("test123", testSalt)
+        val key2 = CryptoHelper.deriveKey("test456", testSalt)
 
         assertFalse(key1.contentEquals(key2))
     }
 
     @Test
+    fun deriveKey_DifferentSalt_DifferentOutput() {
+        val salt1 = CryptoHelper.generateSalt()
+        val salt2 = CryptoHelper.generateSalt()
+
+        val key1 = CryptoHelper.deriveKey("test123", salt1)
+        val key2 = CryptoHelper.deriveKey("test123", salt2)
+
+        assertFalse(key1.contentEquals(key2))
+    }
+
+    @Test
+    fun generateSalt_DifferentCalls_DifferentValues() {
+        val salt1 = CryptoHelper.generateSalt()
+        val salt2 = CryptoHelper.generateSalt()
+
+        assertEquals(CryptoHelper.SALT_SIZE, salt1.size)
+        assertEquals(CryptoHelper.SALT_SIZE, salt2.size)
+        assertFalse(salt1.contentEquals(salt2))
+    }
+
+    @Test
     fun encryptDecrypt_RoundTrip() {
-        val key = CryptoHelper.deriveKey("test123")
+        val key = CryptoHelper.deriveKey("test123", testSalt)
         val plaintext = byteArrayOf(1, 2, 3, 4, 5, 6, 7, 8)
         val counter = 0L
 
@@ -55,8 +77,8 @@ class CryptoHelperInstrumentedTest {
 
     @Test
     fun decrypt_WrongKey_ReturnsNull() {
-        val key1 = CryptoHelper.deriveKey("test123")
-        val key2 = CryptoHelper.deriveKey("test456")
+        val key1 = CryptoHelper.deriveKey("test123", testSalt)
+        val key2 = CryptoHelper.deriveKey("test456", testSalt)
         val plaintext = byteArrayOf(1, 2, 3, 4, 5)
         val counter = 0L
 
@@ -68,7 +90,7 @@ class CryptoHelperInstrumentedTest {
 
     @Test
     fun decrypt_WrongCounter_ReturnsNull() {
-        val key = CryptoHelper.deriveKey("test123")
+        val key = CryptoHelper.deriveKey("test123", testSalt)
         val plaintext = byteArrayOf(1, 2, 3, 4, 5)
 
         val encrypted = CryptoHelper.encryptChunk(plaintext, key, testSessionId, 0L)
@@ -79,7 +101,7 @@ class CryptoHelperInstrumentedTest {
 
     @Test
     fun encryptChunk_IncreasesSize() {
-        val key = CryptoHelper.deriveKey("test")
+        val key = CryptoHelper.deriveKey("test", testSalt)
         val plaintext = ByteArray(100)
         val encrypted = CryptoHelper.encryptChunk(plaintext, key, testSessionId, 0L)
 
@@ -88,7 +110,7 @@ class CryptoHelperInstrumentedTest {
 
     @Test
     fun nonce_differentSessions_differentNonces() {
-        val key = CryptoHelper.deriveKey("test123")
+        val key = CryptoHelper.deriveKey("test123", testSalt)
         val plaintext = byteArrayOf(1, 2, 3)
         val sessionId1 = CryptoHelper.generateSessionId()
         val sessionId2 = CryptoHelper.generateSessionId()
@@ -101,7 +123,7 @@ class CryptoHelperInstrumentedTest {
 
     @Test
     fun nonce_differentCounters_sameSession_differentNonces() {
-        val key = CryptoHelper.deriveKey("test123")
+        val key = CryptoHelper.deriveKey("test123", testSalt)
         val plaintext = byteArrayOf(1, 2, 3)
         val sessionId = CryptoHelper.generateSessionId()
 
@@ -123,7 +145,7 @@ class CryptoHelperInstrumentedTest {
 
     @Test
     fun encryptChallenge_VerifyChallenge_RoundTrip() {
-        val key = CryptoHelper.deriveKey("test123")
+        val key = CryptoHelper.deriveKey("test123", testSalt)
         val challenge = CryptoHelper.generateChallenge()
         val authNonce = CryptoHelper.generateNonce()
 
@@ -135,8 +157,8 @@ class CryptoHelperInstrumentedTest {
 
     @Test
     fun verifyChallenge_WrongCode_ReturnsFalse() {
-        val key1 = CryptoHelper.deriveKey("test123")
-        val key2 = CryptoHelper.deriveKey("test456")
+        val key1 = CryptoHelper.deriveKey("test123", testSalt)
+        val key2 = CryptoHelper.deriveKey("test456", testSalt)
         val challenge = CryptoHelper.generateChallenge()
         val authNonce = CryptoHelper.generateNonce()
 
@@ -148,7 +170,7 @@ class CryptoHelperInstrumentedTest {
 
     @Test
     fun verifyChallenge_WrongNonce_ReturnsFalse() {
-        val key = CryptoHelper.deriveKey("test123")
+        val key = CryptoHelper.deriveKey("test123", testSalt)
         val challenge = CryptoHelper.generateChallenge()
         val nonce1 = CryptoHelper.generateNonce()
         val nonce2 = CryptoHelper.generateNonce()

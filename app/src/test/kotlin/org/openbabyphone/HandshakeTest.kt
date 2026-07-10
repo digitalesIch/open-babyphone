@@ -26,11 +26,12 @@ class HandshakeTest {
     private val testSessionId = ByteArray(8) { 0x42 }
     private val testChallenge = ByteArray(32) { 0x55 }
     private val testAuthNonce = ByteArray(12) { 0x33 }
+    private val testKdfSalt = ByteArray(16) { 0x77 }
 
     @Test
     fun writeAndRead_OpenMode_RoundTrip() {
         val outputStream = ByteArrayOutputStream()
-        Handshake.writeHandshake(outputStream, testSessionId, false, null, null)
+        Handshake.writeHandshake(outputStream, testSessionId, false, null, null, null)
 
         val inputStream = ByteArrayInputStream(outputStream.toByteArray())
         val message = Handshake.readHandshake(inputStream)
@@ -40,6 +41,7 @@ class HandshakeTest {
         assertFalse(message.authRequired)
         assertNull(message.challenge)
         assertNull(message.authNonce)
+        assertNull(message.kdfSalt)
         assertEquals(Handshake.PROTOCOL_VERSION, message.protocolVersion)
         assertEquals(Handshake.CURRENT_CAPABILITIES, message.capabilities)
     }
@@ -47,7 +49,7 @@ class HandshakeTest {
     @Test
     fun writeAndRead_PairingCodeMode_RoundTrip() {
         val outputStream = ByteArrayOutputStream()
-        Handshake.writeHandshake(outputStream, testSessionId, true, testChallenge, testAuthNonce)
+        Handshake.writeHandshake(outputStream, testSessionId, true, testChallenge, testAuthNonce, testKdfSalt)
 
         val inputStream = ByteArrayInputStream(outputStream.toByteArray())
         val message = Handshake.readHandshake(inputStream)
@@ -59,6 +61,8 @@ class HandshakeTest {
         assertArrayEquals(testChallenge, message.challenge)
         assertNotNull(message.authNonce)
         assertArrayEquals(testAuthNonce, message.authNonce)
+        assertNotNull(message.kdfSalt)
+        assertArrayEquals(testKdfSalt, message.kdfSalt)
         assertEquals(Handshake.PROTOCOL_VERSION, message.protocolVersion)
         assertEquals(Handshake.CURRENT_CAPABILITIES, message.capabilities)
     }
@@ -89,7 +93,7 @@ class HandshakeTest {
 
     @Test
     fun readHandshake_OldMagic_ReturnsNull() {
-        val oldMagic = "OBP1".toByteArray(Charsets.US_ASCII)
+        val oldMagic = "OBP2".toByteArray(Charsets.US_ASCII)
         val bytes = ByteArray(Handshake.HANDSHAKE_HEADER_SIZE)
         System.arraycopy(oldMagic, 0, bytes, 0, oldMagic.size)
         val inputStream = ByteArrayInputStream(bytes)
@@ -124,7 +128,7 @@ class HandshakeTest {
 
     @Test
     fun magic_BytesCorrect() {
-        assertArrayEquals("OBP2".toByteArray(Charsets.US_ASCII), Handshake.MAGIC_BYTES)
+        assertArrayEquals("OBP3".toByteArray(Charsets.US_ASCII), Handshake.MAGIC_BYTES)
     }
 
     @Test
@@ -172,7 +176,7 @@ class HandshakeTest {
 
     @Test
     fun isVersionSupported_OldVersion_ReturnsFalse() {
-        assertFalse(Handshake.isVersionSupported(1))
+        assertFalse(Handshake.isVersionSupported(2))
     }
 
     @Test
@@ -220,8 +224,8 @@ class HandshakeTest {
 
     @Test
     fun capabilityResponse_IsCompatibleWith_DifferentVersion_ReturnsFalse() {
-        val a = Handshake.CapabilityResponse(2, Handshake.CAP_G711_ULAW)
-        val b = Handshake.CapabilityResponse(3, Handshake.CAP_G711_ULAW)
+        val a = Handshake.CapabilityResponse(3, Handshake.CAP_G711_ULAW)
+        val b = Handshake.CapabilityResponse(4, Handshake.CAP_G711_ULAW)
         assertFalse(a.isCompatibleWith(b))
     }
 
@@ -241,7 +245,8 @@ class HandshakeTest {
             true,
             testChallenge,
             testAuthNonce,
-            protocolVersion = 2,
+            testKdfSalt,
+            protocolVersion = 3,
             capabilities = Handshake.CAP_G711_ULAW or Handshake.CAP_OPUS
         )
 
@@ -249,8 +254,9 @@ class HandshakeTest {
         val message = Handshake.readHandshake(inputStream)
 
         assertNotNull(message)
-        assertEquals(2, message!!.protocolVersion)
+        assertEquals(3, message!!.protocolVersion)
         assertEquals(Handshake.CAP_G711_ULAW or Handshake.CAP_OPUS, message.capabilities)
+        assertArrayEquals(testKdfSalt, message.kdfSalt)
     }
 
     @Test
@@ -272,12 +278,13 @@ class HandshakeTest {
             false,
             null,
             null,
-            protocolVersion = 0x0201,
+            null,
+            protocolVersion = 0x0301,
             capabilities = 0x0304
         )
 
         val bytes = outputStream.toByteArray()
-        assertEquals(0x02.toByte(), bytes[4])
+        assertEquals(0x03.toByte(), bytes[4])
         assertEquals(0x01.toByte(), bytes[5])
         assertEquals(0x03.toByte(), bytes[6])
         assertEquals(0x04.toByte(), bytes[7])

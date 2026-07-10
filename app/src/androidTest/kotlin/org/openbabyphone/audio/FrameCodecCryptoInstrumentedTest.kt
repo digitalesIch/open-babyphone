@@ -23,10 +23,11 @@ import org.junit.Test
 class FrameCodecCryptoInstrumentedTest {
 
     private val testSessionId = ByteArray(8) { 0x42 }
+    private val testSalt = ByteArray(CryptoHelper.SALT_SIZE) { 0x66 }
 
     @Test
     fun encodeFrame_WithEncryption() {
-        val key = CryptoHelper.deriveKey("test123")
+        val key = CryptoHelper.deriveKey("test123", testSalt)
         val ulawData = byteArrayOf(1, 2, 3, 4, 5)
         val frame = FrameCodec.encodeFrame(ulawData, 0, 1000, key, testSessionId)
 
@@ -36,7 +37,7 @@ class FrameCodecCryptoInstrumentedTest {
 
     @Test
     fun decodeFrame_WithEncryption_RoundTrip() {
-        val key = CryptoHelper.deriveKey("test123")
+        val key = CryptoHelper.deriveKey("test123", testSalt)
         val ulawData = byteArrayOf(10, 20, 30, 40, 50)
         val frame = FrameCodec.encodeFrame(ulawData, 7, 1500, key, testSessionId)
         val inputStream = frame.inputStream()

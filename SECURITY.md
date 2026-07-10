@@ -42,7 +42,10 @@ Current security-relevant behavior:
 - Pairing uses challenge-response authentication; the pairing code itself is not sent over the connection
 - Pairing codes are stored in SharedPreferences and are excluded from Android backups
 - Protocol versioning and capability negotiation ensure incompatible clients are rejected cleanly
-- Key derivation uses Argon2i via libsodium
+- Key derivation uses Argon2id via libsodium with a per-installation random salt
+- The salt is generated once per child installation, persisted locally, and sent in clear text in the handshake; it is not secret
+- The salt ensures identical pairing codes on different installations derive different keys, preventing precomputation attacks across installations
+- The protocol does not provide forward secrecy: the symmetric key is derived deterministically from the pairing code and salt. Anyone who later learns the pairing code and captures the salt can decrypt recorded streams
 
 For design discussions or hardening ideas, please open a normal issue unless
 there is an exploitable vulnerability that needs private handling.

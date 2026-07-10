@@ -26,13 +26,14 @@ class HandshakeInstrumentedTest {
     @Test
     fun handshake_PairingCodeChallengeResponse_RoundTrip() {
         val pairingCode = "test123"
-        val key = CryptoHelper.deriveKey(pairingCode)
+        val kdfSalt = CryptoHelper.generateSalt()
+        val key = CryptoHelper.deriveKey(pairingCode, kdfSalt)
         val sessionId = CryptoHelper.generateSessionId()
         val challenge = CryptoHelper.generateChallenge()
         val authNonce = CryptoHelper.generateNonce()
 
         val outputStream = ByteArrayOutputStream()
-        Handshake.writeHandshake(outputStream, sessionId, true, challenge, authNonce)
+        Handshake.writeHandshake(outputStream, sessionId, true, challenge, authNonce, kdfSalt)
 
         val parentInputStream = ByteArrayInputStream(outputStream.toByteArray())
         val handshake = Handshake.readHandshake(parentInputStream)
@@ -42,11 +43,14 @@ class HandshakeInstrumentedTest {
         assertArrayEquals(sessionId, handshake.sessionId)
         assertNotNull(handshake.challenge)
         assertNotNull(handshake.authNonce)
+        assertNotNull(handshake.kdfSalt)
         assertArrayEquals(authNonce, handshake.authNonce)
+        assertArrayEquals(kdfSalt, handshake.kdfSalt)
         assertEquals(Handshake.PROTOCOL_VERSION, handshake.protocolVersion)
         assertEquals(Handshake.CURRENT_CAPABILITIES, handshake.capabilities)
 
-        val encryptedChallenge = CryptoHelper.encryptChallenge(handshake.challenge!!, key, handshake.authNonce!!)
+        val parentKey = CryptoHelper.deriveKey(pairingCode, handshake.kdfSalt!!)
+        val encryptedChallenge = CryptoHelper.encryptChallenge(handshake.challenge!!, parentKey, handshake.authNonce!!)
         val authOutputStream = ByteArrayOutputStream()
         Handshake.writeAuthResponse(authOutputStream, encryptedChallenge)
         Handshake.writeCapabilityResponse(authOutputStream)
@@ -64,10 +68,9 @@ class HandshakeInstrumentedTest {
 
     @Test
     fun handshake_WrongPairingCode_VerificationFails() {
-        val correctCode = "test123"
-        val wrongCode = "test456"
-        val keyCorrect = CryptoHelper.deriveKey(correctCode)
-        val keyWrong = CryptoHelper.deriveKey(wrongCode)
+        val kdfSalt = CryptoHelper.generateSalt()
+        val keyCorrect = CryptoHelper.deriveKey("test123", kdfSalt)
+        val keyWrong = CryptoHelper.deriveKey("test456", kdfSalt)
         val challenge = CryptoHelper.generateChallenge()
         val authNonce = CryptoHelper.generateNonce()
 
@@ -82,7 +85,7 @@ class HandshakeInstrumentedTest {
         val sessionId = CryptoHelper.generateSessionId()
 
         val outputStream = ByteArrayOutputStream()
-        Handshake.writeHandshake(outputStream, sessionId, false, null, null)
+        Handshake.writeHandshake(outputStream, sessionId, false, null, null, null)
 
         val inputStream = ByteArrayInputStream(outputStream.toByteArray())
         val handshake = Handshake.readHandshake(inputStream)
@@ -91,12 +94,14 @@ class HandshakeInstrumentedTest {
         assertFalse(handshake!!.authRequired)
         assertNull(handshake.challenge)
         assertNull(handshake.authNonce)
+        assertNull(handshake.kdfSalt)
         assertArrayEquals(sessionId, handshake.sessionId)
     }
 
     @Test
     fun encryptChallenge_DifferentNonces_ProduceDifferentCiphertexts() {
-        val key = CryptoHelper.deriveKey("testcode123")
+        val kdfSalt = CryptoHelper.generateSalt()
+        val key = CryptoHelper.deriveKey("testcode123", kdfSalt)
         val challenge = CryptoHelper.generateChallenge()
         val nonce1 = CryptoHelper.generateNonce()
         val nonce2 = CryptoHelper.generateNonce()
@@ -109,7 +114,8 @@ class HandshakeInstrumentedTest {
 
     @Test
     fun verifyChallenge_WrongNonce_Fails() {
-        val key = CryptoHelper.deriveKey("testcode123")
+        val kdfSalt = CryptoHelper.generateSalt()
+        val key = CryptoHelper.deriveKey("testcode123", kdfSalt)
         val challenge = CryptoHelper.generateChallenge()
         val correctNonce = CryptoHelper.generateNonce()
         val wrongNonce = CryptoHelper.generateNonce()
@@ -122,7 +128,8 @@ class HandshakeInstrumentedTest {
 
     @Test
     fun encryptChallenge_TwoHandshakesSameSession_DifferentNonces() {
-        val key = CryptoHelper.deriveKey("testcode123")
+        val kdfSalt = CryptoHelper.generateSalt()
+        val key = CryptoHelper.deriveKey("testcode123", kdfSalt)
         val challenge1 = CryptoHelper.generateChallenge()
         val challenge2 = CryptoHelper.generateChallenge()
         val nonce1 = CryptoHelper.generateNonce()
@@ -149,5 +156,17 @@ class HandshakeInstrumentedTest {
         assertNotNull(response)
         val negotiated = Handshake.negotiateCapabilities(childCaps, response!!.capabilities)
         assertEquals(Handshake.CAP_G711_ULAW, negotiated)
+    }
+
+    @Test
+    fun handshake_DifferentSalts_DeriveDifferentKeys() {
+        val salt1 = CryptoHelper.generateSalt()
+        val salt2 = CryptoHelper.generateSalt()
+
+        val key1 = CryptoHelper.deriveKey("sameCode", salt1)
+        val key2 = CryptoHelper.deriveKey("sameCode", salt2)
+
+        assertFalse("Same pairing code with different salts must derive different keys",
+            key1.contentEquals(key2))
     }
 }
