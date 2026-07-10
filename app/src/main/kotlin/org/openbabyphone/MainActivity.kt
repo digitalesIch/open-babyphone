@@ -23,6 +23,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
@@ -94,9 +95,15 @@ class MainActivity : ComponentActivity() {
                             }
                         ) {
                             composable<Start> {
+                                val context = LocalContext.current
                                 StartScreen(
                                     onNavigateToMonitor = { navController.navigate(Monitor) },
-                                    onNavigateToDiscover = { navController.navigate(Discover) }
+                                    onNavigateToDiscover = { navController.navigate(Discover) },
+                                    onNavigateToSettings = {
+                                        context.startActivity(
+                                            Intent(context, SettingsActivity::class.java)
+                                        )
+                                    }
                                 )
                             }
                             composable<Monitor> {
