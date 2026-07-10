@@ -106,6 +106,19 @@ class TrustedChildStoreTest {
     }
 
     @Test
+    fun `upsert preserves lastKnown when re-scanning existing child`() {
+        store.upsert(TrustedChild("child1", "pair1", "Nursery", "code123"))
+        store.updateLastKnown("child1", "192.168.1.100", 10000)
+        store.upsert(TrustedChild("child1", "pair2", "Nursery", "newcode"))
+        val child = store.findById("child1")!!
+        assertEquals("pair2", child.pairingId)
+        assertEquals("newcode", child.pairingCode)
+        assertEquals("192.168.1.100", child.lastKnownAddress)
+        assertEquals(10000, child.lastKnownPort)
+        assertTrue(child.lastSeenAt > 0)
+    }
+
+    @Test
     fun `matchesPairing returns true for same pairingId`() {
         val child = TrustedChild("child1", "pair1", "Nursery", "code123")
         assertTrue(child.matchesPairing("pair1"))

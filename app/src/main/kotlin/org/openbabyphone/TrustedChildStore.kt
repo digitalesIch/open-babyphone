@@ -82,8 +82,18 @@ class TrustedChildStore(context: Context) {
      */
     fun upsert(child: TrustedChild) {
         synchronized(cached) {
+            val existing = cached.firstOrNull { it.childId == child.childId }
+            val toStore = if (existing != null && child.lastKnownAddress == null) {
+                child.copy(
+                    lastKnownAddress = existing.lastKnownAddress,
+                    lastKnownPort = existing.lastKnownPort,
+                    lastSeenAt = existing.lastSeenAt
+                )
+            } else {
+                child
+            }
             cached.removeAll { it.childId == child.childId }
-            cached.add(child)
+            cached.add(toStore)
             persist()
         }
     }

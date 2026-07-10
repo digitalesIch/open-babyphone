@@ -125,6 +125,8 @@ fun DiscoverScreen(
                     ) {
                         uiState.trustedChildren.forEach { child ->
                             val isOnline = uiState.devices.any { it.childId == child.childId }
+                            val device = uiState.devices.firstOrNull { it.childId == child.childId }
+                            val hasLastKnown = child.lastKnownAddress != null && child.lastKnownPort != null
                             OdOutlinedCard(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -147,12 +149,18 @@ fun DiscoverScreen(
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
+                                            if (!isOnline && hasLastKnown) {
+                                                Text(
+                                                    stringResource(R.string.last_known_address, child.lastKnownAddress ?: ""),
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
                                         }
                                         OdSignalBars(strength = if (isOnline) 4 else 0)
                                         Spacer(modifier = Modifier.height(Spacing.space8))
                                         Button(
                                             onClick = {
-                                            val device = uiState.devices.firstOrNull { it.childId == child.childId }
                                             if (device != null) {
                                                 val code = viewModel.pairingCodeFor(device)
                                                 onNavigateToListen(
@@ -161,14 +169,24 @@ fun DiscoverScreen(
                                                     device.visibleName,
                                                     code
                                                 )
+                                            } else if (hasLastKnown) {
+                                                onNavigateToListen(
+                                                    child.lastKnownAddress!!,
+                                                    child.lastKnownPort!!,
+                                                    child.displayName,
+                                                    child.pairingCode
+                                                )
                                             }
                                         },
-                                        enabled = isOnline,
+                                        enabled = isOnline || hasLastKnown,
                                         modifier = Modifier.testTag("connect_known_${child.childId}")
                                     ) {
-                                        Text(stringResource(R.string.connect_to_child))
+                                        Text(
+                                            if (isOnline) stringResource(R.string.connect_to_child)
+                                            else stringResource(R.string.try_last_address)
+                                        )
                                     }
-                                    OutlinedButton(
+                                        OutlinedButton(
                                         onClick = { forgetChildId = child.childId },
                                         modifier = Modifier.testTag("forget_${child.childId}")
                                     ) {
