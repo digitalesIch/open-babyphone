@@ -260,6 +260,7 @@ class ListenService : Service() {
     }
 
     private var reconnectAttempts = 0
+    private val reconnectBackoff = ReconnectBackoff()
     private val jitterBuffer = JitterBuffer()
 
     private fun doListen(address: String?, port: Int, pairingCode: String?) {
@@ -300,7 +301,12 @@ class ListenService : Service() {
                             val status = getString(R.string.reconnecting_status, reconnectAttempts, MAX_RECONNECT_ATTEMPTS)
                             Log.i(TAG, status)
                             postStatus(status)
-                            Thread.sleep(RECONNECT_DELAY_MS)
+                            try {
+                                Thread.sleep(reconnectBackoff.delayForAttempt(reconnectAttempts))
+                            } catch (ie: InterruptedException) {
+                                Thread.currentThread().interrupt()
+                                shouldReconnect = false
+                            }
                         } else {
                             Log.e(TAG, "Max reconnect attempts reached")
                             handleTerminalConnectionFailure()
@@ -316,7 +322,7 @@ class ListenService : Service() {
                             Log.w(TAG, "Connection error, $status", e)
                             postStatus(status)
                             try {
-                                Thread.sleep(RECONNECT_DELAY_MS)
+                                Thread.sleep(reconnectBackoff.delayForAttempt(reconnectAttempts))
                             } catch (ie: InterruptedException) {
                                 Thread.currentThread().interrupt()
                                 shouldReconnect = false
@@ -621,7 +627,6 @@ class ListenService : Service() {
         private const val ALERT_REQUEST_CODE = 1
         private const val FOREGROUND_REQUEST_CODE = 0
         private const val MAX_RECONNECT_ATTEMPTS = 5
-        private const val RECONNECT_DELAY_MS = 2000L
         private const val SOCKET_READ_TIMEOUT_MS = 1000
         private const val AUTH_TIMEOUT_MS = 10_000
         private const val CONNECT_TIMEOUT_MS = 10_000
