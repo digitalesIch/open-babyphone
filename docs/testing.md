@@ -183,6 +183,7 @@ Before tagging a release, record the following:
 - [ ] Android versions: ___
 - [ ] Scenarios passed: ___ / 40
 - [ ] Release keystore and passwords backed up outside the repository: yes / no
+- [ ] APK signing certificate SHA-256 matches expected fingerprint: yes / no
 - [ ] Known issues at release time: ___
 - [ ] Bugs filed for failures: ___
 

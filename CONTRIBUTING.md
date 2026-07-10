@@ -80,6 +80,29 @@ release APK as before.
 Production release keys must be backed up before the first public release and
 must never be committed to the repository.
 
+### Release Signing Policy
+
+All GitHub and website APK releases are signed with the same Open Babyphone
+release key. Updates are supported only within this release channel: a newer
+signed release APK can be installed over an older one with the same key
+without uninstalling first.
+
+If a user installed a debug build or an APK signed with a different key, they
+must uninstall once before installing a signed release. Android does not allow
+cross-signature updates; this is a platform security feature.
+
+The public signing certificate SHA-256 fingerprint for Open Babyphone release
+APKs is:
+
+    4485986d9734544bb5cfd0d5f230e1f37ee69ddd91b239696c8dae299e0e5536
+
+Users can verify a downloaded APK with:
+
+    apksigner verify --print-certs app-release.apk
+
+The SHA-256 digest must match the fingerprint above. The fingerprint is not
+secret; only the private keystore and its passwords must remain private.
+
 ## Explain Your Work
 
 At the top of every patch you should include a description of the problem you
