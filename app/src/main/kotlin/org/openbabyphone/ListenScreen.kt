@@ -300,13 +300,13 @@ private fun VolumeCanvas(
             )
         }
 
-        if (volumeHistory.isEmpty()) return@Canvas
+        if (volumeHistory.size < 2) return@Canvas
 
         val waveInset = width * 0.08f
         val waveWidth = width - waveInset * 2f
         val centerY = height * 0.48f
-        val pointCount = min(72, volumeHistory.size).coerceAtLeast(2)
-        val sampleStart = (volumeHistory.size - pointCount).coerceAtLeast(0)
+        val pointCount = min(72, volumeHistory.size)
+        val sampleStart = volumeHistory.size - pointCount
         val points = List(pointCount) { index ->
             val sampleIndex = sampleStart + index
             val normalized = (volumeHistory[sampleIndex] * volumeNorm).coerceIn(0f, 1f)
@@ -353,7 +353,7 @@ private fun VolumeCanvas(
     }
 }
 
-private fun rollingLoudness(volumeHistory: FloatArray, volumeNorm: Float): Float {
+internal fun rollingLoudness(volumeHistory: FloatArray, volumeNorm: Float): Float {
     if (volumeHistory.isEmpty()) return 0f
     val sampleCount = min(volumeHistory.size, 48)
     var peak = 0f
@@ -367,7 +367,7 @@ private fun rollingLoudness(volumeHistory: FloatArray, volumeNorm: Float): Float
     return (average * 0.65f + peak * 0.35f).coerceIn(0f, 1f)
 }
 
-private fun normalizedRecentSample(
+internal fun normalizedRecentSample(
     volumeHistory: FloatArray,
     volumeNorm: Float,
     index: Int,
