@@ -7,6 +7,7 @@ import org.openbabyphone.MonitorService
 import org.openbabyphone.PairingCode
 import org.openbabyphone.R
 import org.openbabyphone.service.MonitorServiceRepository
+import org.openbabyphone.service.MonitorSessionState
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -28,8 +29,9 @@ class MonitorViewModelTest {
         val prefs = context.getSharedPreferences(MonitorService.PAIRING_PREFS_NAME, Application.MODE_PRIVATE)
         prefs.edit().clear().apply()
 
+        MonitorServiceRepository.reset()
         MonitorServiceRepository.updateServiceInfo("", 10000, emptyList())
-        MonitorServiceRepository.updateStatus(context.getString(R.string.waiting_for_parent))
+        MonitorServiceRepository.updateSessionState(MonitorSessionState.WaitingForParent)
         MonitorServiceRepository.updateConnectedClients(0)
 
         viewModel = MonitorViewModel(context)

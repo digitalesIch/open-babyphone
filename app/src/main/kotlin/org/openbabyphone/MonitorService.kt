@@ -38,6 +38,7 @@ import androidx.core.app.ServiceCompat
 import org.openbabyphone.BuildConfig
 import org.openbabyphone.audio.FrameCodec
 import org.openbabyphone.service.MonitorServiceRepository
+import org.openbabyphone.service.MonitorSessionState
 import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.ServerSocket
@@ -170,9 +171,7 @@ class MonitorService : Service() {
         }
 
         val clientCount = clientManager.getClientCount()
-        MonitorServiceRepository.updateStatus(
-            resources.getQuantityString(R.plurals.connected_clients, clientCount, clientCount)
-        )
+        MonitorServiceRepository.updateSessionState(MonitorSessionState.Connected(clientCount))
         MonitorServiceRepository.updateConnectedClients(clientCount)
 
         if (!clientManager.canAcceptMoreClients()) {
@@ -196,7 +195,7 @@ class MonitorService : Service() {
         val key = streamKey
 
         isStreaming = true
-        MonitorServiceRepository.updateStatus(getString(R.string.streaming))
+        MonitorServiceRepository.updateSessionState(MonitorSessionState.Starting)
 
         audioProducerThread = Thread {
             val frequency: Int = AudioCodecDefines.FREQUENCY
@@ -299,8 +298,8 @@ class MonitorService : Service() {
         val n = buildNotification()
         ServiceCompat.startForeground(this, ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
         clientManager.setClientCountListener { count ->
-            MonitorServiceRepository.updateStatus(
-                resources.getQuantityString(R.plurals.connected_clients, count, count)
+            MonitorServiceRepository.updateSessionState(
+                if (count > 0) MonitorSessionState.Connected(count) else MonitorSessionState.WaitingForParent
             )
             MonitorServiceRepository.updateConnectedClients(count)
             if (clientManager.canAcceptMoreClients() && registrationListener == null && connectionToken != null) {
@@ -436,7 +435,7 @@ class MonitorService : Service() {
                 nsdServiceInfo.serviceName.let { serviceName ->
                     Log.i(TAG, "Service name: $serviceName")
                     MonitorServiceRepository.updateServiceInfo(serviceName, port, listenAddresses)
-                    MonitorServiceRepository.updateStatus(getString(R.string.waiting_for_parent))
+                    MonitorServiceRepository.updateSessionState(MonitorSessionState.WaitingForParent)
                 }
             }
 
@@ -521,7 +520,7 @@ class MonitorService : Service() {
             }
         }
         this.currentSocket = null
-        MonitorServiceRepository.updateStatus(getString(R.string.stopped))
+        MonitorServiceRepository.updateSessionState(MonitorSessionState.Stopped)
 
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         Toast.makeText(this, R.string.stopped, Toast.LENGTH_SHORT).show()

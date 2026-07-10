@@ -15,6 +15,7 @@ import org.openbabyphone.R
 import org.openbabyphone.WifiDirectController
 import org.openbabyphone.WifiDirectState
 import org.openbabyphone.service.MonitorServiceRepository
+import org.openbabyphone.service.MonitorSessionState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -52,7 +53,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         val name: String,
         val port: Int,
         val addresses: List<String>,
-        val status: String,
+        val sessionState: MonitorSessionState,
         val microphoneSensitivity: MicrophoneSensitivity
     )
 
@@ -64,10 +65,10 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             MonitorServiceRepository.serviceName,
             MonitorServiceRepository.port,
             MonitorServiceRepository.addresses,
-            MonitorServiceRepository.status,
+            MonitorServiceRepository.sessionState,
             _microphoneSensitivity
-        ) { name, port, addresses, status, micSensitivity ->
-            ServiceInfo(name, port, addresses, status, micSensitivity)
+        ) { name, port, addresses, sessionState, micSensitivity ->
+            ServiceInfo(name, port, addresses, sessionState, micSensitivity)
         },
         wifiDirectController.state
     ) { pairingCode, deviceName, clients, info, wifiDirect ->
@@ -82,6 +83,17 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         } else {
             ""
         }
+        val status = when (info.sessionState) {
+            is MonitorSessionState.Setup -> ""
+            is MonitorSessionState.Starting -> getApplication<Application>().getString(R.string.streaming)
+            is MonitorSessionState.WaitingForParent -> waitingForParentStatus
+            is MonitorSessionState.Connected -> getApplication<Application>().resources.getQuantityString(
+                R.plurals.connected_clients, info.sessionState.parentCount, info.sessionState.parentCount
+            )
+            is MonitorSessionState.NoNetwork -> getApplication<Application>().getString(R.string.not_connected)
+            is MonitorSessionState.Error -> info.sessionState.reason
+            is MonitorSessionState.Stopped -> getApplication<Application>().getString(R.string.stopped)
+        }
         MonitorUiState(
             pairingCode = pairingCode,
             pairingCodeValid = PairingCode.isValid(pairingCode),
@@ -89,7 +101,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             serviceName = info.name.ifEmpty { loadingLabel },
             port = info.port,
             addresses = info.addresses,
-            status = info.status.ifEmpty { waitingForParentStatus },
+            status = status.ifEmpty { waitingForParentStatus },
             connectedClients = clients,
             isLoading = info.name.isEmpty(),
             wifiDirectState = wifiDirect,

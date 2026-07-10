@@ -23,7 +23,7 @@ class ListenViewModelTest {
     @Before
     fun setup() {
         context = RuntimeEnvironment.getApplication() as Application
-        ListenServiceRepository.startConnecting("")
+        ListenServiceRepository.reset()
         viewModel = ListenViewModel(context)
     }
 
@@ -44,8 +44,8 @@ class ListenViewModelTest {
     }
 
     @Test
-    fun `connected status reflects in state`() = runTest {
-        ListenServiceRepository.updateConnected(true)
+    fun `listening state reflects in state`() = runTest {
+        ListenServiceRepository.updateListening()
         val state = viewModel.uiState.first { it.isConnected }
         assertTrue(state.isConnected)
         assertFalse(state.isReconnecting)
@@ -53,27 +53,28 @@ class ListenViewModelTest {
 
     @Test
     fun `error updates state to disconnected`() = runTest {
-        ListenServiceRepository.updateError()
+        ListenServiceRepository.updateError(context.getString(R.string.disconnected))
         val state = viewModel.uiState.first { it.isError }
         assertTrue(state.isError)
         assertFalse(state.isConnected)
         assertFalse(state.isReconnecting)
-        assertEquals("Disconnected", state.status)
+        assertEquals(context.getString(R.string.disconnected), state.status)
     }
 
     @Test
-    fun `reconnecting status reflects in state`() = runTest {
-        ListenServiceRepository.updateStatus(context.getString(R.string.reconnecting_status, 1, 3))
+    fun `reconnecting state reflects in state`() = runTest {
+        ListenServiceRepository.updateReconnecting(1, 5)
         val state = viewModel.uiState.first { it.isReconnecting }
         assertFalse(state.isConnected)
         assertFalse(state.isError)
         assertTrue(state.isReconnecting)
+        assertEquals(context.getString(R.string.reconnecting_status, 1, 5), state.status)
     }
 
     @Test
     fun `successful reconnect clears previous error`() = runTest {
-        ListenServiceRepository.updateError()
-        ListenServiceRepository.updateConnected(true)
+        ListenServiceRepository.updateError(context.getString(R.string.disconnected))
+        ListenServiceRepository.updateListening()
 
         val state = viewModel.uiState.first { it.isConnected }
         assertFalse(state.isError)

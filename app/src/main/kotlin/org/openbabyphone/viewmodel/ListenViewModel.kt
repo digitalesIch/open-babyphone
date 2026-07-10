@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import org.openbabyphone.R
 import org.openbabyphone.service.ListenServiceRepository
+import org.openbabyphone.service.ListenSessionState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -33,35 +34,35 @@ class ListenViewModel(application: Application) : AndroidViewModel(application) 
         _volumeNorm,
         combine(
             ListenServiceRepository.childDeviceName,
-            ListenServiceRepository.status,
-            ListenServiceRepository.isConnected
-        ) { name, status, connected ->
-            Triple(name, status, connected)
-        },
+            ListenServiceRepository.sessionState
+        ) { name, state -> name to state },
         ListenServiceRepository.isError
     ) { volumeHistory, volumeNorm, repoInfo, isError ->
-        val connected = repoInfo.third
-        val status = repoInfo.second.ifEmpty {
-            when {
-                isError -> disconnectedStatus
-                connected -> listeningStatus
-                else -> connectingStatus
-            }
+        val (name, sessionState) = repoInfo
+        val connected = sessionState is ListenSessionState.Listening
+        val status = when (sessionState) {
+            is ListenSessionState.Listening -> listeningStatus
+            is ListenSessionState.Reconnecting -> application.getString(
+                R.string.reconnecting_status, sessionState.attempt, sessionState.maxAttempts
+            )
+            is ListenSessionState.Disrupted -> application.getString(R.string.connection_disrupted)
+            is ListenSessionState.Error -> disconnectedStatus
+            is ListenSessionState.Lost -> disconnectedStatus
+            is ListenSessionState.Connecting -> connectingStatus
+            is ListenSessionState.Stopped -> disconnectedStatus
         }
         ListenUiState(
-            childDeviceName = repoInfo.first,
+            childDeviceName = name,
             status = status,
             volumeHistory = volumeHistory,
             volumeNorm = volumeNorm,
             isConnected = connected,
             isError = isError,
-            isReconnecting = !connected && !isError && status.startsWith("Reconnecting")
+            isReconnecting = sessionState is ListenSessionState.Reconnecting
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ListenUiState(status = connectingStatus))
 
     fun connect(address: String, port: Int, name: String, pairingCode: String) {
-        // ListenService will be started via Intent
-        // Repository will be updated by service callbacks
     }
 
     fun updateVolumeHistory(history: FloatArray, norm: Float) {
