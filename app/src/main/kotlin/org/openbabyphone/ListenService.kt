@@ -41,6 +41,7 @@ import org.openbabyphone.audio.FrameCodec
 import org.openbabyphone.audio.FrameHeader
 import org.openbabyphone.audio.JitterBuffer
 import org.openbabyphone.service.ListenServiceRepository
+import org.openbabyphone.service.ListenSessionState
 import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.Socket
@@ -101,7 +102,7 @@ class ListenService : Service() {
             val pairingCode = it.getString("pairingCode")
             lastAddress = address
             lastPort = port
-            ListenServiceRepository.startConnecting(name ?: "", getString(R.string.connecting))
+            ListenServiceRepository.startConnecting(name ?: "")
             if (BuildConfig.DEBUG) {
                 Log.d(TAG, "Connecting to $address:$port")
             }
@@ -117,7 +118,7 @@ class ListenService : Service() {
         isRunning = false
         stopListenThread()
         abandonAudioFocus()
-        ListenServiceRepository.updateConnected(false)
+        ListenServiceRepository.updateStopped()
 
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         Toast.makeText(this, R.string.stopped, Toast.LENGTH_SHORT).show()
@@ -290,7 +291,7 @@ class ListenService : Service() {
                     } else {
                         reconnectAttempts = 0
                         notificationManager.cancel(ALERT_NOTIFICATION_ID)
-                        ListenServiceRepository.updateConnected(true, getString(R.string.listening))
+                        ListenServiceRepository.updateListening()
                         val streamResult = streamAudio(socket, sessionInfo.key, sessionInfo.sessionId)
                         shouldReconnect = !streamResult
                     }
@@ -298,9 +299,7 @@ class ListenService : Service() {
                     if (shouldReconnect && isRunning) {
                         reconnectAttempts++
                         if (reconnectAttempts <= MAX_RECONNECT_ATTEMPTS) {
-                            val status = getString(R.string.reconnecting_status, reconnectAttempts, MAX_RECONNECT_ATTEMPTS)
-                            Log.i(TAG, status)
-                            postStatus(status)
+                            postReconnecting(reconnectAttempts)
                             try {
                                 Thread.sleep(reconnectBackoff.delayForAttempt(reconnectAttempts))
                             } catch (ie: InterruptedException) {
@@ -318,9 +317,7 @@ class ListenService : Service() {
                     if (shouldReconnect) {
                         reconnectAttempts++
                         if (reconnectAttempts <= MAX_RECONNECT_ATTEMPTS) {
-                            val status = getString(R.string.reconnecting_status, reconnectAttempts, MAX_RECONNECT_ATTEMPTS)
-                            Log.w(TAG, "Connection error, $status", e)
-                            postStatus(status)
+                            postReconnecting(reconnectAttempts)
                             try {
                                 Thread.sleep(reconnectBackoff.delayForAttempt(reconnectAttempts))
                             } catch (ie: InterruptedException) {
@@ -398,8 +395,10 @@ class ListenService : Service() {
         }
     }
 
-    private fun postStatus(status: String) {
-        ListenServiceRepository.updateStatus(status)
+    private fun postReconnecting(attempt: Int) {
+        val status = getString(R.string.reconnecting_status, attempt, MAX_RECONNECT_ATTEMPTS)
+        Log.i(TAG, status)
+        ListenServiceRepository.updateReconnecting(attempt, MAX_RECONNECT_ATTEMPTS)
         onStatusChange?.let { callback ->
             android.os.Handler(android.os.Looper.getMainLooper()).post {
                 callback(status)
@@ -501,7 +500,7 @@ class ListenService : Service() {
                     if (streamDisruptedTime == null) {
                         streamDisruptedTime = currentTime
                         Log.w(TAG, "Stream disrupted - no frames for ${timeSinceLastFrame}ms")
-                        postStatus(getString(R.string.connection_disrupted))
+                        ListenServiceRepository.updateDisrupted()
                     }
                 } else {
                     streamDisruptedTime = null
