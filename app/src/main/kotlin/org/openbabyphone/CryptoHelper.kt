@@ -23,7 +23,7 @@ object CryptoHelper {
 
     private const val ARGON2_OPS_LIMIT = 3
     private const val ARGON2_MEM_LIMIT = 16 * 1024 * 1024
-    private val ARGON2_SALT = "openbabyphone.argon2id.salt.v1".toByteArray(Charsets.UTF_8)
+    const val SALT_SIZE = 16
     private val EMPTY_BYTES = ByteArray(0)
 
     const val SESSION_ID_SIZE = 8
@@ -35,7 +35,8 @@ object CryptoHelper {
         NaCl.sodium()
     }
 
-    fun deriveKey(pairingCode: String): ByteArray {
+    fun deriveKey(pairingCode: String, salt: ByteArray): ByteArray {
+        require(salt.size == SALT_SIZE) { "salt must be $SALT_SIZE bytes, got ${salt.size}" }
         val codeBytes = pairingCode.toByteArray(Charsets.UTF_8)
         val key = ByteArray(32)
         val result = Sodium.crypto_pwhash(
@@ -43,15 +44,21 @@ object CryptoHelper {
             key.size,
             codeBytes,
             codeBytes.size,
-            ARGON2_SALT,
+            salt,
             ARGON2_OPS_LIMIT,
             ARGON2_MEM_LIMIT,
-            Sodium.crypto_pwhash_alg_argon2i13()
+            Sodium.crypto_pwhash_alg_default()
         )
         if (result != 0) {
             throw IllegalStateException("crypto_pwhash failed with code $result")
         }
         return key
+    }
+
+    fun generateSalt(): ByteArray {
+        val salt = ByteArray(SALT_SIZE)
+        Sodium.randombytes_buf(salt, SALT_SIZE)
+        return salt
     }
 
     fun generateSessionId(): ByteArray {

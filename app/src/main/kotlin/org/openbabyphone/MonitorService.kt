@@ -64,6 +64,7 @@ class MonitorService : Service() {
     private var pairingCodeSnapshot: String = ""
     private var streamSessionId: ByteArray? = null
     private var streamKey: ByteArray? = null
+    private var streamKdfSalt: ByteArray? = null
     @Volatile private var microphoneGain: Float = 1.0f
     private var prefsListener: SharedPreferences.OnSharedPreferenceChangeListener? = null
 
@@ -97,12 +98,13 @@ class MonitorService : Service() {
     private fun authenticateParent(socket: Socket): Boolean {
         val sessionId = streamSessionId ?: return false
         val key = streamKey
+        val kdfSalt = streamKdfSalt
         val authRequired = key != null
         return try {
             socket.soTimeout = AUTH_TIMEOUT_MS
             val challenge = if (authRequired) CryptoHelper.generateChallenge() else null
             val authNonce = if (authRequired) CryptoHelper.generateNonce() else null
-            Handshake.writeHandshake(socket.getOutputStream(), sessionId, authRequired, challenge, authNonce)
+            Handshake.writeHandshake(socket.getOutputStream(), sessionId, authRequired, challenge, authNonce, kdfSalt)
             if (!authRequired) {
                 val capResponse = Handshake.readCapabilityResponse(socket.getInputStream())
                 if (capResponse == null) {
@@ -322,7 +324,9 @@ class MonitorService : Service() {
             return
         }
         streamSessionId = CryptoHelper.generateSessionId()
-        streamKey = pairingCode.takeIf { it.isNotBlank() }?.let(CryptoHelper::deriveKey)
+        val kdfSalt = ensureKdfSalt()
+        streamKdfSalt = kdfSalt
+        streamKey = pairingCode.takeIf { it.isNotBlank() }?.let { CryptoHelper.deriveKey(it, kdfSalt) }
         val currentToken = Any()
         this.connectionToken = currentToken
         mt = Thread {
@@ -537,6 +541,22 @@ class MonitorService : Service() {
         prefs.registerOnSharedPreferenceChangeListener(prefsListener)
     }
 
+    private fun ensureKdfSalt(): ByteArray {
+        val prefs = getSharedPreferences(PAIRING_PREFS_NAME, MODE_PRIVATE)
+        val existing = prefs.getString(PREF_KEY_KDF_SALT, null)
+        if (existing != null) {
+            val decoded = android.util.Base64.decode(existing, android.util.Base64.NO_WRAP)
+            if (decoded.size == CryptoHelper.SALT_SIZE) {
+                return decoded
+            }
+        }
+        val newSalt = CryptoHelper.generateSalt()
+        prefs.edit()
+            .putString(PREF_KEY_KDF_SALT, android.util.Base64.encodeToString(newSalt, android.util.Base64.NO_WRAP))
+            .apply()
+        return newSalt
+    }
+
     override fun onBind(intent: Intent): IBinder = binder
 
     inner class MonitorBinder : Binder() {
@@ -552,6 +572,7 @@ class MonitorService : Service() {
         const val PREF_KEY_PAIRING_CODE = "pairingCode"
         const val PREF_KEY_DEVICE_NAME = "deviceName"
         const val PREF_KEY_MICROPHONE_SENSITIVITY = "microphoneSensitivity"
+        const val PREF_KEY_KDF_SALT = "kdfSalt"
         private const val AUTH_TIMEOUT_MS = 10_000
     }
 }

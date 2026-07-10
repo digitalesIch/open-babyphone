@@ -375,7 +375,7 @@ class ListenService : Service() {
                     Log.e(TAG, "Child requires pairing code but none provided")
                     return null
                 }
-                val key = CryptoHelper.deriveKey(code)
+                val key = CryptoHelper.deriveKey(code, handshake.kdfSalt!!)
                 val encryptedChallenge = CryptoHelper.encryptChallenge(handshake.challenge!!, key, handshake.authNonce!!)
                 Handshake.writeAuthResponse(socket.getOutputStream(), encryptedChallenge)
                 Handshake.writeCapabilityResponse(socket.getOutputStream())
