@@ -98,6 +98,8 @@
     <string name="connect_to_child">Connect</string>
     <string name="pairing_reset_notice">Pairing was reset on this child. Scan the QR code again to reconnect.</string>
     <string name="trusted_child_not_found">Not found yet. Make sure the child device is monitoring and on the same network.</string>
+    <string name="last_known_address">Last seen at %1$s</string>
+    <string name="try_last_address">Try last address</string>
     <string name="child_added_to_known">Child added to known devices</string>
     <string name="reset_pairing">Reset Pairing</string>
     <string name="reset_pairing_confirmation">This will generate a new pairing code. All parent devices must re-scan the QR code to reconnect. Continue?</string>
