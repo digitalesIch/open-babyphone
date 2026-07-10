@@ -110,7 +110,7 @@ class ListenService : Service() {
             stopListenThread()
             doListen(address, port, pairingCode)
         }
-        return START_NOT_STICKY
+        return START_REDELIVER_INTENT
     }
 
     override fun onDestroy() {
