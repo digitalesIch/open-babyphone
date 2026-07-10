@@ -117,4 +117,7 @@
     <string name="microphone_sensitivity_normal">Normal</string>
     <string name="microphone_sensitivity_high">High</string>
     <string name="microphone_sensitivity_very_high">Very high</string>
+    <string name="battery_optimization_title">Keep monitoring running</string>
+    <string name="battery_optimization_description">Some Android devices stop foreground services overnight unless battery restrictions are disabled for this app. Allow unrestricted battery use for more reliable baby monitoring.</string>
+    <string name="battery_optimization_action">Open battery settings</string>
 </resources>

@@ -3,6 +3,7 @@ package org.openbabyphone.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import org.openbabyphone.BatteryOptimization
 import org.openbabyphone.ConnectionConstants
 import org.openbabyphone.ChildDeviceIdentityStore
 import org.openbabyphone.DeviceName
@@ -37,13 +38,15 @@ data class MonitorUiState(
     val wifiDirectState: WifiDirectState = WifiDirectState.Idle,
     val wifiDirectSupported: Boolean = true,
     val qrPayload: String = "",
-    val microphoneSensitivity: MicrophoneSensitivity = MicrophoneSensitivity.NORMAL
+    val microphoneSensitivity: MicrophoneSensitivity = MicrophoneSensitivity.NORMAL,
+    val batteryOptimizationIgnored: Boolean = false
 )
 
 class MonitorViewModel(application: Application) : AndroidViewModel(application) {
     private val _pairingCode = MutableStateFlow("")
     private val _deviceName = MutableStateFlow("")
     private val _microphoneSensitivity = MutableStateFlow(MicrophoneSensitivity.NORMAL)
+    private val _batteryOptimizationIgnored = MutableStateFlow(false)
     private val loadingLabel = application.getString(R.string.loading)
     private val waitingForParentStatus = application.getString(R.string.waiting_for_parent)
 
@@ -63,9 +66,16 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         val microphoneSensitivity: MicrophoneSensitivity
     )
 
+    private data class SetupInfo(
+        val pairingCode: String,
+        val deviceName: String,
+        val batteryOptimizationIgnored: Boolean
+    )
+
     val uiState: StateFlow<MonitorUiState> = combine(
-        _pairingCode,
-        _deviceName,
+        combine(_pairingCode, _deviceName, _batteryOptimizationIgnored) { pairingCode, deviceName, batteryOptimizationIgnored ->
+            SetupInfo(pairingCode, deviceName, batteryOptimizationIgnored)
+        },
         MonitorServiceRepository.connectedClients,
         combine(
             MonitorServiceRepository.serviceName,
@@ -83,14 +93,14 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             ServiceInfo(name, port, addresses, sessionState, isMonitoring, micSensitivity)
         },
         wifiDirectController.state
-    ) { pairingCode, deviceName, clients, info, wifiDirect ->
+    ) { setupInfo, clients, info, wifiDirect ->
         val identity = childIdentityStore.identity
-        val qrPayload = if (pairingCode.isNotEmpty() && PairingCode.isValid(pairingCode)) {
+        val qrPayload = if (setupInfo.pairingCode.isNotEmpty() && PairingCode.isValid(setupInfo.pairingCode)) {
             PairingQrCode.buildPayload(
                 childId = identity.childId,
                 pairingId = identity.pairingId,
-                name = deviceName,
-                pairingCode = pairingCode
+                name = setupInfo.deviceName,
+                pairingCode = setupInfo.pairingCode
             )
         } else {
             ""
@@ -107,9 +117,9 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             is MonitorSessionState.Stopped -> getApplication<Application>().getString(R.string.stopped)
         }
         MonitorUiState(
-            pairingCode = pairingCode,
-            pairingCodeValid = PairingCode.isValid(pairingCode),
-            deviceName = deviceName,
+            pairingCode = setupInfo.pairingCode,
+            pairingCodeValid = PairingCode.isValid(setupInfo.pairingCode),
+            deviceName = setupInfo.deviceName,
             serviceName = info.name.ifEmpty { loadingLabel },
             port = info.port,
             addresses = info.addresses,
@@ -120,7 +130,8 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             wifiDirectState = wifiDirect,
             wifiDirectSupported = wifiDirectSupported,
             qrPayload = qrPayload,
-            microphoneSensitivity = info.microphoneSensitivity
+            microphoneSensitivity = info.microphoneSensitivity,
+            batteryOptimizationIgnored = setupInfo.batteryOptimizationIgnored
         )
     }.stateIn(
         viewModelScope,
@@ -149,6 +160,11 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             prefs.getString(MonitorService.PREF_KEY_MICROPHONE_SENSITIVITY, null)
         )
         _microphoneSensitivity.value = savedSensitivity
+        refreshBatteryOptimizationStatus()
+    }
+
+    fun refreshBatteryOptimizationStatus() {
+        _batteryOptimizationIgnored.value = BatteryOptimization.isIgnoringBatteryOptimizations(getApplication())
     }
 
     fun updatePairingCode(code: String) {
@@ -183,6 +199,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun startMonitoring() {
+        refreshBatteryOptimizationStatus()
         _isMonitoring.value = true
     }
 
