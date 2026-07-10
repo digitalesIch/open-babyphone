@@ -19,7 +19,9 @@ package org.openbabyphone
 import android.util.Log
 import java.net.Socket
 
-class ClientManager {
+class ClientManager(
+    private val clock: () -> Long = System::currentTimeMillis
+) {
     companion object {
         private const val TAG = "ClientManager"
         const val MAX_CLIENTS = 5
@@ -39,7 +41,7 @@ class ClientManager {
             Log.w(TAG, "Cannot add client - max clients ($MAX_CLIENTS) reached")
             return null
         }
-        val client = Client(socket, nextClientId++, pairingCode)
+        val client = Client(socket, nextClientId++, pairingCode, clock)
         clients.add(client)
         client.startSending()
         Log.i(TAG, "Client ${client.id} added, total: ${clients.size}/$MAX_CLIENTS")

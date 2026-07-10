@@ -229,7 +229,8 @@ class ClientManagerTest {
 
     @Test
     fun slowClient_IsDroppedAndOtherClientsContinue() {
-        val manager = ClientManager()
+        var fakeNow = 0L
+        val manager = ClientManager { fakeNow }
 
         val fastSocket = mock(Socket::class.java)
         `when`(fastSocket.getOutputStream()).thenReturn(object : OutputStream() {
@@ -264,14 +265,22 @@ class ClientManagerTest {
         assertTrue("Slow client send thread should start blocking within timeout",
             slowWriteStarted.await(5, java.util.concurrent.TimeUnit.SECONDS))
 
+        fakeNow = 1_000L
         for (i in 0 until Client.QUEUE_CAPACITY + Client.MAX_DROPPED_FRAMES + 10) {
             manager.broadcastFrame(ByteArray(100))
-            if (i % 10 == 0) Thread.sleep(2)
         }
+
+        assertFalse("Client should not disconnect within grace period",
+            manager.getClientCount() == 1)
+
+        Thread.sleep(200)
+        fakeNow = 1_000L + Client.SLOW_CLIENT_GRACE_MS + 1
+        manager.broadcastFrame(ByteArray(100))
 
         assertEquals(1, manager.getClientCount())
         assertTrue(slowClient!!.getDroppedFrameCount() >= Client.MAX_DROPPED_FRAMES)
 
+        slowWriteBlock.countDown()
         fastClient!!.stop()
     }
 
@@ -410,5 +419,85 @@ class ClientManagerTest {
         val socket2 = mock(Socket::class.java)
         manager.addClient(socket2, "test")
         assertEquals(1, counts.size)
+    }
+
+    @Test
+    fun shortTransientBurst_WithinGracePeriod_DoesNotDisconnect() {
+        var fakeNow = 0L
+        val manager = ClientManager { fakeNow }
+
+        val slowWriteStarted = java.util.concurrent.CountDownLatch(1)
+        val slowWriteBlock = java.util.concurrent.CountDownLatch(1)
+        val slowSocket = mock(Socket::class.java)
+        `when`(slowSocket.getOutputStream()).thenReturn(object : OutputStream() {
+            override fun write(b: Int) = Unit
+            override fun write(b: ByteArray, off: Int, len: Int) {
+                slowWriteStarted.countDown()
+                try {
+                    slowWriteBlock.await()
+                } catch (e: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    throw IOException(e)
+                }
+            }
+        })
+        val slowClient = manager.addClient(slowSocket, "test")
+        assertNotNull(slowClient)
+
+        manager.broadcastFrame(ByteArray(100))
+        assertTrue(slowWriteStarted.await(5, java.util.concurrent.TimeUnit.SECONDS))
+
+        fakeNow = 1_000L
+        repeat(Client.QUEUE_CAPACITY + Client.MAX_DROPPED_FRAMES + 10) {
+            manager.broadcastFrame(ByteArray(100))
+        }
+
+        assertTrue(slowClient!!.getDroppedFrameCount() >= Client.MAX_DROPPED_FRAMES)
+        assertFalse("Client should not disconnect within grace period", slowClient.shouldDisconnect())
+        assertEquals(1, manager.getClientCount())
+
+        slowWriteBlock.countDown()
+        slowClient.stop()
+    }
+
+    @Test
+    fun sustainedSlowClient_PastGracePeriod_Disconnects() {
+        var fakeNow = 0L
+        val manager = ClientManager { fakeNow }
+
+        val slowWriteStarted = java.util.concurrent.CountDownLatch(1)
+        val slowWriteBlock = java.util.concurrent.CountDownLatch(1)
+        val slowSocket = mock(Socket::class.java)
+        `when`(slowSocket.getOutputStream()).thenReturn(object : OutputStream() {
+            override fun write(b: Int) = Unit
+            override fun write(b: ByteArray, off: Int, len: Int) {
+                slowWriteStarted.countDown()
+                try {
+                    slowWriteBlock.await()
+                } catch (e: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    throw IOException(e)
+                }
+            }
+        })
+        val slowClient = manager.addClient(slowSocket, "test")
+        assertNotNull(slowClient)
+
+        manager.broadcastFrame(ByteArray(100))
+        assertTrue(slowWriteStarted.await(5, java.util.concurrent.TimeUnit.SECONDS))
+
+        fakeNow = 1_000L
+        repeat(Client.QUEUE_CAPACITY + Client.MAX_DROPPED_FRAMES + 10) {
+            manager.broadcastFrame(ByteArray(100))
+        }
+        assertFalse(slowClient!!.shouldDisconnect())
+
+        fakeNow = 1_000L + Client.SLOW_CLIENT_GRACE_MS + 1
+        manager.broadcastFrame(ByteArray(100))
+
+        assertEquals(0, manager.getClientCount())
+        assertTrue(slowClient.getDroppedFrameCount() >= Client.MAX_DROPPED_FRAMES)
+
+        slowWriteBlock.countDown()
     }
 }
