@@ -56,6 +56,13 @@
 - Admin/maintainer bypass may remain available for solo-maintainer operation, but use it only after CI is green and the change has been reviewed locally. "Reviewed locally" means manual/local inspection by the maintainer or agent, not a GitHub approving review.
 - If a second maintainer is added, enable one required approving review and stop routine bypass usage.
 
+## Roadmap And Project Tracking
+- The GitHub Project `Open Babyphone Roadmap` is the source of truth for both strategic and operational roadmap planning.
+- `ROADMAP.md` is a historical archive, not the active roadmap. Do not update it for routine issue status changes unless the user explicitly asks for an archive update.
+- Roadmap-relevant issues should be added to the Project and assigned a `Phase` value.
+- Use issue labels (`priority:*`, `cluster:*`, `security`, `ci`, etc.) for filtering; use the Project for roadmap phase/status.
+- Small one-off bugs do not need to be added to the Project unless they affect roadmap planning.
+
 ## Documentation Synchronization
 
 **Rule:** Whenever `README.md`, `CONTRIBUTING.md`, `NEWS`, or `ROADMAP.md` are modified, review this file for consistency.
@@ -65,5 +72,6 @@ Specifically verify:
 - Statements about missing tests reflect `app/src/test/` and `app/src/androidTest/` existence.
 - Claims about "stale" or "legacy" files match the current repository state.
 - Translation policy references the actual remaining `values-*/` directories.
+- Roadmap references point to the GitHub Project as the active roadmap, with `ROADMAP.md` treated as an archive.
 
 This file describes the project shape for AI agents; it must not contradict user-facing documentation.
