@@ -29,6 +29,10 @@ import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
 import android.media.MediaPlayer
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.Uri
 import android.os.Binder
 import android.os.IBinder
@@ -57,7 +61,9 @@ class ListenService : Service() {
     private val binder: IBinder = ListenBinder()
     private lateinit var notificationManager: NotificationManager
     private lateinit var audioManager: AudioManager
+    private lateinit var connectivityManager: ConnectivityManager
     private var listenThread: Thread? = null
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
     @Volatile private var currentSocket: Socket? = null
     @Volatile private var isRunning = false
     @Volatile private var hasAudioFocus = false
@@ -86,6 +92,7 @@ class ListenService : Service() {
         super.onCreate()
         this.notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         this.audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
+        this.connectivityManager = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
         createAlertNotificationChannel()
     }
 
@@ -108,6 +115,7 @@ class ListenService : Service() {
             }
             val n = buildForegroundNotification(name)
             ServiceCompat.startForeground(this, ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+            registerNetworkCallback()
             stopListenThread()
             doListen(address, port, pairingCode)
         }
@@ -116,6 +124,7 @@ class ListenService : Service() {
 
     override fun onDestroy() {
         isRunning = false
+        unregisterNetworkCallback()
         stopListenThread()
         abandonAudioFocus()
         ListenServiceRepository.updateStopped()
@@ -144,6 +153,48 @@ class ListenService : Service() {
         }
         listenThread = null
         currentSocket = null
+    }
+
+    private fun registerNetworkCallback() {
+        if (networkCallback != null) return
+
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                Log.i(TAG, "Network available, waking reconnect loop")
+                reconnectWakeSignal.signal()
+            }
+
+            override fun onLost(network: Network) {
+                if (isRunning) {
+                    Log.i(TAG, "Network lost during listening session")
+                    ListenServiceRepository.updateDisrupted()
+                }
+            }
+        }
+
+        val request = NetworkRequest.Builder()
+            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+            .addTransportType(NetworkCapabilities.TRANSPORT_ETHERNET)
+            .addTransportType(NetworkCapabilities.TRANSPORT_VPN)
+            .build()
+
+        try {
+            connectivityManager.registerNetworkCallback(request, callback)
+            networkCallback = callback
+        } catch (e: RuntimeException) {
+            Log.w(TAG, "Failed to register network callback", e)
+        }
+    }
+
+    private fun unregisterNetworkCallback() {
+        val callback = networkCallback ?: return
+        try {
+            connectivityManager.unregisterNetworkCallback(callback)
+        } catch (e: RuntimeException) {
+            Log.d(TAG, "Network callback already unregistered", e)
+        } finally {
+            networkCallback = null
+        }
     }
 
     override fun onBind(intent: Intent): IBinder = binder
@@ -262,6 +313,7 @@ class ListenService : Service() {
 
     private var reconnectAttempts = 0
     private val reconnectBackoff = ReconnectBackoff()
+    private val reconnectWakeSignal = ReconnectWakeSignal()
     private val jitterBuffer = JitterBuffer()
 
     private fun doListen(address: String?, port: Int, pairingCode: String?) {
@@ -301,7 +353,7 @@ class ListenService : Service() {
                         if (reconnectAttempts <= MAX_RECONNECT_ATTEMPTS) {
                             postReconnecting(reconnectAttempts)
                             try {
-                                Thread.sleep(reconnectBackoff.delayForAttempt(reconnectAttempts))
+                                waitBeforeReconnect(reconnectAttempts)
                             } catch (ie: InterruptedException) {
                                 Thread.currentThread().interrupt()
                                 shouldReconnect = false
@@ -319,7 +371,7 @@ class ListenService : Service() {
                         if (reconnectAttempts <= MAX_RECONNECT_ATTEMPTS) {
                             postReconnecting(reconnectAttempts)
                             try {
-                                Thread.sleep(reconnectBackoff.delayForAttempt(reconnectAttempts))
+                                waitBeforeReconnect(reconnectAttempts)
                             } catch (ie: InterruptedException) {
                                 Thread.currentThread().interrupt()
                                 shouldReconnect = false
@@ -343,6 +395,10 @@ class ListenService : Service() {
         }
         this.listenThread = lt
         lt.start()
+    }
+
+    private fun waitBeforeReconnect(attempt: Int) {
+        reconnectWakeSignal.waitFor(reconnectBackoff.delayForAttempt(attempt)) { isRunning }
     }
 
     private fun handleTerminalConnectionFailure() {
