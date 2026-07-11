@@ -8,6 +8,16 @@
             app:defaultValue="system"
             app:useSimpleSummaryProvider="true" />
     </PreferenceCategory>
+    <PreferenceCategory app:title="@string/child_device">
+        <ListPreference
+            app:key="microphoneSensitivity"
+            app:title="@string/microphone_sensitivity_title"
+            app:summary="@string/microphone_sensitivity_description"
+            app:entries="@array/microphone_sensitivity_entries"
+            app:entryValues="@array/microphone_sensitivity_values"
+            app:defaultValue="normal"
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
     <PreferenceCategory app:title="@string/about">
         <Preference
             app:key="app_version"

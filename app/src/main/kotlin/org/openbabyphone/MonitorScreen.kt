@@ -24,7 +24,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -194,8 +193,7 @@ fun MonitorScreen(
                         onPairingCodeChange = { viewModel.updatePairingCode(it) },
                         onDeviceNameChange = { viewModel.updateDeviceName(it) },
                         onStartMonitoring = { viewModel.startMonitoring() },
-                        onResetPairing = { showResetPairingDialog = true },
-                        onSensitivityChange = { viewModel.updateMicrophoneSensitivity(it) }
+                        onResetPairing = { showResetPairingDialog = true }
                     )
                 } else {
                     MonitoringSection(
@@ -209,7 +207,6 @@ fun MonitorScreen(
                         wifiDirectPermissionDenied = wifiDirectPermissionDenied,
                         serviceInformationDescription = serviceInformationDescription,
                         serviceStatusDescription = serviceStatusDescription,
-                        onSensitivityChange = { viewModel.updateMicrophoneSensitivity(it) },
                         onOpenBatteryOptimizationSettings = { openBatteryOptimizationSettings(context) }
                     )
                 }
@@ -269,8 +266,7 @@ private fun SetupSection(
     onPairingCodeChange: (String) -> Unit,
     onDeviceNameChange: (String) -> Unit,
     onStartMonitoring: () -> Unit,
-    onResetPairing: () -> Unit,
-    onSensitivityChange: (MicrophoneSensitivity) -> Unit
+    onResetPairing: () -> Unit
 ) {
     OdOutlinedCard(
         modifier = Modifier
@@ -293,13 +289,6 @@ private fun SetupSection(
                 Spacer(modifier = Modifier.height(Spacing.space8))
                 OdCardBody(stringResource(R.string.device_name_description))
         }
-    )
-
-    Spacer(modifier = Modifier.height(Spacing.space16))
-
-    MicrophoneSensitivityCard(
-        uiState = uiState,
-        onSensitivityChange = onSensitivityChange
     )
 
     Spacer(modifier = Modifier.height(Spacing.space16))
@@ -370,42 +359,6 @@ private fun AdvancedPairingCodeCard(
     )
 }
 
-@Composable
-private fun MicrophoneSensitivityCard(
-    uiState: MonitorUiState,
-    onSensitivityChange: (MicrophoneSensitivity) -> Unit
-) {
-    val normalLabel = stringResource(R.string.microphone_sensitivity_normal)
-    val highLabel = stringResource(R.string.microphone_sensitivity_high)
-    val veryHighLabel = stringResource(R.string.microphone_sensitivity_very_high)
-
-    OdOutlinedCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("microphone_sensitivity_card"),
-        content = {
-                OdCardTitle(stringResource(R.string.microphone_sensitivity_title))
-                Spacer(modifier = Modifier.height(Spacing.space8))
-                OdCardBody(stringResource(R.string.microphone_sensitivity_description))
-                Spacer(modifier = Modifier.height(Spacing.space12))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.space8)
-                ) {
-                    val labels = listOf(normalLabel, highLabel, veryHighLabel)
-                    MicrophoneSensitivity.entries.forEachIndexed { index, level ->
-                        androidx.compose.material3.FilterChip(
-                            selected = uiState.microphoneSensitivity == level,
-                            onClick = { onSensitivityChange(level) },
-                            label = { Text(labels[index]) },
-                            modifier = Modifier.testTag("sensitivity_${level.preferenceValue}")
-                        )
-                    }
-                }
-        }
-    )
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MonitoringSection(
@@ -416,7 +369,6 @@ private fun MonitoringSection(
     wifiDirectPermissionDenied: Boolean,
     serviceInformationDescription: String,
     serviceStatusDescription: String,
-    onSensitivityChange: (MicrophoneSensitivity) -> Unit,
     onOpenBatteryOptimizationSettings: () -> Unit
 ) {
     var showPairingDialog by remember { mutableStateOf(false) }
@@ -596,13 +548,6 @@ private fun MonitoringSection(
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(Spacing.space16))
-
-            MicrophoneSensitivityCard(
-                uiState = uiState,
-                onSensitivityChange = onSensitivityChange
-            )
 
             Spacer(modifier = Modifier.height(Spacing.space16))
 

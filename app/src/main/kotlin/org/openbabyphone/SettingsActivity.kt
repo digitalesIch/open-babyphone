@@ -38,6 +38,7 @@ class SettingsActivity : AppCompatActivity() {
     class SettingsFragment : PreferenceFragmentCompat() {
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             preferenceManager.sharedPreferencesName = OpenBabyphoneApplication.SETTINGS_PREFS_NAME
+            MicrophoneSensitivityPreferences.read(requireContext())
             setPreferencesFromResource(R.xml.settings, rootKey)
             findPreference<ListPreference>("theme_mode")?.setOnPreferenceChangeListener { _, newValue ->
                 applyTheme(newValue.toString())

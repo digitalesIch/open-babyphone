@@ -2,8 +2,8 @@ package org.openbabyphone.viewmodel
 
 import android.app.Application
 import org.openbabyphone.DeviceName
-import org.openbabyphone.MicrophoneSensitivity
 import org.openbabyphone.MonitorService
+import org.openbabyphone.OpenBabyphoneApplication
 import org.openbabyphone.PairingCode
 import org.openbabyphone.R
 import org.openbabyphone.service.MonitorServiceRepository
@@ -28,6 +28,8 @@ class MonitorViewModelTest {
         val context = RuntimeEnvironment.getApplication() as Application
         val prefs = context.getSharedPreferences(MonitorService.PAIRING_PREFS_NAME, Application.MODE_PRIVATE)
         prefs.edit().clear().apply()
+        context.getSharedPreferences(OpenBabyphoneApplication.SETTINGS_PREFS_NAME, Application.MODE_PRIVATE)
+            .edit().clear().apply()
 
         MonitorServiceRepository.reset()
         MonitorServiceRepository.updateServiceInfo("", 10000, emptyList())
@@ -246,38 +248,4 @@ class MonitorViewModelTest {
         assertTrue(state2.qrPayload.isNotEmpty())
     }
 
-    @Test
-    fun `default microphone sensitivity is NORMAL`() = runTest {
-        val state = viewModel.uiState.first { it.pairingCode.isNotEmpty() }
-        assertEquals(MicrophoneSensitivity.NORMAL, state.microphoneSensitivity)
-    }
-
-    @Test
-    fun `updateMicrophoneSensitivity updates state`() = runTest {
-        viewModel.updateMicrophoneSensitivity(MicrophoneSensitivity.HIGH)
-        val state = viewModel.uiState.first { it.microphoneSensitivity == MicrophoneSensitivity.HIGH }
-        assertEquals(MicrophoneSensitivity.HIGH, state.microphoneSensitivity)
-    }
-
-    @Test
-    fun `updateMicrophoneSensitivity persists to SharedPreferences`() {
-        viewModel.updateMicrophoneSensitivity(MicrophoneSensitivity.VERY_HIGH)
-        val context = RuntimeEnvironment.getApplication() as Application
-        val prefs = context.getSharedPreferences(MonitorService.PAIRING_PREFS_NAME, Application.MODE_PRIVATE)
-        assertEquals(
-            "very_high",
-            prefs.getString(MonitorService.PREF_KEY_MICROPHONE_SENSITIVITY, null)
-        )
-    }
-
-    @Test
-    fun `saved microphone sensitivity is loaded on init`() = runTest {
-        val context = RuntimeEnvironment.getApplication() as Application
-        val prefs = context.getSharedPreferences(MonitorService.PAIRING_PREFS_NAME, Application.MODE_PRIVATE)
-        prefs.edit().putString(MonitorService.PREF_KEY_MICROPHONE_SENSITIVITY, "high").apply()
-
-        viewModel = MonitorViewModel(context)
-        val state = viewModel.uiState.first { it.pairingCode.isNotEmpty() }
-        assertEquals(MicrophoneSensitivity.HIGH, state.microphoneSensitivity)
-    }
 }
