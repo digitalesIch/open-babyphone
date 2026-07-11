@@ -62,9 +62,6 @@ class ListenViewModel(application: Application) : AndroidViewModel(application) 
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ListenUiState(status = connectingStatus))
 
-    fun connect(address: String, port: Int, name: String, pairingCode: String) {
-    }
-
     fun updateVolumeHistory(history: FloatArray, norm: Float) {
         _volumeHistory.value = history
         _volumeNorm.value = norm

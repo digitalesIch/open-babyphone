@@ -34,6 +34,7 @@
     <string name="example_port">10000</string>
     <string name="example_pairing_code">babyroom42</string>
     <string name="invalid_port">Enter a port from 1 to 65535</string>
+    <string name="invalid_address">Enter a valid IP address or hostname</string>
     <string name="discover_child">Discover Child on Network</string>
     <string name="discover_child_description">Select child from a list of discovered children on the network</string>
     <string name="nearby_child_devices">Nearby child devices</string>
