@@ -1,7 +1,11 @@
 package org.openbabyphone
 
 import android.Manifest
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
+import androidx.core.app.ActivityCompat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateContentSize
@@ -45,6 +49,8 @@ fun StartScreen(
 
     var childPermissionDenied by remember { mutableStateOf(false) }
     var parentPermissionDenied by remember { mutableStateOf(false) }
+    var childPermissionPermanentlyDenied by remember { mutableStateOf(false) }
+    var parentPermissionPermanentlyDenied by remember { mutableStateOf(false) }
 
     val childPermissions = remember {
         buildList {
@@ -77,9 +83,16 @@ fun StartScreen(
         }
         if (allGranted) {
             childPermissionDenied = false
+            childPermissionPermanentlyDenied = false
             onNavigateToMonitor()
         } else {
             childPermissionDenied = true
+            val shouldShowRationale = childPermissions.any { perm ->
+                ActivityCompat.shouldShowRequestPermissionRationale(
+                    context as android.app.Activity, perm
+                )
+            }
+            childPermissionPermanentlyDenied = !shouldShowRationale
         }
     }
 
@@ -93,9 +106,16 @@ fun StartScreen(
         }
         if (allGranted) {
             parentPermissionDenied = false
+            parentPermissionPermanentlyDenied = false
             onNavigateToDiscover()
         } else {
             parentPermissionDenied = true
+            val shouldShowRationale = parentPermissions.any { perm ->
+                ActivityCompat.shouldShowRequestPermissionRationale(
+                    context as android.app.Activity, perm
+                )
+            }
+            parentPermissionPermanentlyDenied = !shouldShowRationale
         }
     }
 
@@ -157,11 +177,29 @@ fun StartScreen(
             if (childPermissionDenied) {
                 Spacer(modifier = Modifier.height(Spacing.space8))
                 Text(
-                    text = stringResource(R.string.permission_rationale_child),
+                    text = if (childPermissionPermanentlyDenied) {
+                        stringResource(R.string.permission_permanently_denied_child)
+                    } else {
+                        stringResource(R.string.permission_rationale_child)
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                     textAlign = TextAlign.Center
                 )
+                if (childPermissionPermanentlyDenied) {
+                    Spacer(modifier = Modifier.height(Spacing.space8))
+                    OdTextButton(
+                        text = stringResource(R.string.open_app_settings),
+                        onClick = {
+                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.fromParts("package", context.packageName, null)
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(intent)
+                        },
+                        modifier = Modifier.testTag("child_open_settings_button")
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(Spacing.space8))
@@ -197,11 +235,29 @@ fun StartScreen(
             if (parentPermissionDenied) {
                 Spacer(modifier = Modifier.height(Spacing.space8))
                 Text(
-                    text = stringResource(R.string.permission_rationale_parent),
+                    text = if (parentPermissionPermanentlyDenied) {
+                        stringResource(R.string.permission_permanently_denied_parent)
+                    } else {
+                        stringResource(R.string.permission_rationale_parent)
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                     textAlign = TextAlign.Center
                 )
+                if (parentPermissionPermanentlyDenied) {
+                    Spacer(modifier = Modifier.height(Spacing.space8))
+                    OdTextButton(
+                        text = stringResource(R.string.open_app_settings),
+                        onClick = {
+                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.fromParts("package", context.packageName, null)
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(intent)
+                        },
+                        modifier = Modifier.testTag("parent_open_settings_button")
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(Spacing.space8))

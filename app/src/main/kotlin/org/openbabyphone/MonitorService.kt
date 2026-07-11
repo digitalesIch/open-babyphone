@@ -207,6 +207,7 @@ class MonitorService : Service() {
             if (bufferSize <= 0) {
                 Log.e(TAG, "Invalid audio buffer size: $bufferSize")
                 isStreaming = false
+                MonitorServiceRepository.updateSessionState(MonitorSessionState.Error(getString(R.string.microphone_unavailable)))
                 return@Thread
             }
 
@@ -215,10 +216,12 @@ class MonitorService : Service() {
             } catch (e: SecurityException) {
                 Log.e(TAG, "AudioRecord permission denied", e)
                 isStreaming = false
+                MonitorServiceRepository.updateSessionState(MonitorSessionState.Error(getString(R.string.microphone_unavailable)))
                 return@Thread
             } catch (e: IllegalStateException) {
                 Log.e(TAG, "AudioRecord initialization failed", e)
                 isStreaming = false
+                MonitorServiceRepository.updateSessionState(MonitorSessionState.Error(getString(R.string.microphone_unavailable)))
                 return@Thread
             }
 
@@ -226,6 +229,7 @@ class MonitorService : Service() {
                 Log.e(TAG, "AudioRecord not initialized properly")
                 audioRecord.release()
                 isStreaming = false
+                MonitorServiceRepository.updateSessionState(MonitorSessionState.Error(getString(R.string.microphone_unavailable)))
                 return@Thread
             }
 
@@ -442,6 +446,7 @@ class MonitorService : Service() {
 
             override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
                 Log.e(TAG, "Registration failed: $errorCode")
+                MonitorServiceRepository.updateSessionState(MonitorSessionState.Error(getString(R.string.advertising_failed)))
             }
 
             override fun onServiceUnregistered(arg0: NsdServiceInfo) {

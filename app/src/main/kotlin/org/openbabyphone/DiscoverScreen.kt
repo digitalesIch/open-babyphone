@@ -245,6 +245,27 @@ fun DiscoverScreen(
                                 textAlign = TextAlign.Center,
                                 color = if (uiState.error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            if (uiState.error == null && uiState.devices.isEmpty()) {
+                                Spacer(modifier = Modifier.height(Spacing.space8))
+                                Text(
+                                    stringResource(R.string.discovery_empty_hint_child_monitoring),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center
+                                )
+                                Text(
+                                    stringResource(R.string.discovery_empty_hint_same_wifi),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center
+                                )
+                                Text(
+                                    stringResource(R.string.discovery_empty_hint_wifi_direct),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
                         OdOutlinedActionButton(
                             text = if (uiState.isDiscovering) stopLabel else stringResource(R.string.refresh_search),

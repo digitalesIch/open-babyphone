@@ -28,6 +28,14 @@
     <string name="address_title">Addresses:</string>
     <string name="port_title">Port:</string>
     <string name="not_connected">Not connected to any network</string>
+    <string name="no_wifi_title">No Wi-Fi connection</string>
+    <string name="no_wifi_body_child">The parent device cannot find this phone. Connect both phones to the same Wi-Fi, or use Wi-Fi Direct.</string>
+    <string name="open_wifi_settings">Open Wi-Fi settings</string>
+    <string name="microphone_unavailable">Microphone unavailable. Check that microphone permission is granted and no other app is using it.</string>
+    <string name="advertising_failed">Could not advertise child device on the network.</string>
+    <string name="discovery_empty_hint_child_monitoring">Make sure the child device is monitoring.</string>
+    <string name="discovery_empty_hint_same_wifi">Make sure both phones are on the same Wi-Fi network.</string>
+    <string name="discovery_empty_hint_wifi_direct">Or try Wi-Fi Direct.</string>
     <string name="enter_address_instructions">Enter the IP Address and port of a child and click Connect</string>
     <string name="connect">Connect</string>
     <string name="example_address">child.local</string>
@@ -76,6 +84,9 @@
     <string name="monitoring_setup_hint">Open this only if you want to replace the automatically generated pairing code. Parents that already paired must reconnect with the new code.</string>
     <string name="permission_rationale_child">Microphone permission is required to monitor your baby. Please grant the permission to continue.</string>
     <string name="permission_rationale_parent">Network access permission is required to discover child devices. Please grant the permission to continue.</string>
+    <string name="permission_permanently_denied_child">Microphone permission was denied. Please enable it in app settings to use child mode.</string>
+    <string name="permission_permanently_denied_parent">Network permission was denied. Please enable it in app settings to use parent mode.</string>
+    <string name="open_app_settings">Open app settings</string>
     <string name="disconnect">Disconnect</string>
     <string name="qr_code_hint">Scan this code on the parent device</string>
     <string name="qr_code_content_description">QR code for pairing</string>
