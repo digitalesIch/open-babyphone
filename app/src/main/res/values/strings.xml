@@ -36,6 +36,15 @@
     <string name="invalid_port">Enter a port from 1 to 65535</string>
     <string name="discover_child">Discover Child on Network</string>
     <string name="discover_child_description">Select child from a list of discovered children on the network</string>
+    <string name="nearby_child_devices">Nearby child devices</string>
+    <string name="nearby_child_devices_description">Choose a child device on your local network. New devices ask for the pairing code before listening starts.</string>
+    <string name="searching_for_child_devices">Searching for child devices…</string>
+    <string name="refresh_search">Refresh search</string>
+    <string name="pair_child_device_title">Pair with %1$s</string>
+    <string name="pair_child_device_instructions">Enter the pairing code shown on the child device.</string>
+    <string name="pair_and_connect">Pair and connect</string>
+    <string name="move_parent_away_before_listening">Move the parent device away from the child device before listening to avoid audio feedback.</string>
+    <string name="scan_qr_code_instead">Scan QR code instead</string>
     <string name="advanced_section_title">Advanced</string>
     <string name="advanced_section_description">Manual connection for VPN or unusual network setups</string>
     <string name="manual_connection">Manual connection (advanced)</string>
@@ -63,7 +72,7 @@
     <string name="start_monitoring">Start Monitoring</string>
     <string name="stop_monitoring">Stop Monitoring</string>
     <string name="stop_monitoring_confirmation">Stopping monitoring will disconnect all parent devices. Continue?</string>
-    <string name="monitoring_setup_hint">Set the pairing code before starting monitoring. It is locked while monitoring is active.</string>
+    <string name="monitoring_setup_hint">Open this only if you want to replace the automatically generated pairing code. Parents that already paired must reconnect with the new code.</string>
     <string name="permission_rationale_child">Microphone permission is required to monitor your baby. Please grant the permission to continue.</string>
     <string name="permission_rationale_parent">Network access permission is required to discover child devices. Please grant the permission to continue.</string>
     <string name="disconnect">Disconnect</string>

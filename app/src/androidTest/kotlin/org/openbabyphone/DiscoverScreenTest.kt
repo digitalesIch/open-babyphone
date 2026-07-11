@@ -1,8 +1,10 @@
 package org.openbabyphone
 
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -23,10 +25,12 @@ class DiscoverScreenTest {
             DiscoverScreen(
                 onNavigateBack = {},
                 onNavigateToAddressInput = {},
-                onNavigateToListen = { _, _, _, _ -> }
+                onNavigateToListen = { _, _, _, _ -> },
+                autoStartDiscovery = false
             )
         }
-        composeTestRule.onNodeWithText("Discover Child on Network").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Nearby child devices").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("discover_button").assertIsDisplayed()
     }
 
     @Test
@@ -35,7 +39,8 @@ class DiscoverScreenTest {
             DiscoverScreen(
                 onNavigateBack = {},
                 onNavigateToAddressInput = {},
-                onNavigateToListen = { _, _, _, _ -> }
+                onNavigateToListen = { _, _, _, _ -> },
+                autoStartDiscovery = false
             )
         }
         composeTestRule.onNodeWithTag("advanced_section").assertIsDisplayed()
@@ -43,15 +48,16 @@ class DiscoverScreenTest {
     }
 
     @Test
-    fun discoverScreen_displaysPairingCodeField() {
+    fun discoverScreen_hidesGlobalPairingCodeField() {
         composeTestRule.setContent {
             DiscoverScreen(
                 onNavigateBack = {},
                 onNavigateToAddressInput = {},
-                onNavigateToListen = { _, _, _, _ -> }
+                onNavigateToListen = { _, _, _, _ -> },
+                autoStartDiscovery = false
             )
         }
-        composeTestRule.onNodeWithText("Pairing code (optional)").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Pairing code (optional)").assertCountEquals(0)
     }
 
     @Test
@@ -61,7 +67,8 @@ class DiscoverScreenTest {
                 onNavigateBack = {},
                 onNavigateToAddressInput = {},
                 onNavigateToListen = { _, _, _, _ -> },
-                onNavigateToWifiDirect = {}
+                onNavigateToWifiDirect = {},
+                autoStartDiscovery = false
             )
         }
         composeTestRule.onNodeWithTag("scan_qr_button").assertIsDisplayed()
@@ -74,7 +81,8 @@ class DiscoverScreenTest {
                 onNavigateBack = {},
                 onNavigateToAddressInput = {},
                 onNavigateToListen = { _, _, _, _ -> },
-                onNavigateToWifiDirect = {}
+                onNavigateToWifiDirect = {},
+                autoStartDiscovery = false
             )
         }
         composeTestRule.onNodeWithTag("advanced_section").assertIsDisplayed()

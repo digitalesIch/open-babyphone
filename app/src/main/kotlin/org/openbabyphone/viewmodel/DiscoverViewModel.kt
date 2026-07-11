@@ -116,6 +116,29 @@ class DiscoverViewModel(application: Application) : AndroidViewModel(application
         ).edit().putString(PREF_KEY_PAIRING_CODE, normalizedCode).apply()
     }
 
+    fun trustAndPair(device: DiscoveredDevice, pairingCode: String): String? {
+        if (!PairingCode.isValid(pairingCode)) return null
+        val normalizedCode = PairingCode.normalize(pairingCode)
+        val childId = device.childId
+        val pairingId = device.pairingId
+        if (childId != null && pairingId != null) {
+            trustedChildStore.upsert(
+                TrustedChild(
+                    childId = childId,
+                    pairingId = pairingId,
+                    displayName = device.visibleName,
+                    pairingCode = normalizedCode,
+                    lastKnownAddress = device.address,
+                    lastKnownPort = device.port,
+                    lastSeenAt = System.currentTimeMillis()
+                )
+            )
+            refreshTrustedChildren()
+            recomputeTrustStatuses()
+        }
+        return normalizedCode
+    }
+
     /**
      * Processes a scanned QR code. If the QR contains a structured pairing
      * payload, the child is stored as a trusted device and the pairing code
