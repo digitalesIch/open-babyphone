@@ -9,4 +9,14 @@
         <item>light</item>
         <item>dark</item>
     </string-array>
+    <string-array name="microphone_sensitivity_entries">
+        <item>@string/microphone_sensitivity_normal</item>
+        <item>@string/microphone_sensitivity_high</item>
+        <item>@string/microphone_sensitivity_very_high</item>
+    </string-array>
+    <string-array name="microphone_sensitivity_values">
+        <item>normal</item>
+        <item>high</item>
+        <item>very_high</item>
+    </string-array>
 </resources>

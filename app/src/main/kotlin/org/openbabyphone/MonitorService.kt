@@ -300,9 +300,7 @@ class MonitorService : Service() {
         }
         val prefs = getSharedPreferences(PAIRING_PREFS_NAME, MODE_PRIVATE)
         pairingCodeSnapshot = prefs.getString(PREF_KEY_PAIRING_CODE, "") ?: ""
-        microphoneGain = MicrophoneSensitivity.fromPreferenceValue(
-            prefs.getString(PREF_KEY_MICROPHONE_SENSITIVITY, null)
-        ).gain
+        microphoneGain = MicrophoneSensitivityPreferences.read(this).gain
         createNotificationChannel()
         val n = buildNotification()
         ServiceCompat.startForeground(this, ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
@@ -539,12 +537,10 @@ class MonitorService : Service() {
     }
 
     private fun registerMicrophonePrefsListener() {
-        val prefs = getSharedPreferences(PAIRING_PREFS_NAME, MODE_PRIVATE)
+        val prefs = getSharedPreferences(OpenBabyphoneApplication.SETTINGS_PREFS_NAME, MODE_PRIVATE)
         prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-            if (key == PREF_KEY_MICROPHONE_SENSITIVITY) {
-                microphoneGain = MicrophoneSensitivity.fromPreferenceValue(
-                    prefs.getString(PREF_KEY_MICROPHONE_SENSITIVITY, null)
-                ).gain
+            if (key == MicrophoneSensitivityPreferences.KEY) {
+                microphoneGain = MicrophoneSensitivityPreferences.read(this).gain
                 Log.i(TAG, "Microphone sensitivity changed, gain=$microphoneGain")
             }
         }

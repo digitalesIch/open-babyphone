@@ -7,7 +7,6 @@ import org.openbabyphone.BatteryOptimization
 import org.openbabyphone.ConnectionConstants
 import org.openbabyphone.ChildDeviceIdentityStore
 import org.openbabyphone.DeviceName
-import org.openbabyphone.MicrophoneSensitivity
 import org.openbabyphone.PairingCode
 import org.openbabyphone.PairingCodeGenerator
 import org.openbabyphone.MonitorService
@@ -39,14 +38,12 @@ data class MonitorUiState(
     val wifiDirectState: WifiDirectState = WifiDirectState.Idle,
     val wifiDirectSupported: Boolean = true,
     val qrPayload: String = "",
-    val microphoneSensitivity: MicrophoneSensitivity = MicrophoneSensitivity.NORMAL,
     val batteryOptimizationIgnored: Boolean = false
 )
 
 class MonitorViewModel(application: Application) : AndroidViewModel(application) {
     private val _pairingCode = MutableStateFlow("")
     private val _deviceName = MutableStateFlow("")
-    private val _microphoneSensitivity = MutableStateFlow(MicrophoneSensitivity.NORMAL)
     private val _batteryOptimizationIgnored = MutableStateFlow(false)
     private val loadingLabel = application.getString(R.string.loading)
     private val waitingForParentStatus = application.getString(R.string.waiting_for_parent)
@@ -63,8 +60,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         val port: Int,
         val addresses: List<String>,
         val sessionState: MonitorSessionState,
-        val isMonitoring: Boolean,
-        val microphoneSensitivity: MicrophoneSensitivity
+        val isMonitoring: Boolean
     )
 
     private data class SetupInfo(
@@ -84,14 +80,13 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             MonitorServiceRepository.addresses,
             combine(
                 MonitorServiceRepository.sessionState,
-                _microphoneSensitivity,
                 _isMonitoring
-            ) { sessionState, micSensitivity, isMonitoring ->
-                Triple(sessionState, micSensitivity, isMonitoring)
+            ) { sessionState, isMonitoring ->
+                Pair(sessionState, isMonitoring)
             }
         ) { name, port, addresses, stateInfo ->
-            val (sessionState, micSensitivity, isMonitoring) = stateInfo
-            ServiceInfo(name, port, addresses, sessionState, isMonitoring, micSensitivity)
+            val (sessionState, isMonitoring) = stateInfo
+            ServiceInfo(name, port, addresses, sessionState, isMonitoring)
         },
         wifiDirectController.state
     ) { setupInfo, clients, info, wifiDirect ->
@@ -132,7 +127,6 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             wifiDirectState = wifiDirect,
             wifiDirectSupported = wifiDirectSupported,
             qrPayload = qrPayload,
-            microphoneSensitivity = info.microphoneSensitivity,
             batteryOptimizationIgnored = setupInfo.batteryOptimizationIgnored
         )
     }.stateIn(
@@ -158,10 +152,6 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         }
         val savedDeviceName = prefs.getString(MonitorService.PREF_KEY_DEVICE_NAME, "") ?: ""
         _deviceName.value = savedDeviceName
-        val savedSensitivity = MicrophoneSensitivity.fromPreferenceValue(
-            prefs.getString(MonitorService.PREF_KEY_MICROPHONE_SENSITIVITY, null)
-        )
-        _microphoneSensitivity.value = savedSensitivity
         refreshBatteryOptimizationStatus()
     }
 
@@ -207,17 +197,6 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
 
     fun stopMonitoring() {
         _isMonitoring.value = false
-    }
-
-    fun updateMicrophoneSensitivity(sensitivity: MicrophoneSensitivity) {
-        _microphoneSensitivity.value = sensitivity
-        val prefs = getApplication<Application>().getSharedPreferences(
-            MonitorService.PAIRING_PREFS_NAME,
-            Application.MODE_PRIVATE
-        )
-        prefs.edit()
-            .putString(MonitorService.PREF_KEY_MICROPHONE_SENSITIVITY, sensitivity.preferenceValue)
-            .apply()
     }
 
     /**
