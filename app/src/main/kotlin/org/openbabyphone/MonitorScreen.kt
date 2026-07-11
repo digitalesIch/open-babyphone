@@ -34,13 +34,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -69,6 +73,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.openbabyphone.service.ServiceConnectionManager
+import org.openbabyphone.service.MonitorSessionState
 import org.openbabyphone.ui.theme.Motion
 import org.openbabyphone.viewmodel.MonitorViewModel
 import org.openbabyphone.viewmodel.MonitorUiState
@@ -305,7 +310,7 @@ private fun SetupSection(
         enabled = uiState.pairingCodeValid,
         modifier = Modifier
             .fillMaxWidth()
-                    .testTag("stop_monitoring_button")
+            .testTag("start_monitoring_button")
     )
 
     Spacer(modifier = Modifier.height(Spacing.space16))
@@ -510,6 +515,88 @@ private fun MonitoringSection(
                 )
             }
 
+            if (uiState.addresses.isEmpty() && uiState.sessionState !is MonitorSessionState.Setup && uiState.sessionState !is MonitorSessionState.Stopped) {
+                Spacer(modifier = Modifier.height(Spacing.space16))
+                val ctx = LocalContext.current
+                OdOutlinedCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("no_network_banner")
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(Spacing.space16),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Warning,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(modifier = Modifier.width(Spacing.space16))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                stringResource(R.string.no_wifi_title),
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            Spacer(modifier = Modifier.height(Spacing.space4))
+                            Text(
+                                stringResource(R.string.no_wifi_body_child),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(Spacing.space8))
+                    OdSurfaceButton(
+                        text = stringResource(R.string.open_wifi_settings),
+                        onClick = {
+                            ctx.startActivity(
+                                android.content.Intent(android.provider.Settings.ACTION_WIFI_SETTINGS)
+                            )
+                        }
+                    )
+                }
+            }
+
+            val sessionState = uiState.sessionState
+            if (sessionState is MonitorSessionState.Error) {
+                Spacer(modifier = Modifier.height(Spacing.space16))
+                OdOutlinedCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("error_card")
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(Spacing.space16),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Warning,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(modifier = Modifier.width(Spacing.space16))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                sessionState.reason,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(Spacing.space8))
+                    OdSurfaceButton(
+                        text = stringResource(R.string.stop_monitoring),
+                        onClick = onStopMonitoring
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(Spacing.space16))
 
             MicrophoneSensitivityCard(
@@ -552,7 +639,7 @@ private fun MonitoringSection(
                 onClick = onStopMonitoring,
                 modifier = Modifier
                     .fillMaxWidth()
-            .testTag("start_monitoring_button")
+                    .testTag("stop_monitoring_button")
             )
         }
     }
@@ -704,8 +791,8 @@ private fun WifiDirectCard(
                                 text = s.message,
                                 color = MaterialTheme.colorScheme.error,
                                 style = MaterialTheme.typography.bodySmall
-                            )
-                        }
+                )
+            }
                     }
                     WifiDirectState.Starting,
                     WifiDirectState.Advertising -> {
