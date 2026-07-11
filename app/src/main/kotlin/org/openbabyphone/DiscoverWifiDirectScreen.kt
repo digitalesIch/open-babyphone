@@ -39,6 +39,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -91,9 +92,11 @@ fun DiscoverWifiDirectScreen(
     }
 
     val wifiState = uiState.wifiDirectState
-    if (wifiState is WifiDirectState.Connected) {
-        val endpoint = wifiState.endpoint
-        onConnected(endpoint.host, endpoint.port, endpoint.name, uiState.pairingCode)
+    LaunchedEffect(wifiState) {
+        if (wifiState is WifiDirectState.Connected) {
+            val endpoint = wifiState.endpoint
+            onConnected(endpoint.host, endpoint.port, endpoint.name, uiState.pairingCode)
+        }
     }
 
     Scaffold(

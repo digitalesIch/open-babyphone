@@ -38,8 +38,8 @@ import org.openbabyphone.ui.theme.Spacing
 fun StartScreen(
     onNavigateToMonitor: () -> Unit,
     onNavigateToDiscover: () -> Unit,
-    onNavigateToSettings: () -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onNavigateToSettings: () -> Unit = {}
 ) {
     val context = LocalContext.current
 

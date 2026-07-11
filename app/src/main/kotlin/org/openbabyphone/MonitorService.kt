@@ -26,6 +26,7 @@ import android.content.SharedPreferences
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdManager.RegistrationListener
 import android.net.nsd.NsdServiceInfo
@@ -78,8 +79,8 @@ class MonitorService : Service() {
             try {
                 val networks = connectivityManager.allNetworks
                 for (network in networks) {
-                    val networkInfo = connectivityManager.getNetworkInfo(network)
-                    if (networkInfo?.isConnected == true) {
+                    val caps = connectivityManager.getNetworkCapabilities(network)
+                    if (caps != null && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
                         val linkProperties = connectivityManager.getLinkProperties(network)
                         linkProperties?.linkAddresses?.forEach { linkAddress ->
                             val address = linkAddress.address
