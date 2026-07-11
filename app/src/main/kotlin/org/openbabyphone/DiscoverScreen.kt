@@ -30,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,6 +47,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import org.openbabyphone.viewmodel.DeviceTrustStatus
+import org.openbabyphone.viewmodel.DiscoveredDevice
 import org.openbabyphone.viewmodel.DiscoverViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,18 +58,32 @@ fun DiscoverScreen(
     onNavigateToListen: (String, Int, String, String) -> Unit,
     onNavigateToWifiDirect: () -> Unit = {},
     modifier: Modifier = Modifier,
-    viewModel: DiscoverViewModel = viewModel()
+    viewModel: DiscoverViewModel = viewModel(),
+    autoStartDiscovery: Boolean = true
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val connectLabel = stringResource(R.string.connect)
     val stopLabel = stringResource(R.string.discovery_stopped)
     val invalidQrFeedback = stringResource(R.string.invalid_qr_code_feedback)
     val childAddedLabel = stringResource(R.string.child_added_to_known)
+    val feedbackGuidance = stringResource(R.string.move_parent_away_before_listening)
     val scanPrompt = stringResource(R.string.scan_qr_code_prompt)
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var scanErrorMessage by remember { mutableStateOf<String?>(null) }
     var scanSuccessMessage by remember { mutableStateOf<String?>(null) }
     var forgetChildId by remember { mutableStateOf<String?>(null) }
+    var pendingPairingDevice by remember { mutableStateOf<DiscoveredDevice?>(null) }
+
+    DisposableEffect(autoStartDiscovery) {
+        if (autoStartDiscovery) {
+            viewModel.startDiscovery()
+        }
+        onDispose {
+            if (autoStartDiscovery) {
+                viewModel.stopDiscovery()
+            }
+        }
+    }
 
     val scanLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
         if (result.contents != null) {
@@ -76,7 +92,7 @@ fun DiscoverScreen(
                 scanErrorMessage = null
                 val parsed = PairingQrCode.parse(result.contents)
                 scanSuccessMessage = if (parsed is PairingQrCode.ParsedQrCode.Structured) {
-                    childAddedLabel
+                    "$childAddedLabel\n\n$feedbackGuidance"
                 } else {
                     null
                 }
@@ -200,38 +216,50 @@ fun DiscoverScreen(
                 }
 
                 OdSectionHeader(
-                    title = stringResource(R.string.discover_child),
-                    helper = stringResource(R.string.discover_child_description),
+                    title = stringResource(R.string.nearby_child_devices),
+                    helper = stringResource(R.string.nearby_child_devices_description),
                     modifier = Modifier.padding(bottom = Spacing.space12)
                 )
 
-                OdPrimaryButton(
-                    text = if (uiState.isDiscovering) stopLabel else stringResource(R.string.discover_child),
-                    onClick = {
-                        if (uiState.isDiscovering) viewModel.stopDiscovery() else viewModel.startDiscovery()
-                    },
+                OdOutlinedCard(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("discover_button")
-                )
-                Spacer(modifier = Modifier.height(Spacing.space16))
+                        .testTag("discovery_status_card")
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(Spacing.space12)
+                    ) {
+                        if (uiState.isDiscovering) {
+                            CircularProgressIndicator()
+                            Text(
+                                stringResource(R.string.searching_for_child_devices),
+                                style = MaterialTheme.typography.bodyMedium,
+                                textAlign = TextAlign.Center
+                            )
+                        } else {
+                            Text(
+                                uiState.error ?: stringResource(R.string.discovery_no_devices),
+                                style = MaterialTheme.typography.bodyMedium,
+                                textAlign = TextAlign.Center,
+                                color = if (uiState.error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        OdOutlinedActionButton(
+                            text = if (uiState.isDiscovering) stopLabel else stringResource(R.string.refresh_search),
+                            onClick = {
+                                if (uiState.isDiscovering) viewModel.stopDiscovery() else viewModel.startDiscovery()
+                            },
+                            modifier = Modifier.testTag("discover_button")
+                        )
+                    }
+                }
 
-                OutlinedTextField(
-                    value = uiState.pairingCode,
-                    onValueChange = { viewModel.updatePairingCode(it) },
-                    label = { Text(stringResource(R.string.pairing_code_optional)) },
-                    placeholder = { Text(stringResource(R.string.example_pairing_code)) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("discover_pairing_code_field"),
-                    singleLine = true,
-                    textStyle = MaterialTheme.typography.bodyLarge
-                )
-
-                Spacer(modifier = Modifier.height(Spacing.space8))
+                Spacer(modifier = Modifier.height(Spacing.space12))
 
                 OdOutlinedActionButton(
-                    text = stringResource(R.string.scan_qr_code),
+                    text = stringResource(R.string.scan_qr_code_instead),
                     onClick = {
                         scanErrorMessage = null
                         scanSuccessMessage = null
@@ -274,101 +302,63 @@ fun DiscoverScreen(
 
                 Spacer(modifier = Modifier.height(Spacing.space16))
 
-                when {
-                    uiState.isDiscovering && uiState.devices.isEmpty() -> {
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            CircularProgressIndicator()
-                            Spacer(modifier = Modifier.height(Spacing.space8))
-                            Text(stringResource(R.string.search_running), style = MaterialTheme.typography.bodyMedium)
-                        }
-                    }
-                    uiState.devices.isNotEmpty() -> {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("device_list"),
-                            verticalArrangement = Arrangement.spacedBy(Spacing.space8)
-                        ) {
-                            uiState.devices.forEach { device ->
-                                val key = "${device.address}:${device.port}"
-                                val trustStatus = uiState.trustedChildStatuses[key]
-                                OdOutlinedCard(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .testTag("device_${device.address}")
-                                ) {
-                                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.space8)) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(device.visibleName, style = MaterialTheme.typography.bodyLarge)
-                                                Text(
-                                                    "${device.address}:${device.port}",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-                                            }
-                                            OdSignalBars()
+                val selectableDevices = uiState.devices.filter { device ->
+                    val key = "${device.address}:${device.port}"
+                    val trustStatus = uiState.trustedChildStatuses[key]
+                    trustStatus != DeviceTrustStatus.Trusted || uiState.trustedChildren.none { it.childId == device.childId }
+                }
+                if (selectableDevices.isNotEmpty()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("device_list"),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.space8)
+                    ) {
+                        selectableDevices.forEach { device ->
+                            val key = "${device.address}:${device.port}"
+                            val trustStatus = uiState.trustedChildStatuses[key]
+                            OdOutlinedCard(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("device_${device.address}")
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(Spacing.space8)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(device.visibleName, style = MaterialTheme.typography.bodyLarge)
+                                            Text(
+                                                "${device.address}:${device.port}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
                                         }
-                                            if (trustStatus == DeviceTrustStatus.PairingReset) {
-                                                Text(
-                                                    stringResource(R.string.pairing_reset_notice),
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.error
-                                                )
-                                            }
-                                        OdPrimaryButton(
-                                            text = connectLabel,
-                                            onClick = {
-                                                val code = viewModel.pairingCodeFor(device)
-                                                onNavigateToListen(device.address, device.port, device.visibleName, code)
-                                            }
+                                        OdSignalBars()
+                                    }
+                                    if (trustStatus == DeviceTrustStatus.PairingReset) {
+                                        Text(
+                                            stringResource(R.string.pairing_reset_notice),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.error
                                         )
                                     }
+                                    OdPrimaryButton(
+                                        text = if (trustStatus == DeviceTrustStatus.Trusted) connectLabel else stringResource(R.string.pair_and_connect),
+                                        onClick = {
+                                            if (trustStatus == DeviceTrustStatus.Trusted) {
+                                                val code = viewModel.pairingCodeFor(device)
+                                                onNavigateToListen(device.address, device.port, device.visibleName, code)
+                                            } else {
+                                                pendingPairingDevice = device
+                                            }
+                                        }
+                                    )
                                 }
                             }
                         }
-                    }
-                    uiState.error != null -> {
-                        Text(
-                            text = uiState.error ?: "",
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                    else -> {
-                        OdOutlinedCard(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("empty_state_card"),
-                            content = {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth(),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Icon(
-                                        Icons.Default.Search,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Spacer(modifier = Modifier.height(Spacing.space8))
-                                    Text(
-                                        stringResource(R.string.discovery_no_devices),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        textAlign = TextAlign.Center
-                                    )
-                                }
-                            }
-                        )
                     }
                 }
 
@@ -421,4 +411,82 @@ fun DiscoverScreen(
             }
         )
     }
+
+    pendingPairingDevice?.let { device ->
+        val key = "${device.address}:${device.port}"
+        PairChildDeviceDialog(
+            device = device,
+            isPairingReset = uiState.trustedChildStatuses[key] == DeviceTrustStatus.PairingReset,
+            onDismiss = { pendingPairingDevice = null },
+            onPairAndConnect = { pairingCode ->
+                val code = viewModel.trustAndPair(device, pairingCode) ?: return@PairChildDeviceDialog false
+                pendingPairingDevice = null
+                onNavigateToListen(device.address, device.port, device.visibleName, code)
+                true
+            }
+        )
+    }
+}
+
+@Composable
+private fun PairChildDeviceDialog(
+    device: DiscoveredDevice,
+    isPairingReset: Boolean,
+    onDismiss: () -> Unit,
+    onPairAndConnect: (String) -> Boolean
+) {
+    var pairingCode by remember { mutableStateOf("") }
+    var showInvalidCode by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.pair_child_device_title, device.visibleName)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.space12)) {
+                Text(
+                    if (isPairingReset) stringResource(R.string.pairing_reset_notice)
+                    else stringResource(R.string.pair_child_device_instructions),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                OutlinedTextField(
+                    value = pairingCode,
+                    onValueChange = {
+                        pairingCode = it
+                        showInvalidCode = false
+                    },
+                    label = { Text(stringResource(R.string.pairing_code_title)) },
+                    placeholder = { Text(stringResource(R.string.example_pairing_code)) },
+                    singleLine = true,
+                    isError = showInvalidCode,
+                    supportingText = {
+                        if (showInvalidCode) {
+                            Text(stringResource(R.string.invalid_pairing_code_feedback))
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("pair_child_code_field")
+                )
+                Text(
+                    stringResource(R.string.move_parent_away_before_listening),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    showInvalidCode = !onPairAndConnect(pairingCode)
+                },
+                modifier = Modifier.testTag("pair_child_connect_button")
+            ) {
+                Text(stringResource(R.string.connect))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
 }
