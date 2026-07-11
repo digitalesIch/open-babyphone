@@ -21,6 +21,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.preference.ListPreference
+import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 
 class SettingsActivity : AppCompatActivity() {
@@ -42,6 +43,8 @@ class SettingsActivity : AppCompatActivity() {
                 applyTheme(newValue.toString())
                 true
             }
+            findPreference<Preference>("app_version")?.summary =
+                getString(R.string.app_version_summary, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE)
         }
 
         private fun applyTheme(themeMode: String) {

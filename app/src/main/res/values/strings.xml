@@ -120,4 +120,7 @@
     <string name="battery_optimization_title">Keep monitoring running</string>
     <string name="battery_optimization_description">Some Android devices stop foreground services overnight unless battery restrictions are disabled for this app. Allow unrestricted battery use for more reliable baby monitoring.</string>
     <string name="battery_optimization_action">Open battery settings</string>
+    <string name="about">About</string>
+    <string name="app_version">App version</string>
+    <string name="app_version_summary">%1$s (%2$d)</string>
 </resources>
