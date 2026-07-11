@@ -8,6 +8,7 @@ import android.os.IBinder
 import androidx.core.content.ContextCompat
 import org.openbabyphone.ListenService
 import org.openbabyphone.MonitorService
+import org.openbabyphone.ServiceHeartbeatScheduler
 import org.openbabyphone.viewmodel.ListenViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -117,6 +118,10 @@ object ServiceConnectionManager {
             } catch (e: IllegalArgumentException) {
                 // Service was already unbound.
             }
+        }
+        when (binding.intent.component?.className) {
+            MonitorService::class.java.name -> ServiceHeartbeatScheduler.cancelMonitor(context)
+            ListenService::class.java.name -> ServiceHeartbeatScheduler.cancelListen(context)
         }
         context.stopService(binding.intent)
     }
