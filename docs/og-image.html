@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=1200, initial-scale=1">
+  <title>Open Babyphone social preview</title>
+  <style>
+    :root {
+      --bg: #080b12;
+      --surface: #101827;
+      --fg: #f6f7fb;
+      --muted: #a5b2c8;
+      --line: rgba(255, 255, 255, 0.12);
+      --cyan: #5ff2d2;
+      --blue: #5da8ff;
+      --font: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      margin: 0;
+      width: 1200px;
+      height: 630px;
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    body {
+      color: var(--fg);
+      font-family: var(--font);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .canvas {
+      position: relative;
+      width: 1200px;
+      height: 630px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 82% 32%, rgba(93, 168, 255, 0.18), transparent 31rem),
+        radial-gradient(circle at 14% 72%, rgba(95, 242, 210, 0.10), transparent 28rem),
+        linear-gradient(180deg, #080b12 0%, #0a101a 100%);
+    }
+
+    .canvas::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.034) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.034) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(circle at 69% 45%, #000 24%, transparent 78%);
+      pointer-events: none;
+    }
+
+    .topbar {
+      position: absolute;
+      top: 38px;
+      left: 64px;
+      right: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 3;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-mark {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(16, 24, 39, 0.78);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+    }
+
+    .wordmark {
+      font-size: 22px;
+      font-weight: 850;
+      letter-spacing: -0.02em;
+    }
+
+    .wordmark span { color: var(--cyan); }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(16, 24, 39, 0.72);
+      color: var(--muted);
+      font: 12px/1 var(--mono);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .status::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--cyan);
+      box-shadow: 0 0 18px rgba(95, 242, 210, 0.8);
+    }
+
+    .copy {
+      position: absolute;
+      left: 64px;
+      top: 164px;
+      width: 510px;
+      z-index: 2;
+    }
+
+    .eyebrow {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      color: var(--cyan);
+      font: 700 13px/1 var(--mono);
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 28px;
+      height: 1px;
+      background: var(--cyan);
+      opacity: 0.72;
+    }
+
+    h1 {
+      margin: 0 0 24px;
+      font-size: 64px;
+      line-height: 1.03;
+      font-weight: 950;
+      letter-spacing: -0.04em;
+    }
+
+    h1 span {
+      color: transparent;
+      background: linear-gradient(90deg, var(--cyan), var(--blue));
+      -webkit-background-clip: text;
+      background-clip: text;
+    }
+
+    .lede {
+      width: 470px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 20px;
+      line-height: 1.48;
+    }
+
+    .visual {
+      position: absolute;
+      right: 56px;
+      top: 116px;
+      width: 560px;
+      height: 410px;
+      z-index: 1;
+    }
+
+    .beam {
+      position: absolute;
+      left: 176px;
+      right: 176px;
+      top: 202px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--cyan) 30%, var(--blue) 70%, transparent);
+      box-shadow: 0 0 24px rgba(95, 242, 210, 0.5);
+    }
+
+    .beam-dot {
+      position: absolute;
+      left: 50%;
+      top: 195px;
+      width: 16px;
+      height: 16px;
+      border-radius: 999px;
+      background: var(--cyan);
+      transform: translateX(-50%);
+      box-shadow: 0 0 28px 8px rgba(95, 242, 210, 0.36);
+    }
+
+    .phone {
+      position: absolute;
+      top: 38px;
+      width: 168px;
+      height: 326px;
+      padding: 14px 12px;
+      border: 1px solid var(--line);
+      border-radius: 30px;
+      background: linear-gradient(170deg, #101827, #0c1320);
+      box-shadow: 0 30px 70px rgba(0, 0, 0, 0.56), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+    }
+
+    .phone.child {
+      left: 30px;
+      transform: rotate(-9deg);
+    }
+
+    .phone.parent {
+      right: 30px;
+      transform: rotate(9deg);
+    }
+
+    .screen {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 15px 13px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 22px;
+      background: linear-gradient(180deg, #111b2c, #080b12);
+    }
+
+    .label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--muted);
+      font: 700 10px/1 var(--mono);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .label::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--blue);
+    }
+
+    .parent .label::before { background: var(--cyan); }
+
+    .bars {
+      display: flex;
+      align-items: flex-end;
+      gap: 5px;
+      height: 42px;
+      margin-bottom: 12px;
+    }
+
+    .bars span {
+      width: 7px;
+      border-radius: 3px;
+      background: var(--blue);
+    }
+
+    .bars span:nth-child(1) { height: 18px; }
+    .bars span:nth-child(2) { height: 26px; }
+    .bars span:nth-child(3) { height: 34px; }
+    .bars span:nth-child(4) { height: 42px; }
+
+    .phone-copy {
+      color: var(--muted);
+      font: 700 12px/1.4 var(--mono);
+      letter-spacing: 0.04em;
+    }
+
+    .phone-copy b { color: var(--blue); }
+    .parent .phone-copy b { color: var(--cyan); }
+
+    .waveform {
+      display: grid;
+      grid-template-columns: repeat(18, 1fr);
+      align-items: center;
+      gap: 4px;
+      height: 100px;
+    }
+
+    .waveform span {
+      height: 24px;
+      border-radius: 3px;
+      background: linear-gradient(180deg, var(--cyan), var(--blue));
+    }
+
+    .waveform span:nth-child(2n) { height: 54px; }
+    .waveform span:nth-child(3n) { height: 78px; }
+    .waveform span:nth-child(5n) { height: 34px; }
+
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font: 700 11px/1 var(--mono);
+    }
+
+    .meta b { color: var(--cyan); }
+
+    .footer {
+      position: absolute;
+      left: 64px;
+      right: 64px;
+      bottom: 30px;
+      display: flex;
+      justify-content: space-between;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font: 700 12px/1 var(--mono);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      z-index: 3;
+    }
+
+    .footer strong {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--fg);
+    }
+
+    .footer strong::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      background: var(--blue);
+    }
+  </style>
+</head>
+<body>
+  <main class="canvas" aria-label="Open Babyphone social preview">
+    <header class="topbar">
+      <div class="logo">
+        <div class="logo-mark" aria-hidden="true">
+          <svg width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="2" y="6" width="8" height="14" rx="2" stroke="#5da8ff" stroke-width="1.5"/>
+            <rect x="16" y="6" width="8" height="14" rx="2" stroke="#5ff2d2" stroke-width="1.5"/>
+            <path d="M10 13h6" stroke="#5ff2d2" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="wordmark">Open<span>Babyphone</span></div>
+      </div>
+      <div class="status">Live audio</div>
+    </header>
+
+    <section class="copy">
+      <div class="eyebrow">Local Android monitor</div>
+      <h1>Turn two phones into your <span>new babyphone.</span></h1>
+      <p class="lede">Open-source Android baby monitor for your home Wi-Fi. No account, no cloud.</p>
+    </section>
+
+    <section class="visual" aria-hidden="true">
+      <div class="beam"></div>
+      <div class="beam-dot"></div>
+
+      <div class="phone child">
+        <div class="screen">
+          <div class="label">Child device</div>
+          <div>
+            <div class="bars"><span></span><span></span><span></span><span></span></div>
+            <div class="phone-copy"><b>Listening</b><br>Near the child</div>
+          </div>
+          <div class="label" style="justify-content: flex-end;">Open source</div>
+        </div>
+      </div>
+
+      <div class="phone parent">
+        <div class="screen">
+          <div class="label">Parent device</div>
+          <div>
+            <div class="waveform">
+              <span></span><span></span><span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <div class="meta"><b>LIVE</b><span>-24 dB</span></div>
+          </div>
+          <div class="label" style="justify-content: flex-end;">Headphones on</div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <strong>Open Babyphone</strong>
+      <span>GPLv3 / Local-first</span>
+    </footer>
+  </main>
+</body>
+</html>
