@@ -59,6 +59,9 @@ fun StartScreen(
         buildList {
             add(Manifest.permission.CHANGE_WIFI_MULTICAST_STATE)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                add(Manifest.permission.NEARBY_WIFI_DEVICES)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 add(Manifest.permission.POST_NOTIFICATIONS)
             }
         }.toTypedArray()

@@ -99,8 +99,8 @@ class MonitorService : Service() {
     private fun authenticateParent(socket: Socket): Boolean {
         val sessionId = streamSessionId ?: return false
         val key = streamKey
-        val kdfSalt = streamKdfSalt
         val authRequired = key != null
+        val kdfSalt = if (authRequired) streamKdfSalt else null
         return try {
             socket.soTimeout = AUTH_TIMEOUT_MS
             val challenge = if (authRequired) CryptoHelper.generateChallenge() else null
