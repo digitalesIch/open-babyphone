@@ -294,6 +294,10 @@ class MonitorService : Service() {
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
         Log.i(TAG, "Received start id $startId")
+        if (intent.getBooleanExtra(ServiceHeartbeatScheduler.EXTRA_HEARTBEAT, false) && monitorThread?.isAlive == true) {
+            ServiceHeartbeatScheduler.scheduleMonitor(this)
+            return START_REDELIVER_INTENT
+        }
         val prefs = getSharedPreferences(PAIRING_PREFS_NAME, MODE_PRIVATE)
         pairingCodeSnapshot = prefs.getString(PREF_KEY_PAIRING_CODE, "") ?: ""
         microphoneGain = MicrophoneSensitivity.fromPreferenceValue(
@@ -302,6 +306,7 @@ class MonitorService : Service() {
         createNotificationChannel()
         val n = buildNotification()
         ServiceCompat.startForeground(this, ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+        ServiceHeartbeatScheduler.scheduleMonitor(this)
         clientManager.setClientCountListener { count ->
             MonitorServiceRepository.updateSessionState(
                 if (count > 0) MonitorSessionState.Connected(count) else MonitorSessionState.WaitingForParent

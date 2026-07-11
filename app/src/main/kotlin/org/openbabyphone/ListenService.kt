@@ -98,6 +98,10 @@ class ListenService : Service() {
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
         Log.i(TAG, "Received start id $startId")
+        if (intent.getBooleanExtra(ServiceHeartbeatScheduler.EXTRA_HEARTBEAT, false) && isRunning) {
+            ServiceHeartbeatScheduler.scheduleListen(this, intent)
+            return START_REDELIVER_INTENT
+        }
         createNotificationChannel()
         notificationManager.cancel(ALERT_NOTIFICATION_ID)
         intent.extras?.let {
@@ -115,6 +119,7 @@ class ListenService : Service() {
             }
             val n = buildForegroundNotification(name)
             ServiceCompat.startForeground(this, ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+            ServiceHeartbeatScheduler.scheduleListen(this, intent)
             registerNetworkCallback()
             stopListenThread()
             doListen(address, port, pairingCode)
@@ -403,6 +408,7 @@ class ListenService : Service() {
 
     private fun handleTerminalConnectionFailure() {
         isRunning = false
+        ServiceHeartbeatScheduler.cancelListen(this)
         ListenServiceRepository.updateError(getString(R.string.disconnected))
         playAlert()
         onError?.invoke()
