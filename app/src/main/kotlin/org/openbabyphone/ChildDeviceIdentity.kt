@@ -73,12 +73,12 @@ class ChildDeviceIdentityStore(context: Context) {
             var childId = prefs.getString(KEY_CHILD_ID, null)
             if (childId == null) {
                 childId = ChildDeviceIdentity.generateId()
-                prefs.edit().putString(KEY_CHILD_ID, childId).commit()
+                prefs.edit().putString(KEY_CHILD_ID, childId).apply()
             }
             var pairingId = prefs.getString(KEY_PAIRING_ID, null)
             if (pairingId == null) {
                 pairingId = ChildDeviceIdentity.generateId()
-                prefs.edit().putString(KEY_PAIRING_ID, pairingId).commit()
+                prefs.edit().putString(KEY_PAIRING_ID, pairingId).apply()
             }
             return ChildDeviceIdentity(childId, pairingId)
         }
@@ -89,7 +89,7 @@ class ChildDeviceIdentityStore(context: Context) {
      */
     fun rotatePairingId() {
         val newPairingId = ChildDeviceIdentity.generateId()
-        prefs.edit().putString(KEY_PAIRING_ID, newPairingId).commit()
+        prefs.edit().putString(KEY_PAIRING_ID, newPairingId).apply()
     }
 
     companion object {
