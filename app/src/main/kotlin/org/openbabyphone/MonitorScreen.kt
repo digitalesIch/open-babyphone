@@ -305,7 +305,7 @@ private fun SetupSection(
         enabled = uiState.pairingCodeValid,
         modifier = Modifier
             .fillMaxWidth()
-            .testTag("monitoring_toggle_button")
+                    .testTag("stop_monitoring_button")
     )
 
     Spacer(modifier = Modifier.height(Spacing.space16))
@@ -552,7 +552,7 @@ private fun MonitoringSection(
                 onClick = onStopMonitoring,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag("monitoring_toggle_button")
+            .testTag("start_monitoring_button")
             )
         }
     }

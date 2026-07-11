@@ -77,13 +77,49 @@ class VolumeStatisticsTest {
     }
 
     @Test
-    fun `normalization does not decrease when smaller values follow`() {
+    fun `max volume decays slowly after loud transient`() {
         val stats = VolumeStatistics(100)
         stats.addLast(0.8)
-        val normAfterLarge = stats.volumeNorm
-        stats.addLast(0.1)
-        stats.addLast(0.05)
-        assertEquals(normAfterLarge, stats.volumeNorm, 0.001)
+        val normAfterLoud = stats.volumeNorm
+        repeat(1000) {
+            stats.addLast(0.01)
+        }
+        assertTrue(
+            "volumeNorm should increase (maxVolume should decay) after many quiet samples",
+            stats.volumeNorm > normAfterLoud
+        )
+    }
+
+    @Test
+    fun `max volume does not decay below floor`() {
+        val stats = VolumeStatistics(100)
+        stats.addLast(0.01)
+        repeat(10000) {
+            stats.addLast(0.01)
+        }
+        assertTrue(
+            "volumeNorm should not exceed 1.0 / floor (maxVolume should not go below floor)",
+            stats.volumeNorm <= 1.0 / 0.25 + 0.001
+        )
+    }
+
+    @Test
+    fun `decay allows visualization to recover after loud transient`() {
+        val stats = VolumeStatistics(100)
+        stats.addLast(0.9)
+        val normDuringLoud = stats.volumeNorm
+        repeat(5000) {
+            stats.addLast(0.1)
+        }
+        val normAfterRecovery = stats.volumeNorm
+        assertTrue(
+            "After many samples, norm should be higher (maxVolume lower) than during loud period",
+            normAfterRecovery > normDuringLoud
+        )
+        assertTrue(
+            "But norm should not over-amplify: maxVolume should be >= 0.1 (current volume)",
+            stats.volumeNorm <= 1.0 / 0.1 + 0.001
+        )
     }
 
     @Test

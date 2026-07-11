@@ -45,7 +45,8 @@ fun DiscoverAddressScreen(
     var pairingCode by rememberSaveable { mutableStateOf("") }
     val parsedPort = port.toIntOrNull()
     val isPortValid = parsedPort in 1..65535
-    val canConnect = ipAddress.isNotBlank() && isPortValid
+    val isAddressValid = ConnectionAddress.isValidAddress(ipAddress)
+    val canConnect = isAddressValid && isPortValid
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
 
     Scaffold(
@@ -90,8 +91,14 @@ fun DiscoverAddressScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag("ip_address_field"),
+                            isError = ipAddress.isNotBlank() && !isAddressValid,
+                            supportingText = {
+                                if (ipAddress.isNotBlank() && !isAddressValid) {
+                                    Text(stringResource(R.string.invalid_address))
+                                }
+                            },
                             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                                keyboardType = KeyboardType.Uri,
+                                keyboardType = KeyboardType.Ascii,
                                 imeAction = ImeAction.Next
                             ),
                             singleLine = true,

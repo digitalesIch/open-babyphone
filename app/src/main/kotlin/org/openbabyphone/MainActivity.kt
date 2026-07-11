@@ -128,7 +128,7 @@ class MainActivity : ComponentActivity() {
                                     onNavigateBack = { navController.popBackStack() },
                                     onConnect = { address, port, pairingCode ->
                                         navController.navigate(
-                                            Listen(address, port, address, pairingCode)
+                                            Listen(address, port, "", pairingCode)
                                         )
                                     }
                                 )

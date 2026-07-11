@@ -24,6 +24,11 @@ class VolumeStatistics internal constructor(private val maxHistory: Int) {
     private var startIndex = 0
     private var count = 0
 
+    companion object {
+        private const val DECAY_FACTOR = 0.9999
+        private const val MAX_VOLUME_FLOOR = 0.25
+    }
+
     operator fun get(i: Int): Double {
         if (i < 0 || i >= count) {
             throw IndexOutOfBoundsException("Index $i out of bounds for size $count")
@@ -36,10 +41,14 @@ class VolumeStatistics internal constructor(private val maxHistory: Int) {
     }
 
     fun addLast(volume: Double) {
+        maxVolume *= DECAY_FACTOR
+        if (maxVolume < MAX_VOLUME_FLOOR) {
+            maxVolume = MAX_VOLUME_FLOOR
+        }
         if (volume > this.maxVolume) {
             this.maxVolume = volume
-            this.volumeNorm = 1.0 / volume
         }
+        this.volumeNorm = 1.0 / maxVolume
         if (count < maxHistory) {
             historyData[(startIndex + count) % maxHistory] = volume
             count++
