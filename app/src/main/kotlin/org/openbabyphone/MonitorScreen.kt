@@ -292,64 +292,6 @@ private fun SetupSection(
 
     Spacer(modifier = Modifier.height(Spacing.space16))
 
-    OdOutlinedCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("pairing_card"),
-        content = {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                OdCardTitle(stringResource(R.string.pairing_code_title), modifier = Modifier.fillMaxWidth())
-                Spacer(modifier = Modifier.height(Spacing.space8))
-                OutlinedTextField(
-                    value = uiState.pairingCode,
-                    onValueChange = onPairingCodeChange,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("pairing_code_field"),
-                    enabled = !isMonitoring,
-                    isError = !uiState.pairingCodeValid,
-                    supportingText = {
-                        if (!uiState.pairingCodeValid) {
-                            Text(stringResource(R.string.invalid_pairing_code_feedback))
-                        }
-                    },
-                    placeholder = { Text(stringResource(R.string.example_pairing_code)) },
-                    singleLine = true,
-                    textStyle = MaterialTheme.typography.bodyLarge
-                )
-                Spacer(modifier = Modifier.height(Spacing.space8))
-                OdCardBody(stringResource(R.string.monitoring_setup_hint))
-
-                if (uiState.pairingCode.isNotEmpty() && uiState.pairingCodeValid) {
-                    Spacer(modifier = Modifier.height(Spacing.space16))
-                    QrCode(
-                        content = uiState.qrPayload.ifEmpty { uiState.pairingCode },
-                        modifier = Modifier.testTag("pairing_qr_code")
-                    )
-                    Spacer(modifier = Modifier.height(Spacing.space8))
-                    Text(
-                        stringResource(R.string.qr_code_hint),
-                        style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(modifier = Modifier.height(Spacing.space8))
-                    OdOutlinedActionButton(
-                        text = stringResource(R.string.reset_pairing),
-                        onClick = onResetPairing,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("reset_pairing_button"),
-                        enabled = !isMonitoring
-                    )
-                }
-            }
-        }
-    )
-
-    Spacer(modifier = Modifier.height(Spacing.space16))
-
     MicrophoneSensitivityCard(
         uiState = uiState,
         onSensitivityChange = onSensitivityChange
@@ -364,6 +306,62 @@ private fun SetupSection(
         modifier = Modifier
             .fillMaxWidth()
             .testTag("monitoring_toggle_button")
+    )
+
+    Spacer(modifier = Modifier.height(Spacing.space16))
+
+    AdvancedPairingCodeCard(
+        uiState = uiState,
+        onPairingCodeChange = onPairingCodeChange,
+        onResetPairing = onResetPairing,
+        enabled = !isMonitoring
+    )
+}
+
+@Composable
+private fun AdvancedPairingCodeCard(
+    uiState: MonitorUiState,
+    onPairingCodeChange: (String) -> Unit,
+    onResetPairing: () -> Unit,
+    enabled: Boolean
+) {
+    OdOutlinedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("pairing_card"),
+        content = {
+            OdCardTitle(stringResource(R.string.advanced_section_title))
+            Spacer(modifier = Modifier.height(Spacing.space8))
+            OdCardBody(stringResource(R.string.monitoring_setup_hint))
+            Spacer(modifier = Modifier.height(Spacing.space12))
+            OutlinedTextField(
+                value = uiState.pairingCode,
+                onValueChange = onPairingCodeChange,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("pairing_code_field"),
+                enabled = enabled,
+                label = { Text(stringResource(R.string.pairing_code_title)) },
+                isError = !uiState.pairingCodeValid,
+                supportingText = {
+                    if (!uiState.pairingCodeValid) {
+                        Text(stringResource(R.string.invalid_pairing_code_feedback))
+                    }
+                },
+                placeholder = { Text(stringResource(R.string.example_pairing_code)) },
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyLarge
+            )
+            Spacer(modifier = Modifier.height(Spacing.space8))
+            OdOutlinedActionButton(
+                text = stringResource(R.string.reset_pairing),
+                onClick = onResetPairing,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("reset_pairing_button"),
+                enabled = enabled
+            )
+        }
     )
 }
 
@@ -636,6 +634,13 @@ private fun PairParentDeviceDialog(
                 Text(
                     stringResource(R.string.pair_parent_device_instructions),
                     style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(Spacing.space8))
+                Text(
+                    stringResource(R.string.move_parent_away_before_listening),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
             }
