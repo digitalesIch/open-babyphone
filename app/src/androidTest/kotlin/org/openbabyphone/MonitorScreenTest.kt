@@ -4,10 +4,12 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -33,7 +35,7 @@ class MonitorScreenTest {
 
         composeTestRule.onNodeWithText("Start Monitoring").assertIsDisplayed()
         composeTestRule.onNodeWithTag("pairing_code_field").assertIsEnabled()
-        composeTestRule.onNodeWithTag("pairing_qr_code").assertIsDisplayed()
+        composeTestRule.onAllNodesWithTag("pairing_qr_code").assertCountEquals(0)
     }
 
     @Test
