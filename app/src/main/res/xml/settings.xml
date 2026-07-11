@@ -8,4 +8,10 @@
             app:defaultValue="system"
             app:useSimpleSummaryProvider="true" />
     </PreferenceCategory>
+    <PreferenceCategory app:title="@string/about">
+        <Preference
+            app:key="app_version"
+            app:title="@string/app_version"
+            app:selectable="false" />
+    </PreferenceCategory>
 </PreferenceScreen>
