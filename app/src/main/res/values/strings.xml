@@ -104,6 +104,8 @@
 
     <string name="known_children_helper">Connect to a known child device when it is online on the same network.</string>
     <string name="forget_child">Forget</string>
+    <string name="forget_child_title">Forget child device?</string>
+    <string name="forget_child_confirmation">You\'ll need to scan the QR code again to reconnect to this child device.</string>
     <string name="connect_to_child">Connect</string>
     <string name="pairing_reset_notice">Pairing was reset on this child. Scan the QR code again to reconnect.</string>
     <string name="trusted_child_not_found">Not found yet. Make sure the child device is monitoring and on the same network.</string>

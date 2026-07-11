@@ -56,8 +56,8 @@ fun DiscoverScreen(
     onNavigateBack: () -> Unit,
     onNavigateToAddressInput: () -> Unit,
     onNavigateToListen: (String, Int, String, String) -> Unit,
-    onNavigateToWifiDirect: () -> Unit = {},
     modifier: Modifier = Modifier,
+    onNavigateToWifiDirect: () -> Unit = {},
     viewModel: DiscoverViewModel = viewModel(),
     autoStartDiscovery: Boolean = true
 ) {
@@ -394,14 +394,14 @@ fun DiscoverScreen(
     forgetChildId?.let { childId ->
         AlertDialog(
             onDismissRequest = { forgetChildId = null },
-            title = { Text(stringResource(R.string.forget_child)) },
-            text = { Text(stringResource(R.string.forget_child)) },
+            title = { Text(stringResource(R.string.forget_child_title)) },
+            text = { Text(stringResource(R.string.forget_child_confirmation)) },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.forgetChild(childId)
                     forgetChildId = null
                 }) {
-                    Text(stringResource(R.string.confirm))
+                    Text(stringResource(R.string.forget_child))
                 }
             },
             dismissButton = {
