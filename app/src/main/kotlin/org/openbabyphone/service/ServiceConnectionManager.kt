@@ -20,6 +20,7 @@ object ServiceConnectionManager {
         val intent: Intent,
         val connection: ServiceConnection,
         val bound: Boolean,
+        val stopOnDispose: Boolean = true,
         val clearCallbacks: () -> Unit = {}
     )
 
@@ -106,8 +107,17 @@ object ServiceConnectionManager {
             intent = intent,
             connection = connection,
             bound = bound,
+            stopOnDispose = !resumeOnly,
             clearCallbacks = { serviceRef?.get()?.clearCallbacks() }
         )
+    }
+
+    fun disposeServiceBinding(context: Context, binding: ServiceBinding) {
+        if (binding.stopOnDispose) {
+            unbindAndStopService(context, binding)
+        } else {
+            unbindService(context, binding)
+        }
     }
 
     fun unbindAndStopService(context: Context, binding: ServiceBinding) {

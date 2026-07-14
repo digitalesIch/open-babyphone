@@ -26,7 +26,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -75,6 +77,15 @@ fun ListenScreen(
     val unknownLabel = stringResource(R.string.unknown_device)
     val volumeVisualizationDescription = stringResource(R.string.volume_visualization_content_description)
     var retryToken by rememberSaveable { mutableIntStateOf(0) }
+    var serviceBinding by remember { mutableStateOf<ServiceConnectionManager.ServiceBinding?>(null) }
+    val disconnect: () -> Unit = {
+        val binding = serviceBinding
+        if (binding != null && !binding.stopOnDispose) {
+            ServiceConnectionManager.unbindAndStopService(context, binding)
+            serviceBinding = null
+        }
+        onNavigateBack()
+    }
     DisposableEffect(address, port, name, pairingCode, resumeOnly, retryToken) {
         val binding = ServiceConnectionManager.bindListenService(
             context,
@@ -85,8 +96,12 @@ fun ListenScreen(
             pairingCode,
             resumeOnly
         )
+        serviceBinding = binding
         onDispose {
-            ServiceConnectionManager.unbindAndStopService(context, binding)
+            ServiceConnectionManager.disposeServiceBinding(context, binding)
+            if (serviceBinding === binding) {
+                serviceBinding = null
+            }
         }
     }
 
@@ -180,7 +195,7 @@ fun ListenScreen(
                                 Spacer(modifier = Modifier.height(Spacing.space8))
                                 OdOutlinedActionButton(
                                     text = stringResource(R.string.disconnect),
-                                    onClick = onNavigateBack,
+                                    onClick = disconnect,
                                     modifier = Modifier.testTag("back_to_discovery_button")
                                 )
                             }
@@ -215,7 +230,7 @@ fun ListenScreen(
 
                     OdOutlinedActionButton(
                         text = stringResource(R.string.disconnect),
-                        onClick = onNavigateBack,
+                        onClick = disconnect,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("disconnect_button")
@@ -247,7 +262,7 @@ fun ListenScreen(
 
                     OdOutlinedActionButton(
                         text = stringResource(R.string.disconnect),
-                        onClick = onNavigateBack,
+                        onClick = disconnect,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("disconnect_button")
