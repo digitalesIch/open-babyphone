@@ -1,8 +1,9 @@
 package org.openbabyphone
 
 import org.openbabyphone.ui.theme.Spacing
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,8 +25,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -34,15 +37,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -54,11 +48,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.delay
 import org.openbabyphone.service.ServiceConnectionManager
 import org.openbabyphone.viewmodel.ListenViewModel
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.sin
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,7 +69,7 @@ fun ListenScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val unknownLabel = stringResource(R.string.unknown_device)
-    val volumeVisualizationDescription = stringResource(R.string.volume_visualization_content_description)
+    var nowMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var retryToken by rememberSaveable { mutableIntStateOf(0) }
     var serviceBinding by remember { mutableStateOf<ServiceConnectionManager.ServiceBinding?>(null) }
     val disconnect: () -> Unit = {
@@ -102,6 +96,13 @@ fun ListenScreen(
             if (serviceBinding === binding) {
                 serviceBinding = null
             }
+        }
+    }
+
+    LaunchedEffect(uiState.isConnected) {
+        while (uiState.isConnected) {
+            nowMillis = System.currentTimeMillis()
+            delay(1000)
         }
     }
 
@@ -248,13 +249,14 @@ fun ListenScreen(
                                 shape = waveformShape
                             )
                     ) {
-                        VolumeCanvas(
+                        AudioSignalIndicator(
                             volumeHistory = uiState.volumeHistory,
                             volumeNorm = uiState.volumeNorm,
+                            lastAudioUpdateAtMillis = uiState.lastAudioUpdateAtMillis,
+                            nowMillis = nowMillis,
                             modifier = Modifier
                                 .fillMaxSize()
-                                .testTag("volume_canvas")
-                                .semantics { contentDescription = volumeVisualizationDescription }
+                                .testTag("audio_signal_indicator")
                         )
                     }
 
@@ -274,108 +276,105 @@ fun ListenScreen(
 }
 
 @Composable
-private fun VolumeCanvas(
+private fun AudioSignalIndicator(
     volumeHistory: FloatArray,
     volumeNorm: Float,
+    lastAudioUpdateAtMillis: Long,
+    nowMillis: Long,
     modifier: Modifier = Modifier
 ) {
-    val background = MaterialTheme.colorScheme.background
-    val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
-    val primaryContainer = MaterialTheme.colorScheme.primaryContainer
-    val primary = MaterialTheme.colorScheme.primary
-    val secondary = MaterialTheme.colorScheme.secondary
-    val onPrimary = MaterialTheme.colorScheme.onPrimary
-    val onSurface = MaterialTheme.colorScheme.onSurface
+    val signalState = audioSignalState(volumeHistory, volumeNorm, lastAudioUpdateAtMillis, nowMillis)
+    val loudness = if (signalState == AudioSignalState.NoAudio) 0f else rollingLoudness(volumeHistory, volumeNorm)
+    val levelPercent = (loudness * 100).toInt().coerceIn(0, 100)
+    val activeBars = signalBarCount(signalState, loudness)
+    val stateLabel = stringResource(signalState.labelRes)
+    val stateColor = when (signalState) {
+        AudioSignalState.NoAudio -> MaterialTheme.colorScheme.onSurfaceVariant
+        AudioSignalState.AudioDetected -> MaterialTheme.colorScheme.primary
+        AudioSignalState.LoudSound -> MaterialTheme.colorScheme.secondary
+    }
+    val backgroundMix = when (signalState) {
+        AudioSignalState.NoAudio -> 0.04f
+        AudioSignalState.AudioDetected -> 0.12f
+        AudioSignalState.LoudSound -> 0.28f
+    }
+    val contentDescription = stringResource(R.string.audio_signal_content_description, stateLabel, levelPercent)
 
-    Canvas(modifier = modifier) {
-        val height = size.height
-        val width = size.width
-        val loudness = rollingLoudness(volumeHistory, volumeNorm)
-        val loudSignal = ((loudness - 0.34f) / 0.66f).coerceIn(0f, 1f)
-        val isDarkTheme = background.luminance() < 0.5f
-        val loudBackground = if (isDarkTheme) onSurface else primaryContainer
-        val backgroundMix = if (isDarkTheme) {
-            0.08f + loudSignal * 0.84f
-        } else {
-            0.04f + loudSignal * 0.28f
-        }
-        val backgroundColor = lerp(surfaceVariant, loudBackground, backgroundMix.coerceIn(0f, 0.94f))
-        drawRect(backgroundColor)
-
-        val glowAlpha = if (isDarkTheme) 0.10f + loudSignal * 0.18f else 0.07f + loudSignal * 0.10f
-        drawCircle(
-            color = primary.copy(alpha = glowAlpha),
-            radius = max(width, height) * 0.42f,
-            center = Offset(width * 0.22f, height * 0.28f)
-        )
-
-        val capsuleCount = 7
-        val capsuleGap = width * 0.025f
-        val capsuleWidth = ((width * 0.55f) - capsuleGap * (capsuleCount - 1)) / capsuleCount
-        val capsuleStartX = (width - (capsuleWidth * capsuleCount + capsuleGap * (capsuleCount - 1))) / 2f
-        val capsuleBaseY = height * 0.72f
-        repeat(capsuleCount) { index ->
-            val recent = normalizedRecentSample(volumeHistory, volumeNorm, index, capsuleCount)
-            val capsuleHeight = height * (0.10f + recent * 0.22f + loudness * 0.08f)
-            val color = if (index % 2 == 0) primary else secondary
-            drawRoundRect(
-                color = color.copy(alpha = 0.11f + loudSignal * 0.09f),
-                topLeft = Offset(capsuleStartX + index * (capsuleWidth + capsuleGap), capsuleBaseY - capsuleHeight),
-                size = Size(capsuleWidth, capsuleHeight),
-                cornerRadius = CornerRadius(capsuleWidth / 2f, capsuleWidth / 2f)
+    Column(
+        modifier = modifier
+            .background(
+                lerp(
+                    MaterialTheme.colorScheme.surfaceVariant,
+                    MaterialTheme.colorScheme.primaryContainer,
+                    backgroundMix
+                )
+            )
+            .padding(Spacing.space24)
+            .semantics { this.contentDescription = contentDescription },
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.audio_signal_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = stateLabel,
+                style = MaterialTheme.typography.labelMedium,
+                color = stateColor,
+                modifier = Modifier
+                    .clip(MaterialTheme.shapes.large)
+                    .background(stateColor.copy(alpha = 0.12f))
+                    .padding(horizontal = Spacing.space12, vertical = Spacing.space4)
             )
         }
 
-        if (volumeHistory.size < 2) return@Canvas
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(96.dp),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.space8),
+            verticalAlignment = Alignment.Bottom
+        ) {
+            repeat(SIGNAL_BAR_COUNT) { index ->
+                val filled = index < activeBars
+                val color = if (filled) {
+                    if (signalState == AudioSignalState.LoudSound && index >= 3) {
+                        MaterialTheme.colorScheme.secondary
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    }
+                } else {
+                    MaterialTheme.colorScheme.outline.copy(alpha = 0.22f)
+                }
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height((24 + index * 12).dp)
+                        .clip(MaterialTheme.shapes.small)
+                        .background(color)
+                )
+            }
+        }
 
-        val waveInset = width * 0.08f
-        val waveWidth = width - waveInset * 2f
-        val centerY = height * 0.48f
-        val pointCount = min(72, volumeHistory.size)
-        val sampleStart = volumeHistory.size - pointCount
-        val points = List(pointCount) { index ->
-            val sampleIndex = sampleStart + index
-            val normalized = (volumeHistory[sampleIndex] * volumeNorm).coerceIn(0f, 1f)
-            val phase = sin(index * 0.72f).toFloat()
-            val amplitude = height * (0.09f + normalized * 0.22f + loudness * 0.08f)
-            Offset(
-                x = waveInset + (index.toFloat() / (pointCount - 1)) * waveWidth,
-                y = centerY - phase * amplitude
+        Column {
+            Text(
+                text = stringResource(R.string.audio_signal_level_percent, levelPercent),
+                style = MaterialTheme.typography.displaySmall,
+                color = stateColor
+            )
+            Spacer(modifier = Modifier.height(Spacing.space8))
+            Text(
+                text = stringResource(signalState.descriptionRes),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        val primaryPath = smoothPath(points)
-        val echoPath = smoothPath(points.map { point ->
-            point.copy(y = centerY + (centerY - point.y) * 0.56f)
-        })
-
-        val contrastMix = if (isDarkTheme) loudSignal else 0f
-        val primaryWave = lerp(primary, onPrimary, contrastMix * 0.82f)
-        val secondaryWave = lerp(secondary, onPrimary, contrastMix * 0.68f)
-        val lineBrush = Brush.horizontalGradient(
-            colors = listOf(primaryWave, secondaryWave),
-            startX = waveInset,
-            endX = width - waveInset
-        )
-
-        drawPath(
-            path = echoPath,
-            brush = lineBrush,
-            alpha = 0.28f + loudSignal * 0.12f,
-            style = Stroke(
-                width = 3.dp.toPx(),
-                cap = StrokeCap.Round,
-                join = StrokeJoin.Round
-            )
-        )
-        drawPath(
-            path = primaryPath,
-            brush = lineBrush,
-            style = Stroke(
-                width = 4.dp.toPx(),
-                cap = StrokeCap.Round,
-                join = StrokeJoin.Round
-            )
-        )
     }
 }
 
@@ -405,20 +404,38 @@ internal fun normalizedRecentSample(
     return (volumeHistory[sampleIndex] * volumeNorm).coerceIn(0f, 1f)
 }
 
-private fun smoothPath(points: List<Offset>): Path {
-    return Path().apply {
-        if (points.isEmpty()) return@apply
-        moveTo(points.first().x, points.first().y)
-        for (index in 1 until points.size) {
-            val previous = points[index - 1]
-            val current = points[index]
-            quadraticTo(
-                previous.x,
-                previous.y,
-                (previous.x + current.x) / 2f,
-                (previous.y + current.y) / 2f
-            )
-        }
-        lineTo(points.last().x, points.last().y)
+internal enum class AudioSignalState(
+    val labelRes: Int,
+    val descriptionRes: Int
+) {
+    NoAudio(R.string.audio_signal_no_audio, R.string.audio_signal_no_audio_description),
+    AudioDetected(R.string.audio_signal_audio_detected, R.string.audio_signal_audio_detected_description),
+    LoudSound(R.string.audio_signal_loud_sound, R.string.audio_signal_loud_sound_description)
+}
+
+internal fun audioSignalState(
+    volumeHistory: FloatArray,
+    volumeNorm: Float,
+    lastAudioUpdateAtMillis: Long,
+    nowMillis: Long
+): AudioSignalState {
+    if (volumeHistory.isEmpty() || lastAudioUpdateAtMillis <= 0L) return AudioSignalState.NoAudio
+    if (nowMillis - lastAudioUpdateAtMillis > AUDIO_SIGNAL_STALE_MS) return AudioSignalState.NoAudio
+    return if (rollingLoudness(volumeHistory, volumeNorm) >= LOUD_SIGNAL_THRESHOLD) {
+        AudioSignalState.LoudSound
+    } else {
+        AudioSignalState.AudioDetected
     }
 }
+
+internal fun signalBarCount(signalState: AudioSignalState, loudness: Float): Int {
+    return when (signalState) {
+        AudioSignalState.NoAudio -> 0
+        AudioSignalState.LoudSound -> SIGNAL_BAR_COUNT
+        AudioSignalState.AudioDetected -> (loudness * SIGNAL_BAR_COUNT).toInt().coerceIn(1, SIGNAL_BAR_COUNT - 1)
+    }
+}
+
+private const val AUDIO_SIGNAL_STALE_MS = 2500L
+private const val LOUD_SIGNAL_THRESHOLD = 0.56f
+private const val SIGNAL_BAR_COUNT = 6
