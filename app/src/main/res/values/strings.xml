@@ -77,6 +77,15 @@
     <string name="service_information_content_description">Service information</string>
     <string name="service_status_content_description">Service status: %1$s</string>
     <string name="volume_visualization_content_description">Volume visualization</string>
+    <string name="audio_signal_title">Audio signal</string>
+    <string name="audio_signal_no_audio">No audio</string>
+    <string name="audio_signal_audio_detected">Audio detected</string>
+    <string name="audio_signal_loud_sound">Loud sound</string>
+    <string name="audio_signal_no_audio_description">No recent audio frames. Check the connection if this does not recover.</string>
+    <string name="audio_signal_audio_detected_description">Audio is arriving from the child device.</string>
+    <string name="audio_signal_loud_sound_description">Sustained loud audio detected. Check the child device.</string>
+    <string name="audio_signal_level_percent">%1$d%%</string>
+    <string name="audio_signal_content_description">Audio signal: %1$s, level %2$d percent</string>
     <string name="foreground_service_channel">Foreground Service Channel</string>
     <string name="start_monitoring">Start Monitoring</string>
     <string name="stop_monitoring">Stop Monitoring</string>

@@ -17,6 +17,7 @@ data class ListenUiState(
     val status: String = "",
     val volumeHistory: FloatArray = floatArrayOf(),
     val volumeNorm: Float = 1.0f,
+    val lastAudioUpdateAtMillis: Long = 0L,
     val isConnected: Boolean = false,
     val isError: Boolean = false,
     val isReconnecting: Boolean = false
@@ -25,6 +26,7 @@ data class ListenUiState(
 class ListenViewModel(application: Application) : AndroidViewModel(application) {
     private val _volumeHistory = MutableStateFlow(FloatArray(0))
     private val _volumeNorm = MutableStateFlow(1.0f)
+    private val _lastAudioUpdateAtMillis = MutableStateFlow(0L)
     private val connectingStatus = application.getString(R.string.connecting)
     private val listeningStatus = application.getString(R.string.listening)
     private val disconnectedStatus = application.getString(R.string.disconnected)
@@ -32,12 +34,13 @@ class ListenViewModel(application: Application) : AndroidViewModel(application) 
     val uiState: StateFlow<ListenUiState> = combine(
         _volumeHistory,
         _volumeNorm,
+        _lastAudioUpdateAtMillis,
         combine(
             ListenServiceRepository.childDeviceName,
             ListenServiceRepository.sessionState
         ) { name, state -> name to state },
         ListenServiceRepository.isError
-    ) { volumeHistory, volumeNorm, repoInfo, isError ->
+    ) { volumeHistory, volumeNorm, lastAudioUpdateAtMillis, repoInfo, isError ->
         val (name, sessionState) = repoInfo
         val connected = sessionState is ListenSessionState.Listening
         val status = when (sessionState) {
@@ -56,6 +59,7 @@ class ListenViewModel(application: Application) : AndroidViewModel(application) 
             status = status,
             volumeHistory = volumeHistory,
             volumeNorm = volumeNorm,
+            lastAudioUpdateAtMillis = lastAudioUpdateAtMillis,
             isConnected = connected,
             isError = isError,
             isReconnecting = sessionState is ListenSessionState.Reconnecting
@@ -65,5 +69,6 @@ class ListenViewModel(application: Application) : AndroidViewModel(application) 
     fun updateVolumeHistory(history: FloatArray, norm: Float) {
         _volumeHistory.value = history
         _volumeNorm.value = norm
+        _lastAudioUpdateAtMillis.value = System.currentTimeMillis()
     }
 }
