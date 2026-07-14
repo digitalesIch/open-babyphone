@@ -14,6 +14,7 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 
 @RunWith(RobolectricTestRunner::class)
 class ServiceConnectionManagerCallbacksTest {
@@ -61,5 +62,43 @@ class ServiceConnectionManagerCallbacksTest {
         assertNull("onStatusChange should be null after unbind", service.onStatusChange)
 
         controller.destroy()
+    }
+
+    @Test
+    fun `disposeServiceBinding stops normal listen binding`() {
+        val intent = Intent(context, ListenService::class.java)
+        val binding = ServiceConnectionManager.ServiceBinding(
+            intent = intent,
+            connection = object : ServiceConnection {
+                override fun onServiceConnected(name: android.content.ComponentName, service: android.os.IBinder) {}
+                override fun onServiceDisconnected(name: android.content.ComponentName) {}
+            },
+            bound = false,
+            stopOnDispose = true
+        )
+
+        ServiceConnectionManager.disposeServiceBinding(context, binding)
+
+        val stoppedService = shadowOf(context).nextStoppedService
+        assertNotNull("Normal listen binding should stop service on dispose", stoppedService)
+        assertTrue(stoppedService.component?.className == ListenService::class.java.name)
+    }
+
+    @Test
+    fun `disposeServiceBinding only unbinds resume listen binding`() {
+        val intent = Intent(context, ListenService::class.java)
+        val binding = ServiceConnectionManager.ServiceBinding(
+            intent = intent,
+            connection = object : ServiceConnection {
+                override fun onServiceConnected(name: android.content.ComponentName, service: android.os.IBinder) {}
+                override fun onServiceDisconnected(name: android.content.ComponentName) {}
+            },
+            bound = false,
+            stopOnDispose = false
+        )
+
+        ServiceConnectionManager.disposeServiceBinding(context, binding)
+
+        assertNull("Resume listen binding must not stop service on dispose", shadowOf(context).nextStoppedService)
     }
 }
