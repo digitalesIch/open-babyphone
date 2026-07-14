@@ -42,7 +42,7 @@ jobs:
         run: ./gradlew assembleDebug
 
       - name: Build, test and lint release
-        run: ./gradlew assembleRelease testReleaseUnitTest lintRelease
+        run: ./gradlew assembleRelease test lintRelease
 
       - name: Upload debug APK artifact
         uses: actions/upload-artifact@v4

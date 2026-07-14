@@ -17,7 +17,7 @@ Explain why you chose this solution over alternatives. What other approaches did
 Describe how you tested your changes:
 - [ ] `./gradlew assembleRelease` passes
 - [ ] `./gradlew lintRelease` passes
-- [ ] `./gradlew testReleaseUnitTest` passes (if applicable)
+- [ ] `./gradlew test` passes (if applicable)
 - [ ] Tested on real device(s)
 
 If this is a bug fix, include a reproducer for the original bug and instructions for verifying it is fixed.

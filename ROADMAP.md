@@ -166,7 +166,7 @@ Goal: make the project installable and maintainable as an open source Android ap
 - Document release signing and local verification without committing secrets
 - Decide minification/R8 posture and keep rules before enabling release optimizations
 - Tag releases with clear version names and changelogs
-- Ensure `./gradlew assembleRelease testReleaseUnitTest lintRelease` remains the release-grade check
+- Ensure `./gradlew assembleRelease test lintRelease` remains the release-grade check
 - Keep Android 11+ compatibility unless a future product decision changes the minimum SDK
 
 ## 5. Future Local-Only Improvements
