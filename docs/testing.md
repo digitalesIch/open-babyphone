@@ -10,7 +10,7 @@ verification guidance.
 
 Run with:
 
-    # ./gradlew testReleaseUnitTest
+    # ./gradlew test
 
 Covers:
 - Audio protocol: `FrameCodec`, `FrameHeader`, `G711UCodec`, `JitterBuffer`
@@ -47,7 +47,7 @@ Run with:
 
 The CI-grade verification command is:
 
-    # ./gradlew assembleRelease testReleaseUnitTest lintRelease
+    # ./gradlew assembleRelease test lintRelease
 
 ## Real-Device Reliability Test Matrix
 

@@ -7,9 +7,9 @@ For current build versions, see `AGENTS.md` and `app/build.gradle`.
 
 ## Phase 1: Foundation & Dependencies (Complete)
 
-- minSdkVersion 30 (Android 11), compileSdk 34
-- Compose BOM 2024.09.03 + Material 3
-- Navigation Compose 2.8.9 (Type-Safe)
+- minSdkVersion 30 (Android 11), compileSdk 37
+- Compose BOM 2026.06.01 + Material 3
+- Navigation Compose 2.9.8 (Type-Safe)
 - Kotlin Serialization for Type-Safe Routes
 - Theme with Dynamic Color (SDK 31+) + M3 Fallback
 - Edge-to-Edge Support
@@ -101,5 +101,5 @@ For current build versions, see `AGENTS.md` and `app/build.gradle`.
 | **Lint** | Passing |
 | **Min SDK** | 30 (Android 11) |
 | **Target SDK** | 34 |
-| **Compose BOM** | 2024.09.03 |
-| **Navigation** | Compose 2.8.9 (Type-Safe) |
+| **Compose BOM** | 2026.06.01 |
+| **Navigation** | Compose 2.9.8 (Type-Safe) |

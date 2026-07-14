@@ -35,7 +35,7 @@ There are three possible checks you can run while developing. The first is
 unit tests, which check the basic functionality of the application, and can be
 run by gradle using:
 
-    # ./gradlew testReleaseUnitTest
+    # ./gradlew test
 
 The second check for common problems uses static analysis.
 This is the Android lint checker, run using:
@@ -47,7 +47,7 @@ the basic functionality works as expected.
 
 The release-grade verification command that runs all checks is:
 
-    # ./gradlew assembleRelease testReleaseUnitTest lintRelease
+    # ./gradlew assembleRelease test lintRelease
 
 For the real-device reliability test matrix and release verification guidance,
 see [docs/testing.md](docs/testing.md).

@@ -159,14 +159,14 @@ fails, use a Wi-Fi hotspot or manual address entry instead.
 Use the checked-in Gradle wrapper and JDK 21:
 
 ```bash
-./gradlew assembleRelease testReleaseUnitTest lintRelease
+./gradlew assembleRelease test lintRelease
 ```
 
 Useful focused checks:
 
 ```bash
 ./gradlew assembleRelease
-./gradlew testReleaseUnitTest
+./gradlew test
 ./gradlew assembleDebugAndroidTest
 ./gradlew lintRelease
 ```
