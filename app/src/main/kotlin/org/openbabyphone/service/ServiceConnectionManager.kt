@@ -20,7 +20,6 @@ object ServiceConnectionManager {
         val intent: Intent,
         val connection: ServiceConnection,
         val bound: Boolean,
-        val stopOnDispose: Boolean = true,
         val clearCallbacks: () -> Unit = {}
     )
 
@@ -34,8 +33,6 @@ object ServiceConnectionManager {
         context: Context
     ): ServiceBinding {
         val intent = Intent(context, MonitorService::class.java)
-        ContextCompat.startForegroundService(context, intent)
-
         val connection = object : ServiceConnection {
             override fun onServiceConnected(className: ComponentName, service: IBinder) {
                 _monitorServiceConnected.value = true
@@ -46,29 +43,45 @@ object ServiceConnectionManager {
             }
         }
 
-        val bound = context.bindService(intent, connection, Context.BIND_AUTO_CREATE)
+        val bound = try {
+            context.bindService(intent, connection, 0)
+        } catch (exception: RuntimeException) {
+            false
+        }
+        if (!bound) {
+            publishMonitorStartupFailure(context)
+            try {
+                stopMonitorService(context)
+            } catch (exception: RuntimeException) {
+                // The failed start or bind may mean there is no service to stop.
+            }
+        }
         return ServiceBinding(intent, connection, bound)
+    }
+
+    fun startMonitorService(context: Context): Boolean = try {
+        ContextCompat.startForegroundService(
+            context,
+            Intent(context, MonitorService::class.java)
+        )
+        true
+    } catch (exception: RuntimeException) {
+        publishMonitorStartupFailure(context)
+        false
     }
 
     fun bindListenService(
         context: Context,
         viewModel: ListenViewModel,
-        address: String,
-        port: Int,
-        name: String,
-        pairingCode: String,
+        requestId: String,
+        expectedChildId: String = "",
+        expectedPairingId: String = "",
         resumeOnly: Boolean = false
     ): ServiceBinding {
         val intent = Intent(context, ListenService::class.java).apply {
-            if (!resumeOnly) {
-                putExtra("address", address)
-                putExtra("port", port)
-                putExtra("name", name)
-                putExtra("pairingCode", pairingCode)
-            }
-        }
-        if (!resumeOnly) {
-            ContextCompat.startForegroundService(context, intent)
+            putExtra("requestId", requestId)
+            putExtra("expectedChildId", expectedChildId)
+            putExtra("expectedPairingId", expectedPairingId)
         }
 
         var serviceRef: WeakReference<ListenService>? = null
@@ -101,23 +114,44 @@ object ServiceConnectionManager {
             }
         }
 
-        val flags = if (resumeOnly) 0 else Context.BIND_AUTO_CREATE
-        val bound = context.bindService(intent, connection, flags)
+        var bound = if (resumeOnly) {
+            context.bindService(Intent(context, ListenService::class.java), connection, 0)
+        } else {
+            false
+        }
+        val validExpectedIdentity = expectedChildId.isBlank() == expectedPairingId.isBlank()
+        val validConnection = (requestId.isNotBlank() || expectedChildId.isNotBlank()) && validExpectedIdentity
+        if (!bound && validConnection) {
+            ContextCompat.startForegroundService(context, intent)
+            bound = context.bindService(intent, connection, Context.BIND_AUTO_CREATE)
+        }
         return ServiceBinding(
             intent = intent,
             connection = connection,
             bound = bound,
-            stopOnDispose = !resumeOnly,
             clearCallbacks = { serviceRef?.get()?.clearCallbacks() }
         )
     }
 
     fun disposeServiceBinding(context: Context, binding: ServiceBinding) {
-        if (binding.stopOnDispose) {
-            unbindAndStopService(context, binding)
-        } else {
-            unbindService(context, binding)
-        }
+        unbindService(context, binding)
+    }
+
+    fun stopMonitorService(context: Context) {
+        ServiceHeartbeatScheduler.cancelMonitor(context)
+        context.stopService(Intent(context, MonitorService::class.java))
+    }
+
+    fun stopListenService(context: Context) {
+        ServiceHeartbeatScheduler.cancelListen(context)
+        context.stopService(Intent(context, ListenService::class.java))
+    }
+
+    private fun publishMonitorStartupFailure(context: Context) {
+        MonitorServiceRepository.updateError(
+            MonitorSessionError.Startup,
+            context.getString(org.openbabyphone.R.string.monitoring_start_failed)
+        )
     }
 
     fun unbindAndStopService(context: Context, binding: ServiceBinding) {

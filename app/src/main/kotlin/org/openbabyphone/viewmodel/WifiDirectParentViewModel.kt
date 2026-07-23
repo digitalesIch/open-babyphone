@@ -5,14 +5,6 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
- * Open Babyphone is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Open Babyphone. If not, see <http://www.gnu.org/licenses/>.
  */
 package org.openbabyphone.viewmodel
 
@@ -24,7 +16,12 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import org.openbabyphone.PairingCode
 import org.openbabyphone.WifiDirectController
+import org.openbabyphone.WifiDirectCleanupCoordinator
+import org.openbabyphone.WifiDirectEndpoint
+import org.openbabyphone.WifiDirectPeer
+import org.openbabyphone.WifiDirectSession
 import org.openbabyphone.WifiDirectState
 
 data class WifiDirectParentUiState(
@@ -33,12 +30,15 @@ data class WifiDirectParentUiState(
     val pairingCode: String = ""
 )
 
-class WifiDirectParentViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val controller = WifiDirectController(application)
+class WifiDirectParentViewModel @JvmOverloads constructor(
+    application: Application,
+    private val controller: WifiDirectSession = WifiDirectController(application),
+    private val cleanupCoordinator: WifiDirectCleanupCoordinator =
+        (application as org.openbabyphone.OpenBabyphoneApplication).wifiDirectCleanupCoordinator
+) : AndroidViewModel(application) {
     private val wifiDirectSupported = controller.isSupported()
-
     private val _pairingCode = MutableStateFlow("")
+    private var handoffConsumed = false
 
     val uiState: StateFlow<WifiDirectParentUiState> = combine(
         controller.state,
@@ -56,23 +56,48 @@ class WifiDirectParentViewModel(application: Application) : AndroidViewModel(app
     )
 
     fun updatePairingCode(code: String) {
-        _pairingCode.value = code
+        _pairingCode.value = code.take(PairingCode.MAX_LENGTH)
+    }
+
+    fun clearPairingCode() {
+        _pairingCode.value = ""
     }
 
     fun startDiscovery() {
+        if (handoffConsumed) cleanupCoordinator.cleanup()
+        handoffConsumed = false
         controller.startParentDiscovery()
     }
 
-    fun connectToPeer(peer: org.openbabyphone.WifiDirectPeer) {
+    fun connectToPeer(peer: WifiDirectPeer, hasPendingCredential: Boolean) {
+        if (!hasPendingCredential && !PairingCode.isValid(_pairingCode.value)) return
         controller.connectToPeer(peer)
     }
 
-    fun stop() {
-        controller.stop()
+    @Synchronized
+    fun consumeConnectedEndpoint(): WifiDirectEndpoint? {
+        if (handoffConsumed) return null
+        val connected = controller.state.value as? WifiDirectState.Connected ?: return null
+        handoffConsumed = true
+        controller.handoffToListen()
+        cleanupCoordinator.handoff(controller)
+        return connected.endpoint
+    }
+
+    fun cancel() {
+        if (handoffConsumed) cleanupCoordinator.cleanup() else controller.stop()
+        handoffConsumed = false
+        clearPairingCode()
+    }
+
+    fun leaveFlow() {
+        clearPairingCode()
+        if (!handoffConsumed) controller.stop()
     }
 
     override fun onCleared() {
+        clearPairingCode()
+        if (!handoffConsumed) controller.stop()
         super.onCleared()
-        controller.stop()
     }
 }

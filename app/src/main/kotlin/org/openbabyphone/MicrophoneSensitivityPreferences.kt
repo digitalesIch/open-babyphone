@@ -19,4 +19,10 @@ object MicrophoneSensitivityPreferences {
         }
         return MicrophoneSensitivity.fromPreferenceValue(legacyValue)
     }
+
+    fun write(context: Context, sensitivity: MicrophoneSensitivity): Boolean =
+        context.getSharedPreferences(
+            OpenBabyphoneApplication.SETTINGS_PREFS_NAME,
+            Context.MODE_PRIVATE
+        ).edit().putString(KEY, sensitivity.preferenceValue).commit()
 }

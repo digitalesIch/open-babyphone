@@ -1,9 +1,10 @@
 package org.openbabyphone
 
 import android.app.Application
+import org.json.JSONArray
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -11,140 +12,242 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
+import javax.crypto.KeyGenerator
 
 @RunWith(RobolectricTestRunner::class)
 class TrustedChildStoreTest {
-
-    private lateinit var store: TrustedChildStore
+    private lateinit var context: Application
+    private lateinit var crypto: TrustedCredentialCrypto
 
     @Before
     fun setup() {
-        val context = RuntimeEnvironment.getApplication() as Application
-        context.getSharedPreferences("trusted_children", Application.MODE_PRIVATE)
-            .edit().clear().apply()
-        store = TrustedChildStore(context)
+        context = RuntimeEnvironment.getApplication() as Application
+        context.getSharedPreferences(TrustedChildStore.METADATA_PREFS_NAME, Application.MODE_PRIVATE)
+            .edit().clear().commit()
+        credentialsPrefs().edit().clear().commit()
+        PendingConnections.store.clear()
+        val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
+        crypto = AesGcmTrustedCredentialCrypto({ key })
     }
 
     @Test
-    fun `empty store returns empty list`() {
+    fun `authenticated creation stores wrapped credential outside metadata`() {
+        val store = newStore()
+
+        assertEquals(CredentialStorageResult.Success, trust(store, "child1", "pair1", "code1234"))
+
+        assertFalse(metadataJson().contains("pairingCode"))
+        assertFalse(credentialsPrefs().all.values.joinToString().contains("code1234"))
+        assertEquals("code1234", resolvedCode(store, "child1", "pair1"))
+    }
+
+    @Test
+    fun `legacy plaintext migrates exactly once and rewrites metadata`() {
+        writeLegacyMetadata("child1", "pair1", "code1234")
+        var encryptions = 0
+        val counting = object : TrustedCredentialCrypto {
+            override fun encrypt(plaintext: ByteArray, aad: ByteArray): ProtectedCredential {
+                encryptions++
+                return crypto.encrypt(plaintext, aad)
+            }
+            override fun decrypt(protectedCredential: ProtectedCredential, aad: ByteArray): ByteArray =
+                crypto.decrypt(protectedCredential, aad)
+        }
+
+        val first = TrustedChildStore(context, counting)
+        val second = TrustedChildStore(context, counting)
+
+        assertEquals("code1234", resolvedCode(first, "child1", "pair1"))
+        assertEquals(1, second.getAll().size)
+        assertEquals(1, encryptions)
+        assertFalse(metadataJson().contains("pairingCode"))
+    }
+
+    @Test
+    fun `unavailable migration drops legacy plaintext instead of retaining fallback`() {
+        writeLegacyMetadata("child1", "pair1", "code1234")
+
+        val store = TrustedChildStore(context, UnavailableCrypto())
+
+        assertTrue(store.getAll().isEmpty())
+        assertFalse(metadataJson().contains("code1234"))
+    }
+
+    @Test
+    fun `corrupt credential removes exact profile`() {
+        val store = newStore()
+        trust(store, "child1", "pair1", "code1234")
+        credentialsPrefs().edit().putString(credentialsPrefs().all.keys.single(), "not-json").commit()
+
+        assertEquals(TrustedConnectionResult.Missing, store.resolveConnection("child1", "pair1"))
         assertTrue(store.getAll().isEmpty())
     }
 
     @Test
-    fun `upsert adds a child`() {
-        val child = TrustedChild(
-            childId = "child1",
-            pairingId = "pair1",
-            displayName = "Nursery",
-            pairingCode = "code123"
+    fun `temporarily unavailable credential preserves profile and ciphertext`() {
+        val switchable = SwitchableCrypto(crypto)
+        val store = TrustedChildStore(context, switchable)
+        assertEquals(CredentialStorageResult.Success, trust(store, "child1", "pair1", "code1234"))
+        val ciphertext = credentialsPrefs().all.toMap()
+        switchable.available = false
+
+        assertEquals(TrustedConnectionResult.Unavailable, store.resolveConnection("child1", "pair1"))
+        assertEquals(1, store.getAll().size)
+        assertEquals(ciphertext, credentialsPrefs().all)
+    }
+
+    @Test
+    fun `two live instances merge updates without stale snapshot loss`() {
+        val first = newStore()
+        val second = newStore()
+
+        trust(first, "child1", "pair1", "code1234")
+        trust(second, "child2", "pair2", "code5678")
+
+        assertEquals(setOf("child1", "child2"), first.getAll().map { it.childId }.toSet())
+        assertEquals(setOf("child1", "child2"), second.getAll().map { it.childId }.toSet())
+    }
+
+    @Test
+    fun `two live instances forget one child without deleting another update`() {
+        val first = newStore()
+        val second = newStore()
+        trust(first, "child1", "pair1", "code1234")
+        trust(second, "child2", "pair2", "code5678")
+
+        assertTrue(first.forget("child1"))
+
+        assertNull(first.findById("child1"))
+        assertEquals("code5678", resolvedCode(second, "child2", "pair2"))
+    }
+
+    @Test
+    fun `constructor reconciles metadata written by an existing instance`() {
+        val first = newStore()
+        trust(first, "child1", "pair1", "code1234")
+
+        val constructedAfterWrite = newStore()
+
+        assertEquals("code1234", resolvedCode(constructedAfterWrite, "child1", "pair1"))
+    }
+
+    @Test
+    fun `old generation lookup cannot delete newly rotated profile`() {
+        val first = newStore()
+        val second = newStore()
+        trust(first, "child1", "pair1", "code1234")
+        trust(second, "child1", "pair2", "newcode8")
+
+        assertEquals(TrustedConnectionResult.Missing, first.resolveConnection("child1", "pair1"))
+        assertEquals("newcode8", resolvedCode(second, "child1", "pair2"))
+    }
+
+    @Test
+    fun `failed reset leaves old generation usable`() {
+        val switchable = SwitchableCrypto(crypto)
+        val store = TrustedChildStore(context, switchable)
+        trust(store, "child1", "pair1", "code1234")
+        switchable.available = false
+
+        assertEquals(CredentialStorageResult.Unavailable, trust(store, "child1", "pair2", "newcode8"))
+        switchable.available = true
+
+        assertEquals("code1234", resolvedCode(store, "child1", "pair1"))
+    }
+
+    @Test
+    fun `forget and clear durably remove credentials and pending requests`() {
+        val store = newStore()
+        trust(store, "child1", "pair1", "code1234")
+        val requestId = PendingConnections.store.put(
+            PendingConnection("host", 10000, "Nursery", null, "child1", "pair1")
         )
-        store.upsert(child)
-        assertEquals(1, store.getAll().size)
-        assertEquals("Nursery", store.getAll()[0].displayName)
-    }
 
-    @Test
-    fun `upsert replaces existing child with same id`() {
-        val child = TrustedChild("child1", "pair1", "Nursery", "code123")
-        store.upsert(child)
-        val updated = TrustedChild("child1", "pair2", "Living Room", "code456")
-        store.upsert(updated)
-        assertEquals(1, store.getAll().size)
-        assertEquals("Living Room", store.getAll()[0].displayName)
-        assertEquals("pair2", store.getAll()[0].pairingId)
-    }
+        assertTrue(store.forget("child1"))
+        assertFalse(PendingConnections.store.contains(requestId))
+        assertTrue(credentialsPrefs().all.isEmpty())
 
-    @Test
-    fun `findById returns matching child`() {
-        store.upsert(TrustedChild("child1", "pair1", "Nursery", "code123"))
-        val found = store.findById("child1")
-        assertNotNull(found)
-        assertEquals("Nursery", found!!.displayName)
-    }
-
-    @Test
-    fun `findById returns null for unknown id`() {
-        assertNull(store.findById("nonexistent"))
-    }
-
-    @Test
-    fun `forget removes a child`() {
-        store.upsert(TrustedChild("child1", "pair1", "Nursery", "code123"))
-        store.forget("child1")
+        trust(store, "child2", "pair2", "code5678")
+        assertTrue(store.clear())
         assertTrue(store.getAll().isEmpty())
+        assertTrue(credentialsPrefs().all.isEmpty())
     }
 
     @Test
-    fun `forget is no-op for unknown id`() {
-        store.upsert(TrustedChild("child1", "pair1", "Nursery", "code123"))
-        store.forget("nonexistent")
-        assertEquals(1, store.getAll().size)
+    fun `forget revokes matching active listen session`() {
+        val store = newStore()
+        trust(store, "child1", "pair1", "code1234")
+        ActiveListenSessionRegistry.register(ExpectedChildIdentity("child1", "pair1"))
+
+        assertTrue(store.forget("child1"))
+
+        assertEquals(ListenService::class.java.name, shadowOf(context).nextStoppedService.component?.className)
     }
 
-    @Test
-    fun `clear removes all children`() {
-        store.upsert(TrustedChild("child1", "pair1", "Nursery", "code123"))
-        store.upsert(TrustedChild("child2", "pair2", "Living Room", "code456"))
-        store.clear()
-        assertTrue(store.getAll().isEmpty())
+    private fun newStore() = TrustedChildStore(context, crypto)
+
+    private fun trust(
+        store: TrustedChildStore,
+        childId: String,
+        pairingId: String,
+        code: String
+    ): CredentialStorageResult {
+        val chars = code.toCharArray()
+        return try {
+            store.trustAuthenticated(childId, pairingId, childId, chars, "host", 10000)
+        } finally {
+            chars.fill('\u0000')
+        }
     }
 
-    @Test
-    fun `updateLastKnown updates address and port`() {
-        store.upsert(TrustedChild("child1", "pair1", "Nursery", "code123"))
-        store.updateLastKnown("child1", "192.168.1.100", 10000)
-        val child = store.findById("child1")!!
-        assertEquals("192.168.1.100", child.lastKnownAddress)
-        assertEquals(10000, child.lastKnownPort)
-        assertTrue(child.lastSeenAt > 0)
+    private fun resolvedCode(store: TrustedChildStore, childId: String, pairingId: String): String? {
+        val result = store.resolveConnection(childId, pairingId) as? TrustedConnectionResult.Available
+            ?: return null
+        return try {
+            result.pairingCode.concatToString()
+        } finally {
+            result.pairingCode.fill('\u0000')
+        }
     }
 
-    @Test
-    fun `updateLastKnown is no-op for unknown id`() {
-        store.updateLastKnown("nonexistent", "192.168.1.100", 10000)
-        assertTrue(store.getAll().isEmpty())
+    private fun credentialsPrefs() = context.getSharedPreferences(
+        ProtectedTrustedCredentialStore.PREFS_NAME,
+        Application.MODE_PRIVATE
+    )
+
+    private fun metadataJson(): String = context.getSharedPreferences(
+        TrustedChildStore.METADATA_PREFS_NAME,
+        Application.MODE_PRIVATE
+    ).getString(TrustedChildStore.KEY_TRUSTED_CHILDREN, null).orEmpty()
+
+    private fun writeLegacyMetadata(childId: String, pairingId: String, code: String) {
+        val value = JSONArray().put(
+            JSONObject().put("childId", childId).put("pairingId", pairingId)
+                .put("displayName", "Nursery").put("pairingCode", code)
+                .put("lastKnownAddress", JSONObject.NULL).put("lastKnownPort", JSONObject.NULL)
+                .put("lastSeenAt", 0)
+        )
+        context.getSharedPreferences(TrustedChildStore.METADATA_PREFS_NAME, Application.MODE_PRIVATE)
+            .edit().putString(TrustedChildStore.KEY_TRUSTED_CHILDREN, value.toString()).commit()
     }
 
-    @Test
-    fun `upsert preserves lastKnown when re-scanning existing child`() {
-        store.upsert(TrustedChild("child1", "pair1", "Nursery", "code123"))
-        store.updateLastKnown("child1", "192.168.1.100", 10000)
-        store.upsert(TrustedChild("child1", "pair2", "Nursery", "newcode"))
-        val child = store.findById("child1")!!
-        assertEquals("pair2", child.pairingId)
-        assertEquals("newcode", child.pairingCode)
-        assertEquals("192.168.1.100", child.lastKnownAddress)
-        assertEquals(10000, child.lastKnownPort)
-        assertTrue(child.lastSeenAt > 0)
+    private class UnavailableCrypto : TrustedCredentialCrypto {
+        override fun encrypt(plaintext: ByteArray, aad: ByteArray): ProtectedCredential =
+            throw CredentialCryptoUnavailableException()
+        override fun decrypt(protectedCredential: ProtectedCredential, aad: ByteArray): ByteArray =
+            throw CredentialCryptoUnavailableException()
     }
 
-    @Test
-    fun `matchesPairing returns true for same pairingId`() {
-        val child = TrustedChild("child1", "pair1", "Nursery", "code123")
-        assertTrue(child.matchesPairing("pair1"))
-    }
-
-    @Test
-    fun `matchesPairing returns false for different pairingId`() {
-        val child = TrustedChild("child1", "pair1", "Nursery", "code123")
-        assertFalse(child.matchesPairing("pair2"))
-    }
-
-    @Test
-    fun `persistence survives re-instantiation`() {
-        store.upsert(TrustedChild("child1", "pair1", "Nursery", "code123"))
-        val context = RuntimeEnvironment.getApplication() as Application
-        val newStore = TrustedChildStore(context)
-        assertEquals(1, newStore.getAll().size)
-        assertEquals("Nursery", newStore.getAll()[0].displayName)
-    }
-
-    @Test
-    fun `corrupt json is cleared gracefully`() {
-        val context = RuntimeEnvironment.getApplication() as Application
-        context.getSharedPreferences("trusted_children", Application.MODE_PRIVATE)
-            .edit().putString("trustedChildren", "NOT_JSON").apply()
-        val newStore = TrustedChildStore(context)
-        assertTrue(newStore.getAll().isEmpty())
+    private class SwitchableCrypto(private val delegate: TrustedCredentialCrypto) : TrustedCredentialCrypto {
+        var available = true
+        override fun encrypt(plaintext: ByteArray, aad: ByteArray): ProtectedCredential {
+            if (!available) throw CredentialCryptoUnavailableException()
+            return delegate.encrypt(plaintext, aad)
+        }
+        override fun decrypt(protectedCredential: ProtectedCredential, aad: ByteArray): ByteArray {
+            if (!available) throw CredentialCryptoUnavailableException()
+            return delegate.decrypt(protectedCredential, aad)
+        }
     }
 }

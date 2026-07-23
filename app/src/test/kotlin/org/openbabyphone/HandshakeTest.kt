@@ -16,277 +16,183 @@
  */
 package org.openbabyphone
 
-import org.junit.Assert.*
+import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.util.Base64
 
 class HandshakeTest {
-
-    private val testSessionId = ByteArray(8) { 0x42 }
-    private val testChallenge = ByteArray(32) { 0x55 }
-    private val testAuthNonce = ByteArray(12) { 0x33 }
-    private val testKdfSalt = ByteArray(16) { 0x77 }
-
-    @Test
-    fun writeAndRead_OpenMode_RoundTrip() {
-        val outputStream = ByteArrayOutputStream()
-        Handshake.writeHandshake(outputStream, testSessionId, false, null, null, null)
-
-        val inputStream = ByteArrayInputStream(outputStream.toByteArray())
-        val message = Handshake.readHandshake(inputStream)
-
-        assertNotNull(message)
-        assertArrayEquals(testSessionId, message!!.sessionId)
-        assertFalse(message.authRequired)
-        assertNull(message.challenge)
-        assertNull(message.authNonce)
-        assertNull(message.kdfSalt)
-        assertEquals(Handshake.PROTOCOL_VERSION, message.protocolVersion)
-        assertEquals(Handshake.CURRENT_CAPABILITIES, message.capabilities)
-    }
+    private val identity = ChildDeviceIdentity("abcdefghijklmnop", "1234567890abcdef")
+    private val sessionId = ByteArray(CryptoHelper.SESSION_ID_SIZE) { (it + 1).toByte() }
+    private val salt = ByteArray(CryptoHelper.SALT_SIZE) { (it + 0x10).toByte() }
+    private val childChallenge = ByteArray(CryptoHelper.CHALLENGE_SIZE) { (it + 0x20).toByte() }
+    private val parentChallenge = ByteArray(CryptoHelper.CHALLENGE_SIZE) { (it + 0x40).toByte() }
+    private val parentNonce = ByteArray(CryptoHelper.NONCE_SIZE) { (it + 0x60).toByte() }
+    private val childNonce = ByteArray(CryptoHelper.NONCE_SIZE) { (it + 0x70).toByte() }
+    private val baseKey = ByteArray(CryptoHelper.KEY_SIZE) { it.toByte() }
+    private val authKey = CryptoHelper.deriveAuthKey(baseKey)
 
     @Test
-    fun writeAndRead_PairingCodeMode_RoundTrip() {
-        val outputStream = ByteArrayOutputStream()
-        Handshake.writeHandshake(outputStream, testSessionId, true, testChallenge, testAuthNonce, testKdfSalt)
+    fun `child hello has fixed OBP4 serialization`() {
+        val hello = hello()
 
-        val inputStream = ByteArrayInputStream(outputStream.toByteArray())
-        val message = Handshake.readHandshake(inputStream)
-
-        assertNotNull(message)
-        assertArrayEquals(testSessionId, message!!.sessionId)
-        assertTrue(message.authRequired)
-        assertNotNull(message.challenge)
-        assertArrayEquals(testChallenge, message.challenge)
-        assertNotNull(message.authNonce)
-        assertArrayEquals(testAuthNonce, message.authNonce)
-        assertNotNull(message.kdfSalt)
-        assertArrayEquals(testKdfSalt, message.kdfSalt)
-        assertEquals(Handshake.PROTOCOL_VERSION, message.protocolVersion)
-        assertEquals(Handshake.CURRENT_CAPABILITIES, message.capabilities)
+        assertArrayEquals(
+            hex(
+                "4f4250340004000101" +
+                    "6162636465666768696a6b6c6d6e6f70" +
+                    "31323334353637383930616263646566" +
+                    "0102030405060708" +
+                    "101112131415161718191a1b1c1d1e1f" +
+                    "202122232425262728292a2b2c2d2e2f" +
+                    "303132333435363738393a3b3c3d3e3f"
+            ),
+            hello.toByteArray()
+        )
+        assertArrayEquals(hello.toByteArray(), roundTripHello(hello).toByteArray())
     }
 
     @Test
-    fun readHandshake_InvalidMagic_ReturnsNull() {
-        val bytes = ByteArray(Handshake.HANDSHAKE_HEADER_SIZE)
-        bytes[0] = 0x00
-        bytes[1] = 0x00
-        bytes[2] = 0x00
-        bytes[3] = 0x00
-        val inputStream = ByteArrayInputStream(bytes)
+    fun `unknown authentication mode is rejected`() {
+        val bytes = hello().toByteArray()
+        bytes[8] = 0x7f
 
-        val message = Handshake.readHandshake(inputStream)
-
-        assertNull(message)
+        assertNull(Handshake.readChildHello(ByteArrayInputStream(bytes)))
     }
 
     @Test
-    fun readHandshake_PartialHeader_ReturnsNull() {
-        val bytes = ByteArray(Handshake.HANDSHAKE_HEADER_SIZE - 1)
-        val inputStream = ByteArrayInputStream(bytes)
+    fun `old magic is rejected`() {
+        val bytes = hello().toByteArray()
+        "OBP3".toByteArray(Charsets.US_ASCII).copyInto(bytes)
 
-        val message = Handshake.readHandshake(inputStream)
-
-        assertNull(message)
+        assertNull(Handshake.readChildHello(ByteArrayInputStream(bytes)))
     }
 
     @Test
-    fun readHandshake_OldMagic_ReturnsNull() {
-        val oldMagic = "OBP2".toByteArray(Charsets.US_ASCII)
-        val bytes = ByteArray(Handshake.HANDSHAKE_HEADER_SIZE)
-        System.arraycopy(oldMagic, 0, bytes, 0, oldMagic.size)
-        val inputStream = ByteArrayInputStream(bytes)
-
-        val message = Handshake.readHandshake(inputStream)
-
-        assertNull(message)
+    fun `partial fixed messages are rejected`() {
+        assertNull(Handshake.readChildHello(ByteArrayInputStream(ByteArray(Handshake.CHILD_HELLO_SIZE - 1))))
+        assertNull(Handshake.readParentResponse(ByteArrayInputStream(ByteArray(Handshake.PARENT_RESPONSE_SIZE - 1))))
+        assertNull(Handshake.readChildAck(ByteArrayInputStream(ByteArray(Handshake.CHILD_ACK_SIZE - 1))))
     }
 
     @Test
-    fun writeAndReadAuthResponse_RoundTrip() {
-        val encryptedChallenge = ByteArray(Handshake.AUTH_RESPONSE_SIZE) { 0x77 }
-        val outputStream = ByteArrayOutputStream()
-        Handshake.writeAuthResponse(outputStream, encryptedChallenge)
+    fun `mutual authentication succeeds and derives same stream key`() {
+        val hello = hello()
+        val response = Handshake.createParentResponse(hello, authKey, parentChallenge, parentNonce)
+        assertTrue(Handshake.verifyParentResponse(hello, response, authKey))
 
-        val inputStream = ByteArrayInputStream(outputStream.toByteArray())
-        val readResponse = Handshake.readAuthResponse(inputStream)
-
-        assertNotNull(readResponse)
-        assertArrayEquals(encryptedChallenge, readResponse)
-    }
-
-    @Test
-    fun readAuthResponse_PartialData_ReturnsNull() {
-        val bytes = ByteArray(Handshake.AUTH_RESPONSE_SIZE - 1)
-        val inputStream = ByteArrayInputStream(bytes)
-
-        val response = Handshake.readAuthResponse(inputStream)
-
-        assertNull(response)
-    }
-
-    @Test
-    fun magic_BytesCorrect() {
-        assertArrayEquals("OBP3".toByteArray(Charsets.US_ASCII), Handshake.MAGIC_BYTES)
-    }
-
-    @Test
-    fun handshakeHeaderSize_Correct() {
-        assertEquals(4 + 2 + 2 + 8 + 1, Handshake.HANDSHAKE_HEADER_SIZE)
-    }
-
-    @Test
-    fun authResponseSize_Correct() {
-        assertEquals(32 + 16, Handshake.AUTH_RESPONSE_SIZE)
-    }
-
-    @Test
-    fun capabilityResponseSize_Correct() {
-        assertEquals(4, Handshake.CAPABILITY_RESPONSE_SIZE)
-    }
-
-    @Test
-    fun writeAndReadCapabilityResponse_RoundTrip() {
-        val outputStream = ByteArrayOutputStream()
-        Handshake.writeCapabilityResponse(outputStream, Handshake.PROTOCOL_VERSION, Handshake.CAP_G711_ULAW)
-
-        val inputStream = ByteArrayInputStream(outputStream.toByteArray())
-        val response = Handshake.readCapabilityResponse(inputStream)
-
-        assertNotNull(response)
-        assertEquals(Handshake.PROTOCOL_VERSION, response!!.protocolVersion)
-        assertEquals(Handshake.CAP_G711_ULAW, response.capabilities)
-    }
-
-    @Test
-    fun readCapabilityResponse_PartialData_ReturnsNull() {
-        val bytes = ByteArray(Handshake.CAPABILITY_RESPONSE_SIZE - 1)
-        val inputStream = ByteArrayInputStream(bytes)
-
-        val response = Handshake.readCapabilityResponse(inputStream)
-
-        assertNull(response)
-    }
-
-    @Test
-    fun isVersionSupported_CurrentVersion_ReturnsTrue() {
-        assertTrue(Handshake.isVersionSupported(Handshake.PROTOCOL_VERSION))
-    }
-
-    @Test
-    fun isVersionSupported_OldVersion_ReturnsFalse() {
-        assertFalse(Handshake.isVersionSupported(2))
-    }
-
-    @Test
-    fun isVersionSupported_FutureVersion_ReturnsFalse() {
-        assertFalse(Handshake.isVersionSupported(99))
-    }
-
-    @Test
-    fun negotiateCapabilities_SharedG711_ReturnsG711() {
-        val result = Handshake.negotiateCapabilities(Handshake.CAP_G711_ULAW, Handshake.CAP_G711_ULAW)
-        assertEquals(Handshake.CAP_G711_ULAW, result)
-    }
-
-    @Test
-    fun negotiateCapabilities_ChildHasOpus_ParentHasG711_ReturnsG711() {
-        val childCaps = Handshake.CAP_G711_ULAW or Handshake.CAP_OPUS
-        val parentCaps = Handshake.CAP_G711_ULAW
-        val result = Handshake.negotiateCapabilities(childCaps, parentCaps)
-        assertEquals(Handshake.CAP_G711_ULAW, result)
-    }
-
-    @Test(expected = IllegalStateException::class)
-    fun negotiateCapabilities_NoOverlap_Throws() {
-        Handshake.negotiateCapabilities(Handshake.CAP_OPUS, Handshake.CAP_G711_ULAW)
-    }
-
-    @Test(expected = IllegalStateException::class)
-    fun negotiateCapabilities_EmptyChild_Throws() {
-        Handshake.negotiateCapabilities(0, Handshake.CAP_G711_ULAW)
-    }
-
-    @Test
-    fun capabilityResponse_SupportsCodec_G711() {
-        val response = Handshake.CapabilityResponse(Handshake.PROTOCOL_VERSION, Handshake.CAP_G711_ULAW)
-        assertTrue(response.supportsCodec(Handshake.CAP_G711_ULAW))
-        assertFalse(response.supportsCodec(Handshake.CAP_OPUS))
-    }
-
-    @Test
-    fun capabilityResponse_IsCompatibleWith_SameVersionSameCaps() {
-        val a = Handshake.CapabilityResponse(Handshake.PROTOCOL_VERSION, Handshake.CAP_G711_ULAW)
-        val b = Handshake.CapabilityResponse(Handshake.PROTOCOL_VERSION, Handshake.CAP_G711_ULAW)
-        assertTrue(a.isCompatibleWith(b))
-    }
-
-    @Test
-    fun capabilityResponse_IsCompatibleWith_DifferentVersion_ReturnsFalse() {
-        val a = Handshake.CapabilityResponse(3, Handshake.CAP_G711_ULAW)
-        val b = Handshake.CapabilityResponse(4, Handshake.CAP_G711_ULAW)
-        assertFalse(a.isCompatibleWith(b))
-    }
-
-    @Test
-    fun capabilityResponse_IsCompatibleWith_NoSharedCodec_ReturnsFalse() {
-        val a = Handshake.CapabilityResponse(Handshake.PROTOCOL_VERSION, Handshake.CAP_G711_ULAW)
-        val b = Handshake.CapabilityResponse(Handshake.PROTOCOL_VERSION, Handshake.CAP_OPUS)
-        assertFalse(a.isCompatibleWith(b))
-    }
-
-    @Test
-    fun writeAndRead_FullHandshakeWithVersionAndCaps() {
-        val outputStream = ByteArrayOutputStream()
-        Handshake.writeHandshake(
-            outputStream,
-            testSessionId,
-            true,
-            testChallenge,
-            testAuthNonce,
-            testKdfSalt,
-            protocolVersion = 3,
-            capabilities = Handshake.CAP_G711_ULAW or Handshake.CAP_OPUS
+        val ack = Handshake.createChildAck(hello, response, 23, authKey, childNonce)
+        assertTrue(Handshake.verifyChildAck(hello, response, ack, authKey))
+        assertArrayEquals(
+            Base64.getDecoder().decode("L0UX9DFwkSSAwqC0Go+2CHvJb2fzM+ajGMR0avUCHxU="),
+            authKey
+        )
+        assertArrayEquals(
+            Base64.getDecoder().decode(
+                "AAQAAUBBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWpr" +
+                    "setR7Uy0iJJwtUR91a7YlyxaLS+1cbl4JIEp76C1aJoB9u9TSnbLcji4RN1z1I8Q"
+            ),
+            response.toByteArray()
+        )
+        assertArrayEquals(
+            Base64.getDecoder().decode(
+                "AAAAF3BxcnN0dXZ3eHl6e3jNugN0jaTVSeePiArfjcl5z3gZZb36UCGYrxQq5SOg" +
+                    "6dNMhPxF5D4NOhsv9b3xUg=="
+            ),
+            ack.toByteArray()
         )
 
-        val inputStream = ByteArrayInputStream(outputStream.toByteArray())
-        val message = Handshake.readHandshake(inputStream)
-
-        assertNotNull(message)
-        assertEquals(3, message!!.protocolVersion)
-        assertEquals(Handshake.CAP_G711_ULAW or Handshake.CAP_OPUS, message.capabilities)
-        assertArrayEquals(testKdfSalt, message.kdfSalt)
+        val childStreamKey = CryptoHelper.deriveStreamKey(baseKey, Handshake.streamKeyContext(hello))
+        val parentStreamKey = CryptoHelper.deriveStreamKey(baseKey, Handshake.streamKeyContext(roundTripHello(hello)))
+        assertArrayEquals(childStreamKey, parentStreamKey)
+        assertArrayEquals(response.toByteArray(), roundTripParent(response).toByteArray())
+        assertArrayEquals(ack.toByteArray(), roundTripAck(ack).toByteArray())
     }
 
     @Test
-    fun currentCapabilities_IncludesG711() {
-        assertTrue((Handshake.CURRENT_CAPABILITIES and Handshake.CAP_G711_ULAW) != 0)
+    fun `wrong pairing key cannot authenticate either proof`() {
+        val hello = hello()
+        val wrongAuthKey = CryptoHelper.deriveAuthKey(ByteArray(CryptoHelper.KEY_SIZE) { (it + 1).toByte() })
+        val response = Handshake.createParentResponse(hello, wrongAuthKey, parentChallenge, parentNonce)
+
+        assertFalse(Handshake.verifyParentResponse(hello, response, authKey))
+
+        val validResponse = Handshake.createParentResponse(hello, authKey, parentChallenge, parentNonce)
+        val wrongAck = Handshake.createChildAck(hello, validResponse, 0, wrongAuthKey, childNonce)
+        assertFalse(Handshake.verifyChildAck(hello, validResponse, wrongAck, authKey))
     }
 
     @Test
-    fun currentCapabilities_OpusNotInCurrentRelease() {
-        assertFalse((Handshake.CURRENT_CAPABILITIES and Handshake.CAP_OPUS) != 0)
+    fun `transcript tampering and downgrade are rejected`() {
+        val hello = hello()
+        val response = Handshake.createParentResponse(hello, authKey, parentChallenge, parentNonce)
+        val tamperedHello = hello.copy(pairingId = "1234567890abcdee")
+        assertFalse(Handshake.verifyParentResponse(tamperedHello, response, authKey))
+
+        val downgraded = response.copy(protocolVersion = 3)
+        assertFalse(Handshake.verifyParentResponse(hello, downgraded, authKey))
+
+        val ack = Handshake.createChildAck(hello, response, 7, authKey, childNonce)
+        val tamperedResponse = response.copy(proof = response.proof.copyOf().also { it[0] = (it[0].toInt() xor 1).toByte() })
+        assertFalse(Handshake.verifyChildAck(hello, tamperedResponse, ack, authKey))
+        assertFalse(Handshake.verifyChildAck(hello, response, ack.copy(firstSequence = 8), authKey))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `directional authentication nonces must differ`() {
+        val hello = hello()
+        val response = Handshake.createParentResponse(hello, authKey, parentChallenge, parentNonce)
+        Handshake.createChildAck(hello, response, 0, authKey, parentNonce)
     }
 
     @Test
-    fun writeHandshake_BigEndianVersionAndCaps() {
-        val outputStream = ByteArrayOutputStream()
-        Handshake.writeHandshake(
-            outputStream,
-            testSessionId,
-            false,
-            null,
-            null,
-            null,
-            protocolVersion = 0x0301,
-            capabilities = 0x0304
+    fun `expected trusted identity rejects either identity mismatch`() {
+        val hello = hello()
+        assertTrue(ExpectedChildIdentity(identity.childId, identity.pairingId).matches(hello))
+        assertFalse(ExpectedChildIdentity("ponmlkjihgfedcba", identity.pairingId).matches(hello))
+        assertFalse(ExpectedChildIdentity(identity.childId, "fedcba0987654321").matches(hello))
+    }
+
+    @Test
+    fun `child prederived stream key matches every per-parent hello in the session`() {
+        val template = Handshake.createChildHello(
+            identity,
+            sessionId,
+            salt,
+            ByteArray(CryptoHelper.CHALLENGE_SIZE)
         )
+        val actual = hello()
 
-        val bytes = outputStream.toByteArray()
-        assertEquals(0x03.toByte(), bytes[4])
-        assertEquals(0x01.toByte(), bytes[5])
-        assertEquals(0x03.toByte(), bytes[6])
-        assertEquals(0x04.toByte(), bytes[7])
+        assertArrayEquals(
+            CryptoHelper.deriveStreamKey(baseKey, Handshake.streamKeyContext(template)),
+            CryptoHelper.deriveStreamKey(baseKey, Handshake.streamKeyContext(actual))
+        )
+    }
+
+    private fun hello() = Handshake.createChildHello(identity, sessionId, salt, childChallenge)
+
+    private fun roundTripHello(hello: Handshake.ChildHello): Handshake.ChildHello {
+        val output = ByteArrayOutputStream()
+        Handshake.writeChildHello(output, hello)
+        return Handshake.readChildHello(ByteArrayInputStream(output.toByteArray()))!!
+    }
+
+    private fun roundTripParent(response: Handshake.ParentResponse): Handshake.ParentResponse {
+        val output = ByteArrayOutputStream()
+        Handshake.writeParentResponse(output, response)
+        return Handshake.readParentResponse(ByteArrayInputStream(output.toByteArray()))!!
+    }
+
+    private fun roundTripAck(ack: Handshake.ChildAck): Handshake.ChildAck {
+        val output = ByteArrayOutputStream()
+        Handshake.writeChildAck(output, ack)
+        return Handshake.readChildAck(ByteArrayInputStream(output.toByteArray()))!!
+    }
+
+    private fun hex(value: String): ByteArray = ByteArray(value.length / 2) { index ->
+        value.substring(index * 2, index * 2 + 2).toInt(16).toByte()
     }
 }

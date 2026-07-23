@@ -1,6 +1,8 @@
 apply plugin: 'com.android.application'
 apply plugin: 'org.jetbrains.kotlin.plugin.serialization'
 apply plugin: 'org.jetbrains.kotlin.plugin.compose'
+apply plugin: 'com.android.compose.screenshot'
+apply plugin: 'jacoco'
 
 def keystoreProperties = new Properties()
 def keystorePropertiesFile = rootProject.file("keystore.properties")
@@ -10,6 +12,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     compileSdk = 37
+    experimentalProperties["android.experimental.enableScreenshotTest"] = true
 
     defaultConfig {
         applicationId = "org.openbabyphone"
@@ -76,7 +79,7 @@ android {
 }
 
 dependencies {
-    implementation 'com.github.joshjdevl.libsodiumjni:libsodium-jni-aar:2.0.2'
+    implementation 'org.bouncycastle:bcprov-jdk15to18:1.85.1'
     implementation 'androidx.core:core:1.19.0'
     implementation 'androidx.core:core-ktx:1.19.0'
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.11.0'
@@ -85,8 +88,6 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.7.1'
     implementation 'androidx.core:core-splashscreen:1.2.0'
     implementation 'com.google.android.material:material:1.14.0'
-    implementation 'androidx.preference:preference-ktx:1.2.1'
-
     implementation platform('androidx.compose:compose-bom:2026.06.01')
     implementation 'androidx.compose.ui:ui'
     implementation 'androidx.compose.ui:ui-graphics'
@@ -120,4 +121,39 @@ dependencies {
     androidTestImplementation 'androidx.test:rules:1.7.0'
     androidTestImplementation platform('androidx.compose:compose-bom:2026.06.01')
     androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
+
+    screenshotTestImplementation 'com.android.tools.screenshot:screenshot-validation-api:0.0.1-alpha15'
+    screenshotTestImplementation platform('androidx.compose:compose-bom:2026.06.01')
+    screenshotTestImplementation 'androidx.compose.ui:ui-tooling'
+}
+
+jacoco {
+    toolVersion = '0.8.14'
+}
+
+tasks.register('jacocoDebugUnitTestReport', JacocoReport) {
+    dependsOn 'testDebugUnitTest'
+
+    reports {
+        xml.required = true
+        html.required = true
+    }
+
+    def generatedClasses = [
+        '**/R.class',
+        '**/R$*.class',
+        '**/BuildConfig.*',
+        '**/Manifest*.*',
+        '**/*Test*.*'
+    ]
+    classDirectories.setFrom(
+        files(zipTree(layout.buildDirectory.file(
+            'intermediates/runtime_app_classes_jar/debug/bundleDebugClassesToRuntimeJar/classes.jar'
+        ))).asFileTree.matching { exclude generatedClasses }
+    )
+    sourceDirectories.setFrom(files('src/main/kotlin', 'src/main/java'))
+    executionData.setFrom(fileTree(layout.buildDirectory) {
+        include 'jacoco/testDebugUnitTest.exec'
+        include 'outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec'
+    })
 }

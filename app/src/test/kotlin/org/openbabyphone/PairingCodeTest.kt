@@ -24,20 +24,19 @@ import org.junit.Test
 class PairingCodeTest {
 
     @Test
-    fun `empty string is valid`() {
-        assertTrue(PairingCode.isValid(""))
+    fun `empty string is invalid`() {
+        assertFalse(PairingCode.isValid(""))
     }
 
     @Test
-    fun `blank string is valid after trim`() {
-        assertTrue(PairingCode.isValid("   "))
+    fun `blank string is invalid after trim`() {
+        assertFalse(PairingCode.isValid("   "))
     }
 
     @Test
-    fun `single alphanumeric character is valid`() {
-        assertTrue(PairingCode.isValid("A"))
-        assertTrue(PairingCode.isValid("1"))
-        assertTrue(PairingCode.isValid("z"))
+    fun `codes shorter than eight characters are invalid`() {
+        assertFalse(PairingCode.isValid("A1b2C3d"))
+        assertTrue(PairingCode.isValid("A1b2C3d4"))
     }
 
     @Test

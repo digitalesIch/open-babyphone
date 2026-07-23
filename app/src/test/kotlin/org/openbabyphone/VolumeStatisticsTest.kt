@@ -155,6 +155,16 @@ class VolumeStatisticsTest {
     }
 
     @Test
+    fun `onAudioData offset and length ignore surrounding samples`() {
+        val stats = VolumeStatistics(10)
+
+        stats.onAudioData(shortArrayOf(Short.MAX_VALUE, 32, 64, Short.MAX_VALUE), 1, 2)
+
+        val expected = ((32.0 / 128.0).let { it * it } + (64.0 / 128.0).let { it * it }) / 2.0
+        assertEquals(expected, stats[0], 0.001)
+    }
+
+    @Test
     fun `get throws IndexOutOfBoundsException for invalid index`() {
         val stats = VolumeStatistics(100)
         stats.addLast(0.5)

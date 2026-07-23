@@ -6,20 +6,17 @@ import androidx.lifecycle.viewModelScope
 import org.openbabyphone.BatteryOptimization
 import org.openbabyphone.ConnectionConstants
 import org.openbabyphone.ChildDeviceIdentityStore
-import org.openbabyphone.DeviceName
+import org.openbabyphone.ChildDeviceNamePreferences
 import org.openbabyphone.PairingCode
-import org.openbabyphone.PairingCodeGenerator
-import org.openbabyphone.MonitorService
+import org.openbabyphone.PairingSettings
 import org.openbabyphone.PairingQrCode
 import org.openbabyphone.R
-import org.openbabyphone.WifiDirectController
-import org.openbabyphone.WifiDirectState
 import org.openbabyphone.service.MonitorServiceRepository
 import org.openbabyphone.service.MonitorSessionState
+import org.openbabyphone.service.isAuthoritativelyActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 
@@ -34,9 +31,8 @@ data class MonitorUiState(
     val connectedClients: Int = 0,
     val isLoading: Boolean = true,
     val isMonitoring: Boolean = false,
+    val terminalErrorReason: String? = null,
     val sessionState: org.openbabyphone.service.MonitorSessionState = org.openbabyphone.service.MonitorSessionState.Setup,
-    val wifiDirectState: WifiDirectState = WifiDirectState.Idle,
-    val wifiDirectSupported: Boolean = true,
     val qrPayload: String = "",
     val batteryOptimizationIgnored: Boolean = false
 )
@@ -47,20 +43,15 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     private val _batteryOptimizationIgnored = MutableStateFlow(false)
     private val loadingLabel = application.getString(R.string.loading)
     private val waitingForParentStatus = application.getString(R.string.waiting_for_parent)
+    private val defaultDeviceName = application.getString(R.string.default_child_name)
 
     private val childIdentityStore = ChildDeviceIdentityStore(application)
-    private val wifiDirectController = WifiDirectController(application)
-    private val wifiDirectSupported = wifiDirectController.isSupported()
-
-    private val _isMonitoring = MutableStateFlow(false)
-    val isMonitoring: StateFlow<Boolean> = _isMonitoring.asStateFlow()
 
     private data class ServiceInfo(
         val name: String,
         val port: Int,
         val addresses: List<String>,
-        val sessionState: MonitorSessionState,
-        val isMonitoring: Boolean
+        val sessionState: MonitorSessionState
     )
 
     private data class SetupInfo(
@@ -73,25 +64,17 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         combine(_pairingCode, _deviceName, _batteryOptimizationIgnored) { pairingCode, deviceName, batteryOptimizationIgnored ->
             SetupInfo(pairingCode, deviceName, batteryOptimizationIgnored)
         },
-        MonitorServiceRepository.connectedClients,
         combine(
             MonitorServiceRepository.serviceName,
             MonitorServiceRepository.port,
             MonitorServiceRepository.addresses,
-            combine(
-                MonitorServiceRepository.sessionState,
-                _isMonitoring
-            ) { sessionState, isMonitoring ->
-                Pair(sessionState, isMonitoring)
-            }
-        ) { name, port, addresses, stateInfo ->
-            val (sessionState, isMonitoring) = stateInfo
-            ServiceInfo(name, port, addresses, sessionState, isMonitoring)
-        },
-        wifiDirectController.state
-    ) { setupInfo, clients, info, wifiDirect ->
+            MonitorServiceRepository.sessionState
+        ) { name, port, addresses, sessionState ->
+            ServiceInfo(name, port, addresses, sessionState)
+        }
+    ) { setupInfo, info ->
         val identity = childIdentityStore.identity
-        val qrPayload = if (setupInfo.pairingCode.isNotEmpty() && PairingCode.isValid(setupInfo.pairingCode)) {
+        val qrPayload = if (setupInfo.pairingCode.isNotBlank() && PairingCode.isValid(setupInfo.pairingCode)) {
             PairingQrCode.buildPayload(
                 childId = identity.childId,
                 pairingId = identity.pairingId,
@@ -114,18 +97,19 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         }
         MonitorUiState(
             pairingCode = setupInfo.pairingCode,
-            pairingCodeValid = PairingCode.isValid(setupInfo.pairingCode),
+            pairingCodeValid = setupInfo.pairingCode.isNotBlank() && PairingCode.isValid(setupInfo.pairingCode),
             deviceName = setupInfo.deviceName,
             serviceName = info.name.ifEmpty { loadingLabel },
             port = info.port,
             addresses = info.addresses,
             status = status.ifEmpty { waitingForParentStatus },
-            connectedClients = clients,
+            connectedClients = (info.sessionState as? MonitorSessionState.Connected)?.parentCount ?: 0,
             isLoading = info.name.isEmpty(),
-            isMonitoring = info.isMonitoring,
+            isMonitoring = info.sessionState.isAuthoritativelyActive(),
+            terminalErrorReason = (info.sessionState as? MonitorSessionState.Error)
+                ?.takeUnless { info.sessionState.isAuthoritativelyActive() }
+                ?.reason,
             sessionState = info.sessionState,
-            wifiDirectState = wifiDirect,
-            wifiDirectSupported = wifiDirectSupported,
             qrPayload = qrPayload,
             batteryOptimizationIgnored = setupInfo.batteryOptimizationIgnored
         )
@@ -136,97 +120,28 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     )
 
     init {
-        val prefs = application.getSharedPreferences(
-            MonitorService.PAIRING_PREFS_NAME,
-            Application.MODE_PRIVATE
-        )
-        val savedCode = prefs.getString(MonitorService.PREF_KEY_PAIRING_CODE, "") ?: ""
-        if (savedCode.isEmpty()) {
-            val generatedCode = PairingCodeGenerator.generate()
-            _pairingCode.value = generatedCode
-            prefs.edit()
-                .putString(MonitorService.PREF_KEY_PAIRING_CODE, generatedCode)
-                .apply()
-        } else {
-            _pairingCode.value = savedCode
-        }
-        val savedDeviceName = prefs.getString(MonitorService.PREF_KEY_DEVICE_NAME, "") ?: ""
-        _deviceName.value = savedDeviceName
+        refreshChildConfiguration()
         refreshBatteryOptimizationStatus()
+    }
+
+    private fun refreshChildConfiguration() {
+        val application = getApplication<Application>()
+        _pairingCode.value = PairingSettings.load(application).pairingCode
+        _deviceName.value = ChildDeviceNamePreferences.read(application, defaultDeviceName)
     }
 
     fun refreshBatteryOptimizationStatus() {
         _batteryOptimizationIgnored.value = BatteryOptimization.isIgnoringBatteryOptimizations(getApplication())
     }
 
-    fun updatePairingCode(code: String) {
-        val normalizedCode = PairingCode.normalize(code)
-        _pairingCode.value = normalizedCode
-        if (!PairingCode.isValid(normalizedCode)) {
-            return
-        }
-        val prefs = getApplication<Application>().getSharedPreferences(
-            MonitorService.PAIRING_PREFS_NAME,
-            Application.MODE_PRIVATE
-        )
-        prefs.edit()
-            .putString(MonitorService.PREF_KEY_PAIRING_CODE, normalizedCode)
-            .apply()
-        childIdentityStore.rotatePairingId()
-    }
-
-    fun updateDeviceName(name: String) {
-        val trimmed = DeviceName.normalize(name)
-        if (!DeviceName.isValid(trimmed) && trimmed.isNotEmpty()) {
-            return
-        }
-        _deviceName.value = trimmed
-        val prefs = getApplication<Application>().getSharedPreferences(
-            MonitorService.PAIRING_PREFS_NAME,
-            Application.MODE_PRIVATE
-        )
-        prefs.edit()
-            .putString(MonitorService.PREF_KEY_DEVICE_NAME, trimmed)
-            .apply()
-    }
-
     fun startMonitoring() {
+        refreshChildConfiguration()
         refreshBatteryOptimizationStatus()
-        _isMonitoring.value = true
+        MonitorServiceRepository.updateSessionState(MonitorSessionState.Starting)
     }
 
     fun stopMonitoring() {
-        _isMonitoring.value = false
+        MonitorServiceRepository.updateSessionState(MonitorSessionState.Stopped)
     }
 
-    /**
-     * Resets the pairing code to a new generated value and rotates the pairing
-     * generation id. Parents that previously paired with this child must
-     * re-scan the QR code to reconnect.
-     */
-    fun resetPairing() {
-        val newCode = PairingCodeGenerator.generate()
-        _pairingCode.value = newCode
-        val prefs = getApplication<Application>().getSharedPreferences(
-            MonitorService.PAIRING_PREFS_NAME,
-            Application.MODE_PRIVATE
-        )
-        prefs.edit()
-            .putString(MonitorService.PREF_KEY_PAIRING_CODE, newCode)
-            .apply()
-        childIdentityStore.rotatePairingId()
-    }
-
-    fun startWifiDirect() {
-        wifiDirectController.startChildAdvertising(uiState.value.port, uiState.value.serviceName)
-    }
-
-    fun stopWifiDirect() {
-        wifiDirectController.stop()
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        wifiDirectController.stop()
-    }
 }

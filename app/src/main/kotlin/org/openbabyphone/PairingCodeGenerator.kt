@@ -32,7 +32,9 @@ object PairingCodeGenerator {
     const val DEFAULT_CODE_LENGTH = 8
 
     fun generate(length: Int = DEFAULT_CODE_LENGTH): String {
-        require(length >= 4) { "Code length must be at least 4" }
+        require(length in PairingCode.MIN_LENGTH..PairingCode.MAX_LENGTH) {
+            "Code length must be between ${PairingCode.MIN_LENGTH} and ${PairingCode.MAX_LENGTH}"
+        }
         val buffer = CharArray(length)
         for (i in buffer.indices) {
             buffer[i] = UNAMBIGUOUS_CHARS[random.nextInt(UNAMBIGUOUS_CHARS.size)]
@@ -40,9 +42,9 @@ object PairingCodeGenerator {
         return String(buffer)
     }
 
-    fun generateIfEmpty(existingCode: String): String {
+    fun generateIfInvalid(existingCode: String): String {
         val trimmed = existingCode.trim()
-        if (trimmed.isNotEmpty()) {
+        if (PairingCode.isValid(trimmed)) {
             return trimmed
         }
         return generate()

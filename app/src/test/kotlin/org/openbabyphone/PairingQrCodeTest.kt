@@ -96,13 +96,13 @@ class PairingQrCodeTest {
             childId = "childId123",
             pairingId = "pairingId456",
             name = "My Room",
-            pairingCode = "code789"
+            pairingCode = "code7890"
         )
         val parsed = PairingQrCode.parse(payload) as PairingQrCode.ParsedQrCode.Structured
         assertEquals("childId123", parsed.childId)
         assertEquals("pairingId456", parsed.pairingId)
         assertEquals("My Room", parsed.name)
-        assertEquals("code789", parsed.pairingCode)
+        assertEquals("code7890", parsed.pairingCode)
     }
 
     @Test
@@ -111,10 +111,10 @@ class PairingQrCodeTest {
             childId = "cid",
             pairingId = "pid",
             name = "Test",
-            pairingCode = "ABC123"
+            pairingCode = "ABC12345"
         )
         val parsed = PairingQrCode.parse(payload) as PairingQrCode.ParsedQrCode.Structured
-        assertEquals("ABC123", parsed.pairingCode)
+        assertEquals("ABC12345", parsed.pairingCode)
     }
 
     @Test
@@ -123,7 +123,7 @@ class PairingQrCodeTest {
             childId = "cid",
             pairingId = "pid",
             name = "",
-            pairingCode = "code1"
+            pairingCode = "code1234"
         )
         val parsed = PairingQrCode.parse(payload) as PairingQrCode.ParsedQrCode.Structured
         assertEquals("", parsed.name)

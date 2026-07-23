@@ -54,6 +54,15 @@ data class WifiDirectEndpoint(
     val name: String
 )
 
+internal fun upsertWifiDirectPeer(
+    peers: List<WifiDirectPeer>,
+    peer: WifiDirectPeer
+): List<WifiDirectPeer> {
+    val index = peers.indexOfFirst { it.deviceAddress == peer.deviceAddress }
+    if (index < 0) return peers + peer
+    return peers.toMutableList().also { it[index] = peer }
+}
+
 /**
  * State machine for the Wi-Fi Direct optional connection mode.
  */
@@ -93,6 +102,42 @@ sealed interface WifiDirectState {
      * An error occurred. The caller may retry or fall back to other modes.
      */
     data class Error(val message: String) : WifiDirectState
+}
+
+interface WifiDirectSession {
+    val state: StateFlow<WifiDirectState>
+    fun isSupported(): Boolean
+    fun startChildAdvertising(port: Int, name: String)
+    fun startParentDiscovery()
+    fun connectToPeer(peer: WifiDirectPeer)
+    fun handoffToListen()
+    fun stop()
+}
+
+internal class WifiDirectCallbackGate {
+    private var generation = 0L
+    private var connectedClaimed = false
+
+    fun begin(): Long {
+        generation++
+        connectedClaimed = false
+        return generation
+    }
+
+    fun cancel() {
+        generation++
+        connectedClaimed = false
+    }
+
+    fun currentToken(): Long = generation
+
+    fun isCurrent(token: Long): Boolean = token == generation
+
+    fun claimConnected(token: Long): Boolean {
+        if (!isCurrent(token) || connectedClaimed) return false
+        connectedClaimed = true
+        return true
+    }
 }
 
 /**
@@ -144,10 +189,10 @@ object WifiDirectTxtRecordParser {
  * It exposes a [state] flow consumed by the ViewModels and handles the child
  * (group owner + local service) and parent (service discovery + connect) roles.
  */
-class WifiDirectController(private val context: Context) {
+class WifiDirectController(private val context: Context) : WifiDirectSession {
 
     private val _state = MutableStateFlow<WifiDirectState>(WifiDirectState.Idle)
-    val state: StateFlow<WifiDirectState> = _state.asStateFlow()
+    override val state: StateFlow<WifiDirectState> = _state.asStateFlow()
 
     private var manager: WifiP2pManager? = null
     private var channel: Channel? = null
@@ -155,6 +200,7 @@ class WifiDirectController(private val context: Context) {
     private var serviceRequest: WifiP2pDnsSdServiceRequest? = null
     private var pendingEndpointPort: Int = ConnectionConstants.DEFAULT_PORT
     private var pendingEndpointName: String = ""
+    private val callbackGate = WifiDirectCallbackGate()
 
     private val intentFilter = IntentFilter().apply {
         addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION)
@@ -167,7 +213,7 @@ class WifiDirectController(private val context: Context) {
      * Returns `true` if the device declares Wi-Fi Direct support and the
      * framework service is available.
      */
-    fun isSupported(): Boolean {
+    override fun isSupported(): Boolean {
         return context.packageManager.hasSystemFeature("android.hardware.wifi.direct") &&
             context.getSystemService(Context.WIFI_P2P_SERVICE) is WifiP2pManager
     }
@@ -178,12 +224,14 @@ class WifiDirectController(private val context: Context) {
         channel = manager?.initialize(context, context.mainLooper, null)
     }
 
-    private fun registerReceiver() {
+    private fun registerReceiver(token: Long) {
         if (receiver != null) return
         receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
+                if (!isCurrent(token)) return
                 when (intent.action) {
-                    WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION -> handleConnectionChanged(intent)
+                    WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION ->
+                        handleConnectionChanged(intent, token)
                 }
             }
         }
@@ -206,23 +254,24 @@ class WifiDirectController(private val context: Context) {
      * service so parents can discover and connect.
      */
     @SuppressLint("MissingPermission")
-    fun startChildAdvertising(port: Int, name: String) {
+    override fun startChildAdvertising(port: Int, name: String) {
+        val token = beginOperation()
         if (!isSupported()) {
-            _state.value = WifiDirectState.Error(WifiDirectErrors.describe(P2P_UNSUPPORTED))
+            emitIfCurrent(token, WifiDirectState.Error(WifiDirectErrors.describe(P2P_UNSUPPORTED)))
             return
         }
         ensureManager()
-        registerReceiver()
+        registerReceiver(token)
         _state.value = WifiDirectState.Starting
         pendingEndpointPort = port
         pendingEndpointName = name
 
         val m = manager ?: run {
-            _state.value = WifiDirectState.Error("Wi-Fi Direct is not available")
+            emitIfCurrent(token, WifiDirectState.Error("Wi-Fi Direct is not available"))
             return
         }
         val c = channel ?: run {
-            _state.value = WifiDirectState.Error("Wi-Fi Direct is not available")
+            emitIfCurrent(token, WifiDirectState.Error("Wi-Fi Direct is not available"))
             return
         }
 
@@ -238,19 +287,20 @@ class WifiDirectController(private val context: Context) {
         )
         m.addLocalService(c, serviceInfo, object : WifiP2pManager.ActionListener {
             override fun onSuccess() {
+                if (!isCurrent(token)) return
                 m.createGroup(c, object : WifiP2pManager.ActionListener {
                     override fun onSuccess() {
-                        _state.value = WifiDirectState.Advertising
+                        emitIfCurrent(token, WifiDirectState.Advertising)
                     }
 
                     override fun onFailure(reason: Int) {
-                        _state.value = WifiDirectState.Error(WifiDirectErrors.describe(reason))
+                        emitIfCurrent(token, WifiDirectState.Error(WifiDirectErrors.describe(reason)))
                     }
                 })
             }
 
             override fun onFailure(reason: Int) {
-                _state.value = WifiDirectState.Error(WifiDirectErrors.describe(reason))
+                emitIfCurrent(token, WifiDirectState.Error(WifiDirectErrors.describe(reason)))
             }
         })
     }
@@ -260,35 +310,38 @@ class WifiDirectController(private val context: Context) {
      * children.
      */
     @SuppressLint("MissingPermission")
-    fun startParentDiscovery() {
+    override fun startParentDiscovery() {
+        val token = beginOperation()
         if (!isSupported()) {
-            _state.value = WifiDirectState.Error(WifiDirectErrors.describe(P2P_UNSUPPORTED))
+            emitIfCurrent(token, WifiDirectState.Error(WifiDirectErrors.describe(P2P_UNSUPPORTED)))
             return
         }
         ensureManager()
-        registerReceiver()
+        registerReceiver(token)
         _state.value = WifiDirectState.Starting
 
         val m = manager ?: run {
-            _state.value = WifiDirectState.Error("Wi-Fi Direct is not available")
+            emitIfCurrent(token, WifiDirectState.Error("Wi-Fi Direct is not available"))
             return
         }
         val c = channel ?: run {
-            _state.value = WifiDirectState.Error("Wi-Fi Direct is not available")
+            emitIfCurrent(token, WifiDirectState.Error("Wi-Fi Direct is not available"))
             return
         }
 
         val txtListener = WifiP2pManager.DnsSdTxtRecordListener { _, record, device ->
+            if (!isCurrent(token)) return@DnsSdTxtRecordListener
             val peer = WifiDirectTxtRecordParser.parse(
                 device.deviceAddress,
                 device.deviceName,
                 record
             )
             if (peer != null) {
-                addPeer(peer)
+                addPeer(peer, token)
             }
         }
         val serviceListener = WifiP2pManager.DnsSdServiceResponseListener { _, _, device ->
+            if (!isCurrent(token)) return@DnsSdServiceResponseListener
             val current = (_state.value as? WifiDirectState.Discovering)?.peers.orEmpty()
             val peer = current.firstOrNull { it.deviceAddress == device.deviceAddress }
             if (peer != null) {
@@ -300,19 +353,22 @@ class WifiDirectController(private val context: Context) {
         serviceRequest = WifiP2pDnsSdServiceRequest.newInstance()
         m.addServiceRequest(c, serviceRequest!!, object : WifiP2pManager.ActionListener {
             override fun onSuccess() {
+                if (!isCurrent(token)) return
                 m.discoverServices(c, object : WifiP2pManager.ActionListener {
                     override fun onSuccess() {
-                        _state.value = WifiDirectState.Discovering(emptyList())
+                        if (isDiscoveryState(token)) {
+                            _state.value = WifiDirectState.Discovering(discoveredPeers.toList())
+                        }
                     }
 
                     override fun onFailure(reason: Int) {
-                        _state.value = WifiDirectState.Error(WifiDirectErrors.describe(reason))
+                        emitDiscoveryError(token, reason)
                     }
                 })
             }
 
             override fun onFailure(reason: Int) {
-                _state.value = WifiDirectState.Error(WifiDirectErrors.describe(reason))
+                emitDiscoveryError(token, reason)
             }
         })
     }
@@ -320,11 +376,17 @@ class WifiDirectController(private val context: Context) {
     private val discoveredPeers: MutableList<WifiDirectPeer> = mutableListOf()
 
     @Synchronized
-    private fun addPeer(peer: WifiDirectPeer) {
-        if (discoveredPeers.none { it.deviceAddress == peer.deviceAddress }) {
-            discoveredPeers.add(peer)
-            _state.value = WifiDirectState.Discovering(discoveredPeers.toList())
+    private fun addPeer(peer: WifiDirectPeer, token: Long) {
+        if (!isCurrent(token)) return
+        if (_state.value != WifiDirectState.Starting &&
+            _state.value !is WifiDirectState.Discovering
+        ) {
+            return
         }
+        val updated = upsertWifiDirectPeer(discoveredPeers, peer)
+        discoveredPeers.clear()
+        discoveredPeers.addAll(updated)
+        emitIfCurrent(token, WifiDirectState.Discovering(discoveredPeers.toList()))
     }
 
     /**
@@ -333,26 +395,32 @@ class WifiDirectController(private val context: Context) {
      * group owner address and advertised port.
      */
     @SuppressLint("MissingPermission")
-    fun connectToPeer(peer: WifiDirectPeer) {
+    override fun connectToPeer(peer: WifiDirectPeer) {
+        val token = callbackGate.currentToken()
+        if (!isCurrent(token) || _state.value !is WifiDirectState.Discovering) return
         val m = manager ?: return
         val c = channel ?: return
+        pendingEndpointPort = peer.port
+        pendingEndpointName = peer.displayName
         _state.value = WifiDirectState.Connecting(peer)
         val config = android.net.wifi.p2p.WifiP2pConfig().apply {
             deviceAddress = peer.deviceAddress
         }
         m.connect(c, config, object : WifiP2pManager.ActionListener {
             override fun onSuccess() {
-                pendingEndpointPort = peer.port
-                pendingEndpointName = peer.displayName
+                if (!isCurrent(token)) return
             }
 
             override fun onFailure(reason: Int) {
-                _state.value = WifiDirectState.Error(WifiDirectErrors.describe(reason))
+                if (isCurrent(token) && _state.value is WifiDirectState.Connecting) {
+                    _state.value = WifiDirectState.Error(WifiDirectErrors.describe(reason))
+                }
             }
         })
     }
 
-    private fun handleConnectionChanged(intent: Intent) {
+    private fun handleConnectionChanged(intent: Intent, token: Long) {
+        if (!isCurrent(token)) return
         val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             intent.getParcelableExtra(
                 WifiP2pManager.EXTRA_WIFI_P2P_INFO,
@@ -368,22 +436,63 @@ class WifiDirectController(private val context: Context) {
                 // advertising. Stay in Advertising so the UI shows the stop
                 // button and waiting status.
                 if (_state.value !is WifiDirectState.Advertising) {
-                    _state.value = WifiDirectState.Advertising
+                    emitIfCurrent(token, WifiDirectState.Advertising)
                 }
             } else {
                 // Parent side: connected to the child's group, the group
                 // owner address is the child's address.
                 val host = info.groupOwnerAddress?.hostAddress ?: return
                 val endpoint = WifiDirectEndpoint(host, pendingEndpointPort, pendingEndpointName)
-                _state.value = WifiDirectState.Connected(endpoint)
+                if (callbackGate.claimConnected(token)) {
+                    emitIfCurrent(token, WifiDirectState.Connected(endpoint))
+                }
             }
+        } else if (_state.value is WifiDirectState.Connecting ||
+            _state.value is WifiDirectState.Connected ||
+            _state.value == WifiDirectState.Advertising
+        ) {
+            emitIfCurrent(token, WifiDirectState.Error("Wi-Fi Direct connection was lost"))
         }
     }
 
     /**
      * Stop any active Wi-Fi Direct operation and clean up.
      */
-    fun stop() {
+    override fun handoffToListen() {
+        removeDiscoveryResources()
+        unregisterReceiver()
+    }
+
+    override fun stop() {
+        callbackGate.cancel()
+        cleanupFrameworkState()
+        discoveredPeers.clear()
+        _state.value = WifiDirectState.Idle
+    }
+
+    private fun beginOperation(): Long {
+        val token = callbackGate.begin()
+        cleanupFrameworkState()
+        discoveredPeers.clear()
+        return token
+    }
+
+    private fun isCurrent(token: Long): Boolean = callbackGate.isCurrent(token)
+
+    private fun emitIfCurrent(token: Long, value: WifiDirectState) {
+        if (isCurrent(token)) _state.value = value
+    }
+
+    private fun isDiscoveryState(token: Long): Boolean = isCurrent(token) &&
+        (_state.value == WifiDirectState.Starting || _state.value is WifiDirectState.Discovering)
+
+    private fun emitDiscoveryError(token: Long, reason: Int) {
+        if (isDiscoveryState(token)) {
+            _state.value = WifiDirectState.Error(WifiDirectErrors.describe(reason))
+        }
+    }
+
+    private fun removeDiscoveryResources() {
         val m = manager
         val c = channel
         if (m != null && c != null) {
@@ -396,14 +505,36 @@ class WifiDirectController(private val context: Context) {
             }
             serviceRequest = null
             try {
+                m.stopPeerDiscovery(c, null)
+            } catch (e: Exception) {
+                Log.d(TAG, "Failed to stop peer discovery", e)
+            }
+        }
+    }
+
+    private fun cleanupFrameworkState() {
+        removeDiscoveryResources()
+        val m = manager
+        val c = channel
+        if (m != null && c != null) {
+            try {
+                m.cancelConnect(c, null)
+            } catch (e: Exception) {
+                Log.d(TAG, "Failed to cancel connection", e)
+            }
+            try {
+                m.clearLocalServices(c, null)
+            } catch (e: Exception) {
+                Log.d(TAG, "Failed to clear local services", e)
+            }
+            try {
                 m.removeGroup(c, null)
             } catch (e: Exception) {
                 Log.d(TAG, "Failed to remove group", e)
             }
         }
-        discoveredPeers.clear()
+        serviceRequest = null
         unregisterReceiver()
-        _state.value = WifiDirectState.Idle
     }
 
     companion object {

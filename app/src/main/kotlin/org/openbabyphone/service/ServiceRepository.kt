@@ -1,12 +1,9 @@
 package org.openbabyphone.service
 
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.flow.update
 import org.openbabyphone.ConnectionConstants
 
 object MonitorServiceRepository {
@@ -35,6 +32,16 @@ object MonitorServiceRepository {
         _sessionState.value = state
     }
 
+    fun updateError(type: MonitorSessionError, reason: String) {
+        _sessionState.value = MonitorSessionState.Error(type, reason)
+    }
+
+    fun updateStopped() {
+        _sessionState.update { current ->
+            if (current is MonitorSessionState.Error) current else MonitorSessionState.Stopped
+        }
+    }
+
     fun updateConnectedClients(count: Int) {
         _connectedClients.value = count
     }
@@ -52,16 +59,8 @@ object ListenServiceRepository {
     private val _childDeviceName = MutableStateFlow("")
     val childDeviceName: StateFlow<String> = _childDeviceName.asStateFlow()
 
-    private val _sessionState = MutableStateFlow<ListenSessionState>(ListenSessionState.Connecting)
+    private val _sessionState = MutableStateFlow<ListenSessionState>(ListenSessionState.Idle)
     val sessionState: StateFlow<ListenSessionState> = _sessionState.asStateFlow()
-
-    val isConnected: StateFlow<Boolean> = _sessionState
-        .map { it is ListenSessionState.Listening }
-        .stateIn(GlobalScope, SharingStarted.Eagerly, false)
-
-    val isError: StateFlow<Boolean> = _sessionState
-        .map { it is ListenSessionState.Error || it is ListenSessionState.Lost }
-        .stateIn(GlobalScope, SharingStarted.Eagerly, false)
 
     fun updateChildDeviceName(name: String) {
         _childDeviceName.value = name
@@ -73,31 +72,70 @@ object ListenServiceRepository {
     }
 
     fun updateListening() {
-        _sessionState.value = ListenSessionState.Listening
+        _sessionState.update { current ->
+            if (current is ListenSessionState.Error ||
+                current is ListenSessionState.Lost ||
+                current is ListenSessionState.Stopped
+            ) {
+                current
+            } else {
+                ListenSessionState.Listening
+            }
+        }
     }
 
     fun updateReconnecting(attempt: Int, maxAttempts: Int) {
-        _sessionState.value = ListenSessionState.Reconnecting(attempt, maxAttempts)
+        _sessionState.update { current ->
+            if (current is ListenSessionState.Lost ||
+                current is ListenSessionState.Error ||
+                current is ListenSessionState.Stopped
+            ) {
+                current
+            } else {
+                ListenSessionState.Reconnecting(attempt, maxAttempts)
+            }
+        }
     }
 
     fun updateDisrupted() {
-        _sessionState.value = ListenSessionState.Disrupted
+        _sessionState.update { current ->
+            if (current is ListenSessionState.Error ||
+                current is ListenSessionState.Stopped ||
+                current is ListenSessionState.Lost
+            ) {
+                current
+            } else {
+                ListenSessionState.Disrupted
+            }
+        }
     }
 
     fun updateLost() {
-        _sessionState.value = ListenSessionState.Lost
+        _sessionState.update { current ->
+            if (current is ListenSessionState.Error || current is ListenSessionState.Stopped) {
+                current
+            } else {
+                ListenSessionState.Lost
+            }
+        }
     }
 
-    fun updateError(reason: String) {
-        _sessionState.value = ListenSessionState.Error(reason)
+    fun updateError(type: ListenSessionError, reason: String) {
+        _sessionState.value = ListenSessionState.Error(type, reason)
     }
 
     fun updateStopped() {
-        _sessionState.value = ListenSessionState.Stopped
+        _sessionState.update { current ->
+            if (current is ListenSessionState.Error || current is ListenSessionState.Lost) {
+                current
+            } else {
+                ListenSessionState.Stopped
+            }
+        }
     }
 
     fun reset() {
         _childDeviceName.value = ""
-        _sessionState.value = ListenSessionState.Connecting
+        _sessionState.value = ListenSessionState.Idle
     }
 }

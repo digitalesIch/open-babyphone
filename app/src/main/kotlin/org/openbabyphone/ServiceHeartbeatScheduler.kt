@@ -18,8 +18,8 @@ object ServiceHeartbeatScheduler {
         schedule(context, monitorHeartbeatIntent(context), MONITOR_REQUEST_CODE)
     }
 
-    fun scheduleListen(context: Context, restartIntent: Intent) {
-        schedule(context, listenHeartbeatIntent(context, restartIntent), LISTEN_REQUEST_CODE)
+    fun scheduleListen(context: Context, restartIntent: Intent, sessionToken: Long? = null) {
+        schedule(context, listenHeartbeatIntent(context, restartIntent, sessionToken), LISTEN_REQUEST_CODE)
     }
 
     fun cancelMonitor(context: Context) {
@@ -33,13 +33,18 @@ object ServiceHeartbeatScheduler {
     internal fun monitorHeartbeatIntent(context: Context): Intent = Intent(context, ServiceHeartbeatReceiver::class.java)
         .setAction(ACTION_MONITOR_HEARTBEAT)
 
-    internal fun listenHeartbeatIntent(context: Context, restartIntent: Intent): Intent =
+    internal fun listenHeartbeatIntent(
+        context: Context,
+        restartIntent: Intent,
+        sessionToken: Long? = null
+    ): Intent =
         Intent(context, ServiceHeartbeatReceiver::class.java)
             .setAction(ACTION_LISTEN_HEARTBEAT)
-            .putExtra("name", restartIntent.getStringExtra("name"))
-            .putExtra("address", restartIntent.getStringExtra("address"))
-            .putExtra("port", restartIntent.getIntExtra("port", 0))
-            .putExtra("pairingCode", restartIntent.getStringExtra("pairingCode"))
+            .putExtra("expectedChildId", restartIntent.getStringExtra("expectedChildId"))
+            .putExtra("expectedPairingId", restartIntent.getStringExtra("expectedPairingId"))
+            .apply {
+                sessionToken?.let { putExtra(ListenResumeActivity.EXTRA_SESSION_TOKEN, it) }
+            }
 
     private fun schedule(context: Context, intent: Intent, requestCode: Int) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager

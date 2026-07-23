@@ -78,40 +78,47 @@ class PairingCodeGeneratorTest {
     }
 
     @Test
-    fun generateIfEmpty_EmptyInput_GeneratesCode() {
-        val result = PairingCodeGenerator.generateIfEmpty("")
+    fun generateIfInvalid_EmptyInput_GeneratesCode() {
+        val result = PairingCodeGenerator.generateIfInvalid("")
         assertTrue(result.isNotEmpty())
         assertTrue(PairingCode.isValid(result))
     }
 
     @Test
-    fun generateIfEmpty_WhitespaceInput_GeneratesCode() {
-        val result = PairingCodeGenerator.generateIfEmpty("   ")
+    fun generateIfInvalid_WhitespaceInput_GeneratesCode() {
+        val result = PairingCodeGenerator.generateIfInvalid("   ")
         assertTrue(result.isNotEmpty())
     }
 
     @Test
-    fun generateIfEmpty_NonEmptyInput_ReturnsTrimmed() {
-        val result = PairingCodeGenerator.generateIfEmpty("  existingCode  ")
+    fun generateIfInvalid_ValidInput_ReturnsTrimmed() {
+        val result = PairingCodeGenerator.generateIfInvalid("  existingCode  ")
         assertEquals("existingCode", result)
     }
 
     @Test
-    fun generateIfEmpty_NonEmptyInput_DoesNotGenerate() {
+    fun generateIfInvalid_ValidInput_DoesNotGenerate() {
         val existing = "mypairingcode"
-        val result = PairingCodeGenerator.generateIfEmpty(existing)
+        val result = PairingCodeGenerator.generateIfInvalid(existing)
         assertEquals(existing, result)
     }
 
     @Test(expected = IllegalArgumentException::class)
     fun generate_TooShort_Throws() {
-        PairingCodeGenerator.generate(3)
+        PairingCodeGenerator.generate(7)
     }
 
     @Test
-    fun generate_MinimumLength4_IsValid() {
-        val code = PairingCodeGenerator.generate(4)
-        assertEquals(4, code.length)
+    fun generate_MinimumLength8_IsValid() {
+        val code = PairingCodeGenerator.generate(8)
+        assertEquals(8, code.length)
         assertTrue(PairingCode.isValid(code))
+    }
+
+    @Test
+    fun generateIfInvalid_WeakStoredCode_Regenerates() {
+        val result = PairingCodeGenerator.generateIfInvalid("weak")
+        assertTrue(PairingCode.isValid(result))
+        assertFalse(result == "weak")
     }
 }

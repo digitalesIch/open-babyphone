@@ -1,251 +1,163 @@
 package org.openbabyphone.viewmodel
 
 import android.app.Application
-import org.openbabyphone.DeviceName
-import org.openbabyphone.MonitorService
-import org.openbabyphone.OpenBabyphoneApplication
-import org.openbabyphone.PairingCode
-import org.openbabyphone.R
-import org.openbabyphone.service.MonitorServiceRepository
-import org.openbabyphone.service.MonitorSessionState
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.openbabyphone.MonitorService
+import org.openbabyphone.ChildDeviceNamePreferences
+import org.openbabyphone.OpenBabyphoneApplication
+import org.openbabyphone.PairingCode
+import org.openbabyphone.PairingQrCode
+import org.openbabyphone.R
+import org.openbabyphone.service.MonitorServiceRepository
+import org.openbabyphone.service.MonitorSessionError
+import org.openbabyphone.service.MonitorSessionState
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 
 @RunWith(RobolectricTestRunner::class)
 class MonitorViewModelTest {
 
+    private lateinit var context: Application
     private lateinit var viewModel: MonitorViewModel
 
     @Before
     fun setup() {
-        val context = RuntimeEnvironment.getApplication() as Application
-        val prefs = context.getSharedPreferences(MonitorService.PAIRING_PREFS_NAME, Application.MODE_PRIVATE)
-        prefs.edit().clear().apply()
+        context = RuntimeEnvironment.getApplication() as Application
+        context.getSharedPreferences(MonitorService.PAIRING_PREFS_NAME, Application.MODE_PRIVATE)
+            .edit().clear().apply()
         context.getSharedPreferences(OpenBabyphoneApplication.SETTINGS_PREFS_NAME, Application.MODE_PRIVATE)
             .edit().clear().apply()
-
         MonitorServiceRepository.reset()
-        MonitorServiceRepository.updateServiceInfo("", 10000, emptyList())
-        MonitorServiceRepository.updateSessionState(MonitorSessionState.WaitingForParent)
-        MonitorServiceRepository.updateConnectedClients(0)
-
         viewModel = MonitorViewModel(context)
     }
 
     @Test
-    fun `initial pairing code is non-empty when no saved value`() = runTest {
+    fun `fresh install generates and persists a secure pairing code`() = runTest {
         val state = viewModel.uiState.first { it.pairingCode.isNotEmpty() }
-        assertTrue(state.pairingCode.isNotEmpty())
-    }
+        val persisted = context.getSharedPreferences(
+            MonitorService.PAIRING_PREFS_NAME,
+            Application.MODE_PRIVATE
+        ).getString(MonitorService.PREF_KEY_PAIRING_CODE, "")
 
-    @Test
-    fun `fresh install generates non-empty pairing code`() = runTest {
-        val state = viewModel.uiState.first { it.pairingCode.isNotEmpty() }
-        assertTrue(state.pairingCode.isNotEmpty())
         assertTrue(PairingCode.isValid(state.pairingCode))
+        assertTrue(state.pairingCode.isNotBlank())
+        assertEquals(state.pairingCode, persisted)
     }
 
     @Test
-    fun `generated pairing code is persisted to SharedPreferences`() = runTest {
-        val state = viewModel.uiState.first { it.pairingCode.isNotEmpty() }
-        assertTrue("Initial code should be non-empty", state.pairingCode.isNotEmpty())
-        val context = RuntimeEnvironment.getApplication() as Application
+    fun `invalid saved pairing code is replaced automatically`() = runTest {
         val prefs = context.getSharedPreferences(MonitorService.PAIRING_PREFS_NAME, Application.MODE_PRIVATE)
-        val persisted = prefs.getString(MonitorService.PREF_KEY_PAIRING_CODE, "")
-        assertEquals("Generated code should be persisted", state.pairingCode, persisted)
-    }
+        prefs.edit().putString(MonitorService.PREF_KEY_PAIRING_CODE, "invalid code").apply()
 
-    @Test
-    fun `updatePairingCode updates state`() = runTest {
-        viewModel.updatePairingCode("test123")
-        val state = viewModel.uiState.first { it.pairingCode == "test123" }
-        assertEquals("test123", state.pairingCode)
-    }
-
-    @Test
-    fun `updatePairingCode trims whitespace`() = runTest {
-        viewModel.updatePairingCode("  code  ")
-        val state = viewModel.uiState.first { it.pairingCode == "code" }
-        assertEquals("code", state.pairingCode)
-    }
-
-    @Test
-    fun `updatePairingCode keeps invalid characters visible`() = runTest {
-        viewModel.updatePairingCode("valid123")
-        viewModel.updatePairingCode("invalid-code")
-        val state = viewModel.uiState.first { it.pairingCode == "invalid-code" }
-        assertEquals("invalid-code", state.pairingCode)
-        assertTrue(!state.pairingCodeValid)
-    }
-
-    @Test
-    fun `updatePairingCode persists to SharedPreferences`() {
-        viewModel.updatePairingCode("persisted")
-        val context = RuntimeEnvironment.getApplication() as Application
-        val prefs = context.getSharedPreferences(MonitorService.PAIRING_PREFS_NAME, Application.MODE_PRIVATE)
-        assertEquals("persisted", prefs.getString(MonitorService.PREF_KEY_PAIRING_CODE, ""))
-    }
-
-    @Test
-    fun `invalid pairing code is not persisted`() {
-        viewModel.updatePairingCode("persisted")
-        viewModel.updatePairingCode("invalid code")
-        val context = RuntimeEnvironment.getApplication() as Application
-        val prefs = context.getSharedPreferences(MonitorService.PAIRING_PREFS_NAME, Application.MODE_PRIVATE)
-        assertEquals("persisted", prefs.getString(MonitorService.PREF_KEY_PAIRING_CODE, ""))
-    }
-
-    @Test
-    fun `saved pairing code is loaded on init`() = runTest {
-        val context = RuntimeEnvironment.getApplication() as Application
-        val prefs = context.getSharedPreferences(MonitorService.PAIRING_PREFS_NAME, Application.MODE_PRIVATE)
-        prefs.edit().putString(MonitorService.PREF_KEY_PAIRING_CODE, "savedCode").apply()
         viewModel = MonitorViewModel(context)
-        val state = viewModel.uiState.first { it.pairingCode == "savedCode" }
-        assertEquals("savedCode", state.pairingCode)
+        val state = viewModel.uiState.first { it.pairingCode.isNotEmpty() }
+
+        assertNotEquals("invalid code", state.pairingCode)
+        assertTrue(PairingCode.isValid(state.pairingCode))
+        assertTrue(state.pairingCode.isNotBlank())
     }
 
     @Test
-    fun `service info updates reflect in state`() = runTest {
-        MonitorServiceRepository.updateServiceInfo("TestService", 8080, listOf("192.168.1.1"))
-        val state = viewModel.uiState.first { it.serviceName == "TestService" }
-        assertEquals("TestService", state.serviceName)
-        assertEquals(8080, state.port)
-        assertTrue(state.addresses.contains("192.168.1.1"))
+    fun `fresh install uses and persists default child name`() = runTest {
+        val state = viewModel.uiState.first { it.deviceName.isNotEmpty() }
+        val expectedName = context.getString(R.string.default_child_name)
+        val persisted = context.getSharedPreferences(
+            MonitorService.PAIRING_PREFS_NAME,
+            Application.MODE_PRIVATE
+        ).getString(MonitorService.PREF_KEY_DEVICE_NAME, "")
+
+        assertEquals(expectedName, state.deviceName)
+        assertEquals(expectedName, persisted)
     }
 
     @Test
-    fun `connected client count updates reflect in state`() = runTest {
-        MonitorServiceRepository.updateConnectedClients(2)
+    fun `saved child name is retained`() = runTest {
+        context.getSharedPreferences(MonitorService.PAIRING_PREFS_NAME, Application.MODE_PRIVATE)
+            .edit().putString(MonitorService.PREF_KEY_DEVICE_NAME, "Nursery").apply()
+
+        viewModel = MonitorViewModel(context)
+
+        assertEquals("Nursery", viewModel.uiState.first { it.deviceName == "Nursery" }.deviceName)
+    }
+
+    @Test
+    fun `start and stop update typed monitor session state`() {
+        viewModel.startMonitoring()
+        assertEquals(MonitorSessionState.Starting, MonitorServiceRepository.sessionState.value)
+
+        viewModel.stopMonitoring()
+        assertEquals(MonitorSessionState.Stopped, MonitorServiceRepository.sessionState.value)
+    }
+
+    @Test
+    fun `connected session count is authoritative`() = runTest {
+        MonitorServiceRepository.updateConnectedClients(1)
+        MonitorServiceRepository.updateSessionState(MonitorSessionState.Connected(2))
+
         val state = viewModel.uiState.first { it.connectedClients == 2 }
+
         assertEquals(2, state.connectedClients)
     }
 
     @Test
-    fun `isLoading is true when service name is empty`() = runTest {
-        MonitorServiceRepository.updateServiceInfo("", 10000, emptyList())
-        val state = viewModel.uiState.first()
-        assertTrue(state.isLoading)
+    fun `service details remain available for connection details`() = runTest {
+        MonitorServiceRepository.updateServiceInfo("TestService", 8080, listOf("test.local"))
+
+        val state = viewModel.uiState.first { it.serviceName == "TestService" }
+
+        assertEquals(8080, state.port)
+        assertEquals(listOf("test.local"), state.addresses)
     }
 
     @Test
-    fun `device name is empty when no saved value`() = runTest {
-        val state = viewModel.uiState.first { it.pairingCode.isNotEmpty() }
-        assertEquals("", state.deviceName)
+    fun `terminal service errors render inactive recovery with retained reason`() = runTest {
+        val reason = "Microphone failed"
+        MonitorServiceRepository.updateError(MonitorSessionError.AudioCapture, reason)
+
+        val state = viewModel.uiState.first {
+            it.sessionState == MonitorSessionState.Error(MonitorSessionError.AudioCapture, reason)
+        }
+
+        assertFalse(state.isMonitoring)
+        assertEquals(reason, state.terminalErrorReason)
     }
 
     @Test
-    fun `updateDeviceName updates state`() = runTest {
-        viewModel.updateDeviceName("Nursery")
-        val state = viewModel.uiState.first { it.deviceName == "Nursery" }
-        assertEquals("Nursery", state.deviceName)
+    fun `advertising error remains active and recoverable`() = runTest {
+        MonitorServiceRepository.updateError(MonitorSessionError.Advertising, "Advertising failed")
+
+        val state = viewModel.uiState.first { it.sessionState is MonitorSessionState.Error }
+
+        assertTrue(state.isMonitoring)
+        assertNull(state.terminalErrorReason)
     }
 
     @Test
-    fun `updateDeviceName trims whitespace`() = runTest {
-        viewModel.updateDeviceName("  Nursery  ")
-        val state = viewModel.uiState.first { it.deviceName == "Nursery" }
-        assertEquals("Nursery", state.deviceName)
-    }
+    fun `qr payload is generated from automatic credentials`() = runTest {
+        val state = viewModel.uiState.first { it.qrPayload.isNotEmpty() }
 
-    @Test
-    fun `updateDeviceName persists to SharedPreferences`() {
-        viewModel.updateDeviceName("LivingRoom")
-        val context = RuntimeEnvironment.getApplication() as Application
-        val prefs = context.getSharedPreferences(MonitorService.PAIRING_PREFS_NAME, Application.MODE_PRIVATE)
-        assertEquals("LivingRoom", prefs.getString(MonitorService.PREF_KEY_DEVICE_NAME, ""))
-    }
-
-    @Test
-    fun `saved device name is loaded on init`() = runTest {
-        val context = RuntimeEnvironment.getApplication() as Application
-        val prefs = context.getSharedPreferences(MonitorService.PAIRING_PREFS_NAME, Application.MODE_PRIVATE)
-        prefs.edit().putString(MonitorService.PREF_KEY_DEVICE_NAME, "MyRoom").apply()
-        viewModel = MonitorViewModel(context)
-        val state = viewModel.uiState.first { it.deviceName == "MyRoom" }
-        assertEquals("MyRoom", state.deviceName)
-    }
-
-    @Test
-    fun `updateDeviceName ignores names with newlines`() = runTest {
-        viewModel.updateDeviceName("Valid")
-        viewModel.updateDeviceName("Invalid\nName")
-        val state = viewModel.uiState.first { it.deviceName == "Valid" }
-        assertEquals("Valid", state.deviceName)
-    }
-
-    @Test
-    fun `updateDeviceName ignores names exceeding 63 characters`() = runTest {
-        viewModel.updateDeviceName("Valid")
-        viewModel.updateDeviceName("a".repeat(64))
-        val state = viewModel.uiState.first { it.deviceName == "Valid" }
-        assertEquals("Valid", state.deviceName)
-    }
-
-    @Test
-    fun `empty device name is accepted and cleared`() = runTest {
-        viewModel.updateDeviceName("SomeName")
-        viewModel.updateDeviceName("")
-        val state = viewModel.uiState.first { it.deviceName == "" }
-        assertEquals("", state.deviceName)
-    }
-
-    @Test
-    fun `qr payload is empty when no pairing code is set`() = runTest {
-        val context = RuntimeEnvironment.getApplication() as Application
-        context.getSharedPreferences(MonitorService.PAIRING_PREFS_NAME, Application.MODE_PRIVATE)
-            .edit().clear().apply()
-        context.getSharedPreferences("child_identity", Application.MODE_PRIVATE)
-            .edit().clear().apply()
-        val vm = MonitorViewModel(context)
-        val state = vm.uiState.first { it.pairingCode.isNotEmpty() }
-        assertTrue(state.qrPayload.isNotEmpty())
-    }
-
-    @Test
-    fun `qr payload contains structured format when code is valid`() = runTest {
-        viewModel.updatePairingCode("myCode42")
-        val state = viewModel.uiState.first { it.pairingCode == "myCode42" }
         assertTrue(state.qrPayload.startsWith("openbabyphone://pair?"))
         assertTrue(state.qrPayload.contains("childId="))
         assertTrue(state.qrPayload.contains("pairingId="))
     }
 
     @Test
-    fun `reset pairing generates new code`() = runTest {
-        val state1 = viewModel.uiState.first { it.pairingCode.isNotEmpty() }
-        val originalCode = state1.pairingCode
+    fun `start refreshes renamed child configuration in existing view model`() = runTest {
+        assertEquals("Nursery", ChildDeviceNamePreferences.write(context, "Nursery"))
 
-        viewModel.resetPairing()
+        viewModel.startMonitoring()
 
-        val context = RuntimeEnvironment.getApplication() as Application
-        val prefs = context.getSharedPreferences(MonitorService.PAIRING_PREFS_NAME, Application.MODE_PRIVATE)
-        val persistedCode = prefs.getString(MonitorService.PREF_KEY_PAIRING_CODE, "")
-        assertTrue(persistedCode != originalCode)
-        assertTrue(persistedCode!!.isNotEmpty())
+        val state = viewModel.uiState.first { it.deviceName == "Nursery" && it.qrPayload.isNotEmpty() }
+        val qr = PairingQrCode.parse(state.qrPayload) as PairingQrCode.ParsedQrCode.Structured
+        assertEquals("Nursery", qr.name)
     }
-
-    @Test
-    fun `child identity store generates stable child id`() = runTest {
-        val context = RuntimeEnvironment.getApplication() as Application
-        context.getSharedPreferences("child_identity", Application.MODE_PRIVATE)
-            .edit().clear().apply()
-
-        val vm1 = MonitorViewModel(context)
-        val state1 = vm1.uiState.first { it.pairingCode.isNotEmpty() }
-
-        val vm2 = MonitorViewModel(context)
-        val state2 = vm2.uiState.first { it.pairingCode.isNotEmpty() }
-
-        assertTrue(state1.qrPayload.isNotEmpty())
-        assertTrue(state2.qrPayload.isNotEmpty())
-    }
-
 }
