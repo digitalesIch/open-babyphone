@@ -12,22 +12,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  host-checks:
+    name: Host checks
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           java-version: "21"
           distribution: "temurin"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
 
       - name: Ensure release secrets are not committed
         run: |
@@ -39,22 +40,210 @@ jobs:
           fi
 
       - name: Build debug APK for testing
-        run: ./gradlew assembleDebug
+        run: ./gradlew --dependency-verification strict assembleDebug
 
       - name: Build, test and lint release
-        run: ./gradlew assembleRelease test lintRelease
+        run: ./gradlew --dependency-verification strict assembleRelease test lintRelease assembleDebugAndroidTest
+
+      - name: Validate Compose preview screenshots
+        run: ./gradlew --dependency-verification strict validateDebugScreenshotTest
+
+      - name: Generate unit coverage report
+        run: ./gradlew --dependency-verification strict jacocoDebugUnitTestReport
+
+      - name: Verify release APK 16 KB alignment
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="app/build/outputs/apk/release/app-release-unsigned.apk"
+          build_tools="$(printf '%s\n' "$ANDROID_SDK_ROOT"/build-tools/* | sort -V | tail -n 1)"
+          "$build_tools/zipalign" -c -P 16 4 "$apk"
+
+          work_dir="$(mktemp -d)"
+          trap 'rm -rf "$work_dir"' EXIT
+          mapfile -t libraries < <(unzip -Z1 "$apk" | awk '/^lib\/[^/]+\/[^/]+\.so$/')
+          for library in "${libraries[@]}"; do
+            extracted="$work_dir/${library//\//_}"
+            unzip -p "$apk" "$library" > "$extracted"
+            mapfile -t alignments < <(readelf -lW "$extracted" | awk '$1 == "LOAD" { print $NF }')
+            if (( ${#alignments[@]} == 0 )); then
+              printf 'No ELF LOAD segments found in %s\n' "$library" >&2
+              exit 1
+            fi
+            for alignment in "${alignments[@]}"; do
+              if (( alignment < 0x4000 )); then
+                printf '%s has LOAD alignment %s; expected at least 0x4000\n' \
+                  "$library" "$alignment" >&2
+                exit 1
+              fi
+            done
+          done
+          printf 'Verified %d packaged native libraries.\n' "${#libraries[@]}"
 
       - name: Upload debug APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
         with:
           name: app-debug
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: warn
           retention-days: 7
 
       - name: Upload release APK artifact
-        uses: actions/upload-artifact@v4
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
         with:
           name: app-release-unsigned
           path: app/build/outputs/apk/release/app-release-unsigned.apk
+          if-no-files-found: warn
           retention-days: 7
+
+      - name: Upload test, screenshot, lint and coverage reports
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: build-verification-reports
+          path: |
+            app/build/reports/tests/
+            app/build/reports/screenshotTest/
+            app/build/reports/lint-results-release.html
+            app/build/reports/jacoco/
+          if-no-files-found: warn
+          retention-days: 14
+
+  instrumentation:
+    name: Instrumentation API ${{ matrix.api-level }}
+    needs: host-checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [30, 36]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+
+      - name: Enable KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run instrumentation tests on API ${{ matrix.api-level }}
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          emulator-boot-timeout: 900
+          script: ./gradlew --dependency-verification strict connectedDebugAndroidTest
+
+      - name: Capture emulator diagnostics
+        if: always()
+        run: adb logcat -d -v threadtime > "app/build/api-${{ matrix.api-level }}-logcat.txt" || true
+
+      - name: Upload instrumentation reports and logs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: instrumentation-api-${{ matrix.api-level }}
+          path: |
+            app/build/reports/androidTests/connected/
+            app/build/outputs/androidTest-results/connected/
+            app/build/api-${{ matrix.api-level }}-logcat.txt
+          if-no-files-found: warn
+          retention-days: 14
+
+  smoke-16kb:
+    name: API 35 16 KB smoke
+    needs: host-checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+
+      - name: Enable KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run 16 KB page-size crypto and handshake smoke tests
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
+        with:
+          api-level: 35
+          target: google_apis_ps16k
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          emulator-boot-timeout: 900
+          script: |
+            page_size="$(adb shell getconf PAGE_SIZE | tr -d '\r')"
+            if [ "$page_size" != "16384" ]; then
+              printf 'Expected a 16384-byte emulator page size, got %s\n' "$page_size" >&2
+              exit 1
+            fi
+            ./gradlew --dependency-verification strict connectedDebugAndroidTest \
+              -Pandroid.testInstrumentationRunnerArguments.class=org.openbabyphone.AppLaunchSmokeInstrumentedTest,org.openbabyphone.HandshakeInstrumentedTest,org.openbabyphone.CryptoHelperInstrumentedTest,org.openbabyphone.TrustedCredentialCryptoInstrumentedTest,org.openbabyphone.audio.FrameCodecCryptoInstrumentedTest
+
+      - name: Capture 16 KB emulator diagnostics
+        if: always()
+        run: adb logcat -d -v threadtime > app/build/api-35-ps16k-logcat.txt || true
+
+      - name: Upload 16 KB smoke reports and logs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: smoke-api-35-ps16k
+          path: |
+            app/build/reports/androidTests/connected/
+            app/build/outputs/androidTest-results/connected/
+            app/build/api-35-ps16k-logcat.txt
+          if-no-files-found: warn
+          retention-days: 14
+
+  build:
+    name: build
+    needs: [host-checks, instrumentation, smoke-16kb]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every CI dependency to succeed
+        env:
+          HOST_RESULT: ${{ needs.host-checks.result }}
+          INSTRUMENTATION_RESULT: ${{ needs.instrumentation.result }}
+          SMOKE_16KB_RESULT: ${{ needs['smoke-16kb'].result }}
+        run: |
+          for result in "$HOST_RESULT" "$INSTRUMENTATION_RESULT" "$SMOKE_16KB_RESULT"; do
+            if [ "$result" != "success" ]; then
+              printf 'Required CI dependency did not succeed: %s\n' "$result" >&2
+              exit 1
+            fi
+          done
