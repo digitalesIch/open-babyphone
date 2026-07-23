@@ -16,7 +16,6 @@
  */
 package org.openbabyphone.audio
 
-import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -31,6 +30,22 @@ data class FrameHeader(
         const val FLAG_AUDIO = 0x01.toByte()
         const val FLAG_HEARTBEAT = 0x02.toByte()
 
+        fun fromByteArray(buffer: ByteArray): FrameHeader? {
+            if (buffer.size != SIZE) return null
+            val flags = buffer[0]
+            val seqNum = ((buffer[1].toInt() and 0xFF) shl 24) or
+                ((buffer[2].toInt() and 0xFF) shl 16) or
+                ((buffer[3].toInt() and 0xFF) shl 8) or
+                (buffer[4].toInt() and 0xFF)
+            val timestampMs = ((buffer[5].toInt() and 0xFF) shl 24) or
+                ((buffer[6].toInt() and 0xFF) shl 16) or
+                ((buffer[7].toInt() and 0xFF) shl 8) or
+                (buffer[8].toInt() and 0xFF)
+            val payloadLength = ((buffer[9].toInt() and 0xFF) shl 8) or
+                (buffer[10].toInt() and 0xFF)
+            return FrameHeader(flags, seqNum, timestampMs, payloadLength)
+        }
+
         fun readFrom(input: InputStream): FrameHeader? {
             val buffer = ByteArray(SIZE)
             var bytesRead = 0
@@ -39,36 +54,32 @@ data class FrameHeader(
                 if (read < 0) {
                     return null
                 }
+                if (read == 0) continue
                 bytesRead += read
             }
-            val flags = buffer[0]
-            val seqNum = ((buffer[1].toInt() and 0xFF) shl 24) or
-                    ((buffer[2].toInt() and 0xFF) shl 16) or
-                    ((buffer[3].toInt() and 0xFF) shl 8) or
-                    (buffer[4].toInt() and 0xFF)
-            val timestampMs = ((buffer[5].toInt() and 0xFF) shl 24) or
-                    ((buffer[6].toInt() and 0xFF) shl 16) or
-                    ((buffer[7].toInt() and 0xFF) shl 8) or
-                    (buffer[8].toInt() and 0xFF)
-            val payloadLength = ((buffer[9].toInt() and 0xFF) shl 8) or
-                    (buffer[10].toInt() and 0xFF)
-            return FrameHeader(flags, seqNum, timestampMs, payloadLength)
+            return fromByteArray(buffer)
         }
 
         fun writeTo(header: FrameHeader, output: OutputStream) {
-            val buffer = ByteArray(SIZE)
-            buffer[0] = header.flags
-            buffer[1] = ((header.seqNum ushr 24) and 0xFF).toByte()
-            buffer[2] = ((header.seqNum ushr 16) and 0xFF).toByte()
-            buffer[3] = ((header.seqNum ushr 8) and 0xFF).toByte()
-            buffer[4] = (header.seqNum and 0xFF).toByte()
-            buffer[5] = ((header.timestampMs ushr 24) and 0xFF).toByte()
-            buffer[6] = ((header.timestampMs ushr 16) and 0xFF).toByte()
-            buffer[7] = ((header.timestampMs ushr 8) and 0xFF).toByte()
-            buffer[8] = (header.timestampMs and 0xFF).toByte()
-            buffer[9] = ((header.payloadLength ushr 8) and 0xFF).toByte()
-            buffer[10] = (header.payloadLength and 0xFF).toByte()
-            output.write(buffer)
+            output.write(header.toByteArray())
         }
+    }
+
+    fun toByteArray(): ByteArray {
+        require(seqNum >= 0) { "Sequence number must be non-negative" }
+        require(payloadLength in 0..0xffff) { "Payload length is outside the wire range" }
+        val buffer = ByteArray(SIZE)
+        buffer[0] = flags
+        buffer[1] = ((seqNum ushr 24) and 0xFF).toByte()
+        buffer[2] = ((seqNum ushr 16) and 0xFF).toByte()
+        buffer[3] = ((seqNum ushr 8) and 0xFF).toByte()
+        buffer[4] = (seqNum and 0xFF).toByte()
+        buffer[5] = ((timestampMs ushr 24) and 0xFF).toByte()
+        buffer[6] = ((timestampMs ushr 16) and 0xFF).toByte()
+        buffer[7] = ((timestampMs ushr 8) and 0xFF).toByte()
+        buffer[8] = (timestampMs and 0xFF).toByte()
+        buffer[9] = ((payloadLength ushr 8) and 0xFF).toByte()
+        buffer[10] = (payloadLength and 0xFF).toByte()
+        return buffer
     }
 }

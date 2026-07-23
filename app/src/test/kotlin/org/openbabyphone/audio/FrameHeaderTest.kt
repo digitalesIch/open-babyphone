@@ -21,6 +21,7 @@ import org.junit.Test
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
+import java.net.SocketTimeoutException
 
 private class ChunkedInputStream(private val data: ByteArray, private val chunkSize: Int = 1) : InputStream() {
     private var pos = 0
@@ -152,5 +153,23 @@ class FrameHeaderTest {
         assertEquals(header.seqNum, readHeader!!.seqNum)
         assertEquals(header.timestampMs, readHeader.timestampMs)
         assertEquals(header.payloadLength, readHeader.payloadLength)
+    }
+
+    @Test(expected = SocketTimeoutException::class)
+    fun readFrom_PropagatesTimeoutAfterPartialHeader() {
+        val input = object : InputStream() {
+            private var first = true
+
+            override fun read(): Int = throw UnsupportedOperationException()
+
+            override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+                if (!first) throw SocketTimeoutException("partial header timeout")
+                first = false
+                buffer[offset] = FrameHeader.FLAG_AUDIO
+                return 1
+            }
+        }
+
+        FrameHeader.readFrom(input)
     }
 }

@@ -50,6 +50,9 @@ data class ChildDeviceIdentity(
         fun generate(): ChildDeviceIdentity {
             return ChildDeviceIdentity(generateId(), generateId())
         }
+
+        internal fun isValidId(value: String?): Boolean =
+            value?.length == ID_LENGTH && value.all(ALPHABET::contains)
     }
 }
 
@@ -57,44 +60,35 @@ data class ChildDeviceIdentity(
  * Loads and persists the [ChildDeviceIdentity] in SharedPreferences.
  *
  * The [childId] is generated once and never changes. The [pairingId] is
- * rotated via [rotatePairingId] when the pairing code is reset or changed.
+ * stored atomically with the pairing code and rotates when that code changes.
  */
 class ChildDeviceIdentityStore(context: Context) {
-
+    private val appContext = context.applicationContext
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     /**
      * Returns the current [ChildDeviceIdentity], reading the persisted values
      * each time. The [childId] is generated once on first access; the
-     * [pairingId] may change after [rotatePairingId] is called.
+     * [pairingId] may change after the pairing settings are reset.
      */
     val identity: ChildDeviceIdentity
         get() {
-            var childId = prefs.getString(KEY_CHILD_ID, null)
-            if (childId == null) {
-                childId = ChildDeviceIdentity.generateId()
-                prefs.edit().putString(KEY_CHILD_ID, childId).apply()
+            val childId = synchronized(IDENTITY_LOCK) {
+                prefs.getString(KEY_CHILD_ID, null)
+                    ?.takeIf(ChildDeviceIdentity::isValidId)
+                    ?: ChildDeviceIdentity.generateId().also {
+                        check(prefs.edit().putString(KEY_CHILD_ID, it).commit()) {
+                            "Failed to persist child identity"
+                        }
+                    }
             }
-            var pairingId = prefs.getString(KEY_PAIRING_ID, null)
-            if (pairingId == null) {
-                pairingId = ChildDeviceIdentity.generateId()
-                prefs.edit().putString(KEY_PAIRING_ID, pairingId).apply()
-            }
-            return ChildDeviceIdentity(childId, pairingId)
+            return ChildDeviceIdentity(childId, PairingSettings.load(appContext).pairingId)
         }
 
-    /**
-     * Rotates the [pairingId], keeping the [childId] stable. Called when the
-     * pairing code is reset or changed on the child side.
-     */
-    fun rotatePairingId() {
-        val newPairingId = ChildDeviceIdentity.generateId()
-        prefs.edit().putString(KEY_PAIRING_ID, newPairingId).apply()
-    }
-
     companion object {
-        private const val PREFS_NAME = "child_identity"
+        internal const val PREFS_NAME = "child_identity"
         private const val KEY_CHILD_ID = "childId"
-        private const val KEY_PAIRING_ID = "pairingId"
+        internal const val LEGACY_KEY_PAIRING_ID = "pairingId"
+        private val IDENTITY_LOCK = Any()
     }
 }

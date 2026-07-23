@@ -59,16 +59,23 @@ class VolumeStatistics internal constructor(private val maxHistory: Int) {
     }
 
     fun onAudioData(data: ShortArray) {
-        if (data.isEmpty()) {
+        onAudioData(data, 0, data.size)
+    }
+
+    fun onAudioData(data: ShortArray, offset: Int, length: Int) {
+        require(offset >= 0 && length >= 0 && offset <= data.size - length) {
+            "Audio data range is outside the array"
+        }
+        if (length == 0) {
             return
         }
         val scale = 1.0 / 128.0
         var sum = 0.0
-        for (datum in data) {
-            val rel = datum * scale
+        for (index in offset until offset + length) {
+            val rel = data[index] * scale
             sum += rel * rel
         }
-        val volume = sum / data.size
+        val volume = sum / length
         addLast(volume)
     }
 }

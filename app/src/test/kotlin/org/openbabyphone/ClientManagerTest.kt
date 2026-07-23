@@ -93,6 +93,14 @@ class ClientManagerTest {
         
         client!!.stop()
         assertTrue(client.getDroppedFrameCount() > 0)
+        val deadline = System.currentTimeMillis() + 2_000
+        while (client.getAvailableFrameSlotCount() != Client.FRAME_SLOT_COUNT &&
+            System.currentTimeMillis() < deadline
+        ) {
+            Thread.sleep(10)
+        }
+        assertEquals(Client.FRAME_SLOT_COUNT, client.getAvailableFrameSlotCount())
+        assertEquals(0, client.getQueuedFrameCount())
     }
 
     @Test
@@ -422,6 +430,26 @@ class ClientManagerTest {
     }
 
     @Test
+    fun clientCountListener_RunsOutsideManagerMonitor() {
+        val manager = ClientManager()
+        val callbackCompleted = java.util.concurrent.CountDownLatch(1)
+        manager.setClientCountListener {
+            val observer = Thread {
+                manager.getClientCount()
+                callbackCompleted.countDown()
+            }
+            observer.start()
+            assertTrue(
+                "Listener held the ClientManager monitor",
+                callbackCompleted.await(1, java.util.concurrent.TimeUnit.SECONDS)
+            )
+            observer.join()
+        }
+
+        manager.addClient(mock(Socket::class.java), "test")
+    }
+
+    @Test
     fun shortTransientBurst_WithinGracePeriod_DoesNotDisconnect() {
         var fakeNow = 0L
         val manager = ClientManager { fakeNow }
@@ -499,5 +527,110 @@ class ClientManagerTest {
         assertTrue(slowClient.getDroppedFrameCount() >= Client.MAX_DROPPED_FRAMES)
 
         slowWriteBlock.countDown()
+    }
+
+    @Test
+    fun queueFrame_CopiesRequestedRangeAndRecyclesPreallocatedSlot() {
+        val manager = ClientManager()
+        val received = java.util.concurrent.atomic.AtomicReference<ByteArray>()
+        val written = java.util.concurrent.CountDownLatch(1)
+        val socket = mock(Socket::class.java)
+        `when`(socket.getOutputStream()).thenReturn(object : OutputStream() {
+            override fun write(b: Int) = Unit
+
+            override fun write(b: ByteArray, off: Int, len: Int) {
+                received.set(b.copyOfRange(off, off + len))
+                written.countDown()
+            }
+        })
+        val client = manager.addClient(socket, "test")!!
+        val slotsAtInitialization = client.getAllocatedFrameSlotCount()
+        val producerBuffer = byteArrayOf(99, 1, 2, 3, 88)
+
+        manager.broadcastFrame(producerBuffer, 1, 3)
+        producerBuffer.fill(0)
+
+        assertTrue(written.await(2, java.util.concurrent.TimeUnit.SECONDS))
+        assertArrayEquals(byteArrayOf(1, 2, 3), received.get())
+        val deadline = System.currentTimeMillis() + 2_000
+        while (client.getAvailableFrameSlotCount() != Client.FRAME_SLOT_COUNT &&
+            System.currentTimeMillis() < deadline
+        ) {
+            Thread.sleep(10)
+        }
+        assertEquals(Client.FRAME_SLOT_COUNT, client.getAvailableFrameSlotCount())
+        assertEquals(slotsAtInitialization, client.getAllocatedFrameSlotCount())
+        client.stop()
+    }
+
+    @Test
+    fun broadcastFrame_UsesIsolatedStorageForEveryClient() {
+        val manager = ClientManager()
+        val firstMutated = java.util.concurrent.CountDownLatch(1)
+        val secondWritten = java.util.concurrent.CountDownLatch(1)
+        val secondReceived = java.util.concurrent.atomic.AtomicReference<ByteArray>()
+
+        val firstSocket = mock(Socket::class.java)
+        `when`(firstSocket.getOutputStream()).thenReturn(object : OutputStream() {
+            override fun write(b: Int) = Unit
+
+            override fun write(b: ByteArray, off: Int, len: Int) {
+                b[off] = 0x7f
+                firstMutated.countDown()
+            }
+        })
+        val secondSocket = mock(Socket::class.java)
+        `when`(secondSocket.getOutputStream()).thenReturn(object : OutputStream() {
+            override fun write(b: Int) = Unit
+
+            override fun write(b: ByteArray, off: Int, len: Int) {
+                assertTrue(firstMutated.await(2, java.util.concurrent.TimeUnit.SECONDS))
+                secondReceived.set(b.copyOfRange(off, off + len))
+                secondWritten.countDown()
+            }
+        })
+        val firstClient = manager.addClient(firstSocket, "test")!!
+        val secondClient = manager.addClient(secondSocket, "test")!!
+        val producerBuffer = byteArrayOf(10, 20, 30)
+
+        manager.broadcastFrame(producerBuffer)
+
+        assertTrue(secondWritten.await(2, java.util.concurrent.TimeUnit.SECONDS))
+        assertArrayEquals(byteArrayOf(10, 20, 30), secondReceived.get())
+        assertArrayEquals(byteArrayOf(10, 20, 30), producerBuffer)
+        firstClient.stop()
+        secondClient.stop()
+    }
+
+    @Test
+    fun partialFailedWrite_RecyclesInFlightSlot() {
+        val manager = ClientManager()
+        val writeAttempted = java.util.concurrent.CountDownLatch(1)
+        val socket = mock(Socket::class.java)
+        `when`(socket.getOutputStream()).thenReturn(object : OutputStream() {
+            override fun write(b: Int) = Unit
+
+            override fun write(b: ByteArray, off: Int, len: Int) {
+                assertEquals(1, b[off].toInt())
+                assertEquals(2, b[off + 1].toInt())
+                writeAttempted.countDown()
+                throw IOException("connection failed after a partial transport write")
+            }
+        })
+        val client = manager.addClient(socket, "test")!!
+
+        manager.broadcastFrame(byteArrayOf(1, 2, 3, 4))
+
+        assertTrue(writeAttempted.await(2, java.util.concurrent.TimeUnit.SECONDS))
+        val deadline = System.currentTimeMillis() + 2_000
+        while (client.getAvailableFrameSlotCount() != Client.FRAME_SLOT_COUNT &&
+            System.currentTimeMillis() < deadline
+        ) {
+            Thread.sleep(10)
+        }
+        assertEquals(Client.FRAME_SLOT_COUNT, client.getAvailableFrameSlotCount())
+        assertEquals(0, client.getQueuedFrameCount())
+        assertEquals(Client.FRAME_SLOT_COUNT, client.getAllocatedFrameSlotCount())
+        client.stop()
     }
 }

@@ -73,6 +73,7 @@ object PairingQrCode {
         name: String,
         pairingCode: String
     ): String {
+        require(PairingCode.isValid(pairingCode)) { "Pairing code is invalid" }
         val params = mutableListOf(
             "$PARAM_CHILD_ID=${encode(childId)}",
             "$PARAM_PAIRING_ID=${encode(pairingId)}",
@@ -92,10 +93,15 @@ object PairingQrCode {
         if (content.isNullOrBlank()) return null
         val trimmed = content.trim()
 
-        if (trimmed.startsWith("$SCHEME://")) {
-            return parseStructured(trimmed)
+        return try {
+            if (trimmed.startsWith("$SCHEME://")) {
+                parseStructured(trimmed)
+            } else {
+                parseLegacy(trimmed)
+            }
+        } catch (_: IllegalArgumentException) {
+            null
         }
-        return parseLegacy(trimmed)
     }
 
     /**

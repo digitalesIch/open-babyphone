@@ -10,82 +10,218 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Open Babyphone. If not, see <http://www.gnu.org/licenses/>.
  */
 package org.openbabyphone.audio
 
-import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
+import kotlin.math.abs
 
-/**
- * Jitter buffer for audio frames.
- * 
- * Buffers frames to smooth out network jitter before playback.
- * Target buffer size is 100ms (5-6 frames at 50 FPS).
- */
-class JitterBuffer {
-    companion object {
-        private const val TARGET_BUFFER_SIZE_MS = 100
-        private const val FRAME_DURATION_MS = 20 // Approximate at 50 FPS
-        private const val TARGET_FRAME_COUNT = TARGET_BUFFER_SIZE_MS / FRAME_DURATION_MS
+/** A bounded, sequence-ordered audio buffer with adaptive pre-roll. */
+internal class JitterBuffer {
+    enum class AddResult {
+        Accepted,
+        AcceptedAfterDroppingOldest,
+        DroppedDuplicate,
+        DroppedLate,
+        DroppedOverflow
     }
-
-    private val frameQueue = ArrayBlockingQueue<DecodedFrame>(TARGET_FRAME_COUNT + 2)
-    private var totalFrames = 0
-    private var droppedFrames = 0
 
     data class DecodedFrame(
         val seqNum: Int,
         val timestampMs: Int,
         val ulawData: ByteArray,
-        val receiveTime: Long = System.currentTimeMillis()
+        val receiveTime: Long
     )
 
-    /**
-     * Add a frame to the buffer.
-     * Returns true if frame was accepted, false if buffer is full.
-     */
-    fun addFrame(frame: DecodedFrame): Boolean {
+    data class Stats(
+        val totalFrames: Int,
+        val droppedFrames: Int,
+        val duplicateFrames: Int,
+        val lateFrames: Int,
+        val levelFrames: Int,
+        val targetFrames: Int,
+        val arrivalJitterMs: Double
+    )
+
+    private val lock = ReentrantLock()
+    private val changed = lock.newCondition()
+    private val frames = arrayOfNulls<DecodedFrame>(CAPACITY_FRAMES)
+    private var size = 0
+    private var lastPlayedSequence = -1
+    private var playbackStarted = false
+    private var preRollRequired = true
+    private var totalFrames = 0
+    private var droppedFrames = 0
+    private var duplicateFrames = 0
+    private var lateFrames = 0
+    private var targetFrames = BASE_TARGET_FRAMES
+    private var targetDecayObservations = 0
+    private var jitterInitialized = false
+    private var previousReceiveTime = 0L
+    private var previousTimestamp = 0L
+    private var arrivalJitterMs = 0.0
+
+    fun addFrame(frame: DecodedFrame): AddResult = lock.withLock {
         totalFrames++
-        val success = frameQueue.offer(frame)
-        if (!success) {
+        if (frame.seqNum <= lastPlayedSequence) {
+            lateFrames++
             droppedFrames++
+            return AddResult.DroppedLate
         }
-        return success
+
+        var insertionIndex = 0
+        while (insertionIndex < size && frames[insertionIndex]!!.seqNum < frame.seqNum) {
+            insertionIndex++
+        }
+        if (insertionIndex < size && frames[insertionIndex]!!.seqNum == frame.seqNum) {
+            duplicateFrames++
+            droppedFrames++
+            return AddResult.DroppedDuplicate
+        }
+
+        observeArrival(frame.receiveTime, frame.timestampMs)
+        if (size == CAPACITY_FRAMES) {
+            droppedFrames++
+            if (insertionIndex == 0) return AddResult.DroppedOverflow
+
+            for (index in 1 until size) frames[index - 1] = frames[index]
+            size--
+            insertionIndex--
+            insertAt(insertionIndex, frame)
+            changed.signalAll()
+            return AddResult.AcceptedAfterDroppingOldest
+        }
+
+        insertAt(insertionIndex, frame)
+        changed.signalAll()
+        AddResult.Accepted
     }
 
     /**
-     * Get the next frame for playback.
-     * Blocks until a frame is available or timeout expires.
-     * Returns null if buffer is empty (underrun).
+     * Returns sequence-ordered audio. Playback waits for the adaptive target
+     * initially and after an underrun; a timeout during playback starts pre-roll.
      */
-    fun getFrame(timeoutMs: Long = 100): DecodedFrame? {
-        return frameQueue.poll(timeoutMs, TimeUnit.MILLISECONDS)
+    fun getFrame(timeoutMs: Long = AudioFrameTiming.FRAME_DURATION_MS.toLong()): DecodedFrame? {
+        require(timeoutMs >= 0)
+        return lock.withLock {
+            var remainingNanos = TimeUnit.MILLISECONDS.toNanos(timeoutMs)
+            while (size == 0 || (preRollRequired && size < targetFrames)) {
+                if (remainingNanos <= 0) {
+                    if (playbackStarted) preRollRequired = true
+                    return null
+                }
+                remainingNanos = changed.awaitNanos(remainingNanos)
+            }
+
+            val frame = frames[0]!!
+            for (index in 1 until size) frames[index - 1] = frames[index]
+            frames[--size] = null
+            lastPlayedSequence = frame.seqNum
+            playbackStarted = true
+            preRollRequired = false
+            frame
+        }
     }
 
-    /**
-     * Check if buffer has enough frames to start playback.
-     */
-    fun isReady(): Boolean = frameQueue.size >= TARGET_FRAME_COUNT
+    fun isReady(): Boolean = lock.withLock { size >= targetFrames }
 
-    /**
-     * Get current buffer fill level in milliseconds.
-     */
-    fun getBufferLevelMs(): Int = frameQueue.size * FRAME_DURATION_MS
+    fun hasPlaybackStarted(): Boolean = lock.withLock { playbackStarted }
 
-    /**
-     * Get statistics.
-     */
-    fun getStats(): String = "Total: $totalFrames, Dropped: $droppedFrames, Level: ${getBufferLevelMs()}ms"
+    fun getBufferLevelMs(): Int = lock.withLock { size * AudioFrameTiming.FRAME_DURATION_MS }
 
-    /**
-     * Clear the buffer.
-     */
-    fun clear() {
-        frameQueue.clear()
+    fun getTargetFrames(): Int = lock.withLock { targetFrames }
+
+    fun getArrivalJitterMs(): Double = lock.withLock { arrivalJitterMs }
+
+    fun getDroppedFrameCount(): Int = lock.withLock { droppedFrames }
+
+    fun getStats(): Stats = lock.withLock {
+        Stats(
+            totalFrames,
+            droppedFrames,
+            duplicateFrames,
+            lateFrames,
+            size,
+            targetFrames,
+            arrivalJitterMs
+        )
+    }
+
+    fun clear() = lock.withLock {
+        frames.fill(null)
+        size = 0
+        lastPlayedSequence = -1
+        playbackStarted = false
+        preRollRequired = true
         totalFrames = 0
         droppedFrames = 0
+        duplicateFrames = 0
+        lateFrames = 0
+        targetFrames = BASE_TARGET_FRAMES
+        targetDecayObservations = 0
+        jitterInitialized = false
+        previousReceiveTime = 0L
+        previousTimestamp = 0L
+        arrivalJitterMs = 0.0
+        changed.signalAll()
+    }
+
+    private fun insertAt(index: Int, frame: DecodedFrame) {
+        for (position in size downTo index + 1) frames[position] = frames[position - 1]
+        frames[index] = frame
+        size++
+    }
+
+    private fun observeArrival(receiveTime: Long, timestampMs: Int) {
+        val timestamp = timestampMs.toLong() and UINT_MASK
+        if (!jitterInitialized) {
+            jitterInitialized = true
+            previousReceiveTime = receiveTime
+            previousTimestamp = timestamp
+            return
+        }
+
+        val senderDelta = (timestamp - previousTimestamp) and UINT_MASK
+        val receiveDelta = receiveTime - previousReceiveTime
+        if (senderDelta > MAX_FORWARD_DELTA || receiveDelta < 0) return
+
+        val variation = abs(receiveDelta - senderDelta).toDouble()
+        arrivalJitterMs += (variation - arrivalJitterMs) / JITTER_SMOOTHING_DIVISOR
+        previousReceiveTime = receiveTime
+        previousTimestamp = timestamp
+
+        val desiredTarget = (
+            BASE_TARGET_FRAMES +
+                (arrivalJitterMs * JITTER_MARGIN / AudioFrameTiming.FRAME_DURATION_MS).toInt()
+            ).coerceIn(BASE_TARGET_FRAMES, MAX_TARGET_FRAMES)
+        when {
+            desiredTarget > targetFrames -> {
+                targetFrames = desiredTarget
+                targetDecayObservations = 0
+                changed.signalAll()
+            }
+            desiredTarget < targetFrames -> {
+                targetDecayObservations++
+                if (targetDecayObservations >= TARGET_DECAY_OBSERVATIONS) {
+                    targetFrames--
+                    targetDecayObservations = 0
+                    changed.signalAll()
+                }
+            }
+            else -> targetDecayObservations = 0
+        }
+    }
+
+    companion object {
+        const val BASE_TARGET_FRAMES = 3
+        const val MAX_TARGET_FRAMES = 6
+        const val CAPACITY_FRAMES = 6
+        private const val JITTER_SMOOTHING_DIVISOR = 16.0
+        private const val JITTER_MARGIN = 4.0
+        private const val TARGET_DECAY_OBSERVATIONS = 24
+        private const val UINT_MASK = 0xffff_ffffL
+        private const val MAX_FORWARD_DELTA = 0x7fff_ffffL
     }
 }

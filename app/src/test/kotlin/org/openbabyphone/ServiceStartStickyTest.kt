@@ -23,10 +23,9 @@ class ServiceStartStickyTest {
     @Test
     fun `ListenService returns START_REDELIVER_INTENT`() {
         val intent = Intent(context, ListenService::class.java).apply {
-            putExtra("name", "Nursery")
-            putExtra("address", "127.0.0.1")
-            putExtra("port", 10000)
-            putExtra("pairingCode", "test")
+            putExtra("requestId", PendingConnections.store.put(
+                PendingConnection("127.0.0.1", 10000, "Nursery", "code1234".toCharArray())
+            ))
         }
         val controller = Robolectric.buildService(ListenService::class.java, intent)
         controller.create()

@@ -1,5 +1,7 @@
 package org.openbabyphone
 
+import android.os.SystemClock
+
 class ReconnectWakeSignal {
     private val lock = Object()
     private var generation = 0
@@ -17,12 +19,12 @@ class ReconnectWakeSignal {
 
         synchronized(lock) {
             val observedGeneration = generation
-            val deadline = System.currentTimeMillis() + delayMs
+            val deadline = SystemClock.elapsedRealtime() + delayMs
             var remaining = delayMs
 
             while (keepWaiting() && observedGeneration == generation && remaining > 0) {
                 lock.wait(remaining)
-                remaining = deadline - System.currentTimeMillis()
+                remaining = deadline - SystemClock.elapsedRealtime()
             }
 
             return observedGeneration != generation

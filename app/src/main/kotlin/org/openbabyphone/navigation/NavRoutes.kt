@@ -9,19 +9,33 @@ object Start
 object Monitor
 
 @Serializable
+object Settings
+
+@Serializable
 object Discover
 
 @Serializable
-object DiscoverAddress
+data class DiscoverAddress(val requestId: String = "")
 
 @Serializable
-object DiscoverWifiDirect
+data class DiscoverWifiDirect(val requestId: String = "")
+
+@Serializable
+enum class ConnectionHelpMode {
+    Parent,
+    Child
+}
+
+@Serializable
+data class ConnectionHelp(
+    val mode: ConnectionHelpMode,
+    val requestId: String = ""
+)
 
 @Serializable
 data class Listen(
-    val address: String = "",
-    val port: Int = 0,
-    val name: String = "",
-    val pairingCode: String = "",
+    val requestId: String = "",
+    val expectedChildId: String = "",
+    val expectedPairingId: String = "",
     val resumeOnly: Boolean = false
 )

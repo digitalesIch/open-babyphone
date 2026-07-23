@@ -27,7 +27,7 @@ class FrameCodecCryptoInstrumentedTest {
 
     @Test
     fun encodeFrame_WithEncryption() {
-        val key = CryptoHelper.deriveKey("test123", testSalt)
+        val key = CryptoHelper.deriveStreamKey(CryptoHelper.deriveKey("test1234", testSalt), testSessionId)
         val ulawData = byteArrayOf(1, 2, 3, 4, 5)
         val frame = FrameCodec.encodeFrame(ulawData, 0, 1000, key, testSessionId)
 
@@ -37,7 +37,7 @@ class FrameCodecCryptoInstrumentedTest {
 
     @Test
     fun decodeFrame_WithEncryption_RoundTrip() {
-        val key = CryptoHelper.deriveKey("test123", testSalt)
+        val key = CryptoHelper.deriveStreamKey(CryptoHelper.deriveKey("test1234", testSalt), testSessionId)
         val ulawData = byteArrayOf(10, 20, 30, 40, 50)
         val frame = FrameCodec.encodeFrame(ulawData, 7, 1500, key, testSessionId)
         val inputStream = frame.inputStream()

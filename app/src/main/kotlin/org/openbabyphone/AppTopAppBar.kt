@@ -9,6 +9,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.ui.res.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -16,7 +17,8 @@ import androidx.compose.ui.res.stringResource
 fun AppTopAppBar(
     title: String,
     onNavigateBack: () -> Unit,
-    scrollBehavior: TopAppBarScrollBehavior? = null
+    scrollBehavior: TopAppBarScrollBehavior? = null,
+    actions: @Composable RowScope.() -> Unit = {}
 ) {
     TopAppBar(
         title = { Text(title) },
@@ -28,6 +30,7 @@ fun AppTopAppBar(
                 )
             }
         },
+        actions = actions,
         scrollBehavior = scrollBehavior
     )
 }

@@ -16,245 +16,319 @@
  */
 package org.openbabyphone
 
-import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 
-/**
- * Binary handshake protocol for Open Babyphone.
- *
- * Wire format (child -> parent):
- *   magic[4]              = "OBP3"
- *   protocolVersion[2]    = big-endian protocol version (currently 3)
- *   capabilities[2]       = big-endian capability bitmap
- *   sessionId[8]          = random per stream session
- *   authRequired[1]       = 0 (open) | 1 (pairing code required)
- *   challenge[32]         = random, only present when authRequired == 1
- *   authNonce[12]         = random per-handshake nonce, only present when authRequired == 1
- *   kdfSalt[16]           = per-installation random salt, only present when authRequired == 1
- *
- * Parent capability response (parent -> child, after auth response if any):
- *   protocolVersion[2]    = parent protocol version
- *   capabilities[2]       = parent capability bitmap
- *
- * Auth response (only when authRequired == 1, sent before the capability response):
- *   encryptedChallenge[48] = ChaCha20-Poly1305(challenge, key, nonce=authNonce)
- *     = 32 bytes challenge + 16 bytes auth tag
- *
- * Key derivation:
- *   key = Argon2id(pairingCode, kdfSalt, opsLimit=3, memLimit=16MiB)
- *
- * The kdfSalt is generated once per child installation and persisted. It is
- * not secret and is sent in clear text in the handshake. Its purpose is to
- * ensure that identical pairing codes on different installations derive
- * different keys, preventing precomputation attacks across installations.
- *
- * Capability bits:
- *   bit 0: G.711 u-law codec (8000 Hz)
- *   bit 1: Opus codec (reserved for future migration, see #69)
- */
+data class SessionInfo(
+    val sessionId: ByteArray,
+    val streamKey: ByteArray,
+    val firstSequence: Int,
+    val childId: String,
+    val pairingId: String
+)
+
+data class ExpectedChildIdentity(val childId: String, val pairingId: String) {
+    fun matches(hello: Handshake.ChildHello): Boolean =
+        childId == hello.childId && pairingId == hello.pairingId
+}
+
+/** Fixed-size, mutually authenticated OBP4 handshake messages. */
 object Handshake {
-    const val MAGIC = "OBP3"
+    const val MAGIC = "OBP4"
     val MAGIC_BYTES: ByteArray = MAGIC.toByteArray(Charsets.US_ASCII)
+    const val PROTOCOL_VERSION = 4
 
-    const val PROTOCOL_VERSION: Int = 3
-
-    const val CAP_G711_ULAW: Int = 1 shl 0
-    const val CAP_OPUS: Int = 1 shl 1
-
-    const val CURRENT_CAPABILITIES: Int = CAP_G711_ULAW
-
-    const val AUTH_MODE_OPEN: Byte = 0
+    const val CAP_G711_ULAW = 1 shl 0
+    const val CAP_OPUS = 1 shl 1
+    const val CURRENT_CAPABILITIES = CAP_G711_ULAW
     const val AUTH_MODE_PAIRING_CODE: Byte = 1
 
-    const val MAGIC_SIZE = 4
-    const val VERSION_SIZE = 2
-    const val CAPABILITIES_SIZE = 2
-    const val HANDSHAKE_HEADER_SIZE = MAGIC_SIZE + VERSION_SIZE + CAPABILITIES_SIZE + CryptoHelper.SESSION_ID_SIZE + 1
-    const val AUTH_RESPONSE_SIZE = CryptoHelper.CHALLENGE_SIZE + CryptoHelper.AUTH_TAG_SIZE
-    const val CAPABILITY_RESPONSE_SIZE = VERSION_SIZE + CAPABILITIES_SIZE
+    private const val ID_SIZE = 16
+    private const val VERSION_SIZE = 2
+    private const val CAPABILITIES_SIZE = 2
+    private const val SEQUENCE_SIZE = 4
+    const val CHILD_HELLO_SIZE = 4 + VERSION_SIZE + CAPABILITIES_SIZE + 1 +
+        ID_SIZE + ID_SIZE + CryptoHelper.SESSION_ID_SIZE + CryptoHelper.SALT_SIZE + CryptoHelper.CHALLENGE_SIZE
+    const val PARENT_RESPONSE_SIZE = VERSION_SIZE + CAPABILITIES_SIZE +
+        CryptoHelper.CHALLENGE_SIZE + CryptoHelper.NONCE_SIZE + CryptoHelper.PROOF_SIZE
+    const val CHILD_ACK_SIZE = SEQUENCE_SIZE + CryptoHelper.NONCE_SIZE + CryptoHelper.PROOF_SIZE
 
-    data class HandshakeMessage(
+    private val PARENT_PROOF_LABEL = "OBP4 parent proof".toByteArray(Charsets.US_ASCII)
+    private val CHILD_PROOF_LABEL = "OBP4 child proof".toByteArray(Charsets.US_ASCII)
+    private val ID_PATTERN = Regex("[a-z0-9]{$ID_SIZE}")
+
+    data class ChildHello(
         val protocolVersion: Int,
         val capabilities: Int,
+        val authMode: Byte,
+        val childId: String,
+        val pairingId: String,
         val sessionId: ByteArray,
-        val authRequired: Boolean,
-        val challenge: ByteArray?,
-        val authNonce: ByteArray?,
-        val kdfSalt: ByteArray?
+        val kdfSalt: ByteArray,
+        val childChallenge: ByteArray
     ) {
         init {
-            require(sessionId.size == CryptoHelper.SESSION_ID_SIZE) { "sessionId must be ${CryptoHelper.SESSION_ID_SIZE} bytes" }
-            if (authRequired) {
-                require(challenge != null && challenge.size == CryptoHelper.CHALLENGE_SIZE) {
-                    "challenge must be ${CryptoHelper.CHALLENGE_SIZE} bytes when authRequired"
-                }
-                require(authNonce != null && authNonce.size == CryptoHelper.NONCE_SIZE) {
-                    "authNonce must be ${CryptoHelper.NONCE_SIZE} bytes when authRequired"
-                }
-                require(kdfSalt != null && kdfSalt.size == CryptoHelper.SALT_SIZE) {
-                    "kdfSalt must be ${CryptoHelper.SALT_SIZE} bytes when authRequired"
-                }
-            } else {
-                require(challenge == null) { "challenge must be null when auth not required" }
-                require(authNonce == null) { "authNonce must be null when auth not required" }
-                require(kdfSalt == null) { "kdfSalt must be null when auth not required" }
-            }
+            require(protocolVersion in 0..0xffff)
+            require(capabilities in 0..0xffff)
+            require(authMode == AUTH_MODE_PAIRING_CODE)
+            require(ID_PATTERN.matches(childId))
+            require(ID_PATTERN.matches(pairingId))
+            require(sessionId.size == CryptoHelper.SESSION_ID_SIZE)
+            require(kdfSalt.size == CryptoHelper.SALT_SIZE)
+            require(childChallenge.size == CryptoHelper.CHALLENGE_SIZE)
+        }
+
+        fun toByteArray(): ByteArray {
+            val bytes = ByteArray(CHILD_HELLO_SIZE)
+            var offset = 0
+            MAGIC_BYTES.copyInto(bytes, offset)
+            offset += MAGIC_BYTES.size
+            offset = putU16(bytes, offset, protocolVersion)
+            offset = putU16(bytes, offset, capabilities)
+            bytes[offset++] = authMode
+            childId.toByteArray(Charsets.US_ASCII).copyInto(bytes, offset)
+            offset += ID_SIZE
+            pairingId.toByteArray(Charsets.US_ASCII).copyInto(bytes, offset)
+            offset += ID_SIZE
+            sessionId.copyInto(bytes, offset)
+            offset += CryptoHelper.SESSION_ID_SIZE
+            kdfSalt.copyInto(bytes, offset)
+            offset += CryptoHelper.SALT_SIZE
+            childChallenge.copyInto(bytes, offset)
+            return bytes
         }
     }
 
-    data class CapabilityResponse(
+    data class ParentResponse(
         val protocolVersion: Int,
-        val capabilities: Int
+        val capabilities: Int,
+        val parentChallenge: ByteArray,
+        val nonce: ByteArray,
+        val proof: ByteArray
     ) {
-        fun supportsCodec(capability: Int): Boolean = (capabilities and capability) != 0
-
-        fun isCompatibleWith(other: CapabilityResponse): Boolean {
-            return protocolVersion == other.protocolVersion && (capabilities and other.capabilities) != 0
+        init {
+            require(protocolVersion in 0..0xffff)
+            require(capabilities in 0..0xffff)
+            require(parentChallenge.size == CryptoHelper.CHALLENGE_SIZE)
+            require(nonce.size == CryptoHelper.NONCE_SIZE)
+            require(proof.size == CryptoHelper.PROOF_SIZE)
         }
-    }
 
-    fun writeHandshake(
-        output: OutputStream,
-        sessionId: ByteArray,
-        authRequired: Boolean,
-        challenge: ByteArray?,
-        authNonce: ByteArray?,
-        kdfSalt: ByteArray?,
-        protocolVersion: Int = PROTOCOL_VERSION,
-        capabilities: Int = CURRENT_CAPABILITIES
-    ) {
-        HandshakeMessage(protocolVersion, capabilities, sessionId, authRequired, challenge, authNonce, kdfSalt)
-        val size = if (authRequired) {
-            HANDSHAKE_HEADER_SIZE + CryptoHelper.CHALLENGE_SIZE + CryptoHelper.NONCE_SIZE + CryptoHelper.SALT_SIZE
-        } else {
-            HANDSHAKE_HEADER_SIZE
-        }
-        val buffer = ByteArray(size)
-        var offset = 0
-        System.arraycopy(MAGIC_BYTES, 0, buffer, offset, MAGIC_BYTES.size)
-        offset += MAGIC_BYTES.size
-        buffer[offset++] = ((protocolVersion ushr 8) and 0xFF).toByte()
-        buffer[offset++] = (protocolVersion and 0xFF).toByte()
-        buffer[offset++] = ((capabilities ushr 8) and 0xFF).toByte()
-        buffer[offset++] = (capabilities and 0xFF).toByte()
-        System.arraycopy(sessionId, 0, buffer, offset, CryptoHelper.SESSION_ID_SIZE)
-        offset += CryptoHelper.SESSION_ID_SIZE
-        buffer[offset++] = if (authRequired) AUTH_MODE_PAIRING_CODE else AUTH_MODE_OPEN
-        if (authRequired && challenge != null && authNonce != null && kdfSalt != null) {
-            System.arraycopy(challenge, 0, buffer, offset, CryptoHelper.CHALLENGE_SIZE)
+        fun prefixBytes(): ByteArray {
+            val bytes = ByteArray(VERSION_SIZE + CAPABILITIES_SIZE + CryptoHelper.CHALLENGE_SIZE + CryptoHelper.NONCE_SIZE)
+            var offset = putU16(bytes, 0, protocolVersion)
+            offset = putU16(bytes, offset, capabilities)
+            parentChallenge.copyInto(bytes, offset)
             offset += CryptoHelper.CHALLENGE_SIZE
-            System.arraycopy(authNonce, 0, buffer, offset, CryptoHelper.NONCE_SIZE)
-            offset += CryptoHelper.NONCE_SIZE
-            System.arraycopy(kdfSalt, 0, buffer, offset, CryptoHelper.SALT_SIZE)
+            nonce.copyInto(bytes, offset)
+            return bytes
         }
-        output.write(buffer)
-        output.flush()
+
+        fun toByteArray(): ByteArray = concat(prefixBytes(), proof)
     }
 
-    fun readHandshake(input: InputStream): HandshakeMessage? {
-        val header = ByteArray(HANDSHAKE_HEADER_SIZE)
-        if (!readFully(input, header, 0, HANDSHAKE_HEADER_SIZE)) {
-            return null
-        }
-        for (i in MAGIC_BYTES.indices) {
-            if (header[i] != MAGIC_BYTES[i]) {
-                return null
-            }
-        }
-        var offset = MAGIC_BYTES.size
-        val protocolVersion = ((header[offset].toInt() and 0xFF) shl 8) or (header[offset + 1].toInt() and 0xFF)
-        offset += VERSION_SIZE
-        val capabilities = ((header[offset].toInt() and 0xFF) shl 8) or (header[offset + 1].toInt() and 0xFF)
-        offset += CAPABILITIES_SIZE
-        val sessionId = header.copyOfRange(offset, offset + CryptoHelper.SESSION_ID_SIZE)
-        offset += CryptoHelper.SESSION_ID_SIZE
-        val authRequired = header[offset] == AUTH_MODE_PAIRING_CODE
-        val challenge: ByteArray? = if (authRequired) {
-            val challengeBuf = ByteArray(CryptoHelper.CHALLENGE_SIZE)
-            if (!readFully(input, challengeBuf, 0, CryptoHelper.CHALLENGE_SIZE)) {
-                return null
-            }
-            challengeBuf
-        } else {
-            null
-        }
-        val authNonce: ByteArray? = if (authRequired) {
-            val nonceBuf = ByteArray(CryptoHelper.NONCE_SIZE)
-            if (!readFully(input, nonceBuf, 0, CryptoHelper.NONCE_SIZE)) {
-                return null
-            }
-            nonceBuf
-        } else {
-            null
-        }
-        val kdfSalt: ByteArray? = if (authRequired) {
-            val saltBuf = ByteArray(CryptoHelper.SALT_SIZE)
-            if (!readFully(input, saltBuf, 0, CryptoHelper.SALT_SIZE)) {
-                return null
-            }
-            saltBuf
-        } else {
-            null
-        }
-        return HandshakeMessage(protocolVersion, capabilities, sessionId, authRequired, challenge, authNonce, kdfSalt)
-    }
-
-    fun writeAuthResponse(output: OutputStream, encryptedChallenge: ByteArray) {
-        require(encryptedChallenge.size == AUTH_RESPONSE_SIZE) { "encryptedChallenge must be $AUTH_RESPONSE_SIZE bytes" }
-        output.write(encryptedChallenge)
-        output.flush()
-    }
-
-    fun readAuthResponse(input: InputStream): ByteArray? {
-        val response = ByteArray(AUTH_RESPONSE_SIZE)
-        if (!readFully(input, response, 0, AUTH_RESPONSE_SIZE)) {
-            return null
-        }
-        return response
-    }
-
-    fun writeCapabilityResponse(
-        output: OutputStream,
-        protocolVersion: Int = PROTOCOL_VERSION,
-        capabilities: Int = CURRENT_CAPABILITIES
+    data class ChildAck(
+        val firstSequence: Int,
+        val nonce: ByteArray,
+        val proof: ByteArray
     ) {
-        val buffer = ByteArray(CAPABILITY_RESPONSE_SIZE)
-        buffer[0] = ((protocolVersion ushr 8) and 0xFF).toByte()
-        buffer[1] = (protocolVersion and 0xFF).toByte()
-        buffer[2] = ((capabilities ushr 8) and 0xFF).toByte()
-        buffer[3] = (capabilities and 0xFF).toByte()
-        output.write(buffer)
+        init {
+            require(firstSequence >= 0)
+            require(nonce.size == CryptoHelper.NONCE_SIZE)
+            require(proof.size == CryptoHelper.PROOF_SIZE)
+        }
+
+        fun prefixBytes(): ByteArray {
+            val bytes = ByteArray(SEQUENCE_SIZE + CryptoHelper.NONCE_SIZE)
+            putU32(bytes, 0, firstSequence)
+            nonce.copyInto(bytes, SEQUENCE_SIZE)
+            return bytes
+        }
+
+        fun toByteArray(): ByteArray = concat(prefixBytes(), proof)
+    }
+
+    fun createChildHello(
+        identity: ChildDeviceIdentity,
+        sessionId: ByteArray,
+        kdfSalt: ByteArray,
+        challenge: ByteArray = CryptoHelper.generateChallenge()
+    ): ChildHello = ChildHello(
+        PROTOCOL_VERSION,
+        CURRENT_CAPABILITIES,
+        AUTH_MODE_PAIRING_CODE,
+        identity.childId,
+        identity.pairingId,
+        sessionId,
+        kdfSalt,
+        challenge
+    )
+
+    fun writeChildHello(output: OutputStream, hello: ChildHello) {
+        output.write(hello.toByteArray())
         output.flush()
     }
 
-    fun readCapabilityResponse(input: InputStream): CapabilityResponse? {
-        val buffer = ByteArray(CAPABILITY_RESPONSE_SIZE)
-        if (!readFully(input, buffer, 0, CAPABILITY_RESPONSE_SIZE)) {
-            return null
-        }
-        val protocolVersion = ((buffer[0].toInt() and 0xFF) shl 8) or (buffer[1].toInt() and 0xFF)
-        val capabilities = ((buffer[2].toInt() and 0xFF) shl 8) or (buffer[3].toInt() and 0xFF)
-        return CapabilityResponse(protocolVersion, capabilities)
+    fun readChildHello(input: InputStream): ChildHello? {
+        val bytes = readFixed(input, CHILD_HELLO_SIZE) ?: return null
+        if (!bytes.copyOfRange(0, MAGIC_BYTES.size).contentEquals(MAGIC_BYTES)) return null
+        var offset = MAGIC_BYTES.size
+        val version = readU16(bytes, offset)
+        offset += VERSION_SIZE
+        val capabilities = readU16(bytes, offset)
+        offset += CAPABILITIES_SIZE
+        val mode = bytes[offset++]
+        if (mode != AUTH_MODE_PAIRING_CODE) return null
+        val childId = readId(bytes, offset) ?: return null
+        offset += ID_SIZE
+        val pairingId = readId(bytes, offset) ?: return null
+        offset += ID_SIZE
+        val sessionId = bytes.copyOfRange(offset, offset + CryptoHelper.SESSION_ID_SIZE)
+        offset += CryptoHelper.SESSION_ID_SIZE
+        val salt = bytes.copyOfRange(offset, offset + CryptoHelper.SALT_SIZE)
+        offset += CryptoHelper.SALT_SIZE
+        val challenge = bytes.copyOfRange(offset, offset + CryptoHelper.CHALLENGE_SIZE)
+        return ChildHello(version, capabilities, mode, childId, pairingId, sessionId, salt, challenge)
+    }
+
+    fun createParentResponse(
+        hello: ChildHello,
+        authKey: ByteArray,
+        challenge: ByteArray = CryptoHelper.generateChallenge(),
+        nonce: ByteArray = CryptoHelper.generateNonce()
+    ): ParentResponse {
+        val unsigned = ParentResponse(PROTOCOL_VERSION, CURRENT_CAPABILITIES, challenge, nonce, ByteArray(CryptoHelper.PROOF_SIZE))
+        val aad = concat(PARENT_PROOF_LABEL, hello.toByteArray(), unsigned.prefixBytes())
+        val proof = CryptoHelper.createProof(hello.childChallenge, authKey, nonce, aad)
+        return unsigned.copy(proof = proof)
+    }
+
+    fun writeParentResponse(output: OutputStream, response: ParentResponse) {
+        output.write(response.toByteArray())
+        output.flush()
+    }
+
+    fun readParentResponse(input: InputStream): ParentResponse? {
+        val bytes = readFixed(input, PARENT_RESPONSE_SIZE) ?: return null
+        var offset = 0
+        val version = readU16(bytes, offset)
+        offset += VERSION_SIZE
+        val capabilities = readU16(bytes, offset)
+        offset += CAPABILITIES_SIZE
+        val challenge = bytes.copyOfRange(offset, offset + CryptoHelper.CHALLENGE_SIZE)
+        offset += CryptoHelper.CHALLENGE_SIZE
+        val nonce = bytes.copyOfRange(offset, offset + CryptoHelper.NONCE_SIZE)
+        offset += CryptoHelper.NONCE_SIZE
+        val proof = bytes.copyOfRange(offset, offset + CryptoHelper.PROOF_SIZE)
+        return ParentResponse(version, capabilities, challenge, nonce, proof)
+    }
+
+    fun verifyParentResponse(hello: ChildHello, response: ParentResponse, authKey: ByteArray): Boolean {
+        if (!isCompatible(response.protocolVersion, response.capabilities)) return false
+        val aad = concat(PARENT_PROOF_LABEL, hello.toByteArray(), response.prefixBytes())
+        return CryptoHelper.verifyProof(response.proof, hello.childChallenge, authKey, response.nonce, aad)
+    }
+
+    fun createChildAck(
+        hello: ChildHello,
+        response: ParentResponse,
+        firstSequence: Int,
+        authKey: ByteArray,
+        nonce: ByteArray = generateDistinctNonce(response.nonce)
+    ): ChildAck {
+        require(!nonce.contentEquals(response.nonce)) { "Directional authentication nonces must differ" }
+        val unsigned = ChildAck(firstSequence, nonce, ByteArray(CryptoHelper.PROOF_SIZE))
+        val aad = concat(CHILD_PROOF_LABEL, hello.toByteArray(), response.toByteArray(), unsigned.prefixBytes())
+        val proof = CryptoHelper.createProof(response.parentChallenge, authKey, nonce, aad)
+        return unsigned.copy(proof = proof)
+    }
+
+    fun writeChildAck(output: OutputStream, ack: ChildAck) {
+        output.write(ack.toByteArray())
+        output.flush()
+    }
+
+    fun readChildAck(input: InputStream): ChildAck? {
+        val bytes = readFixed(input, CHILD_ACK_SIZE) ?: return null
+        val sequence = readU32(bytes, 0) ?: return null
+        val nonce = bytes.copyOfRange(SEQUENCE_SIZE, SEQUENCE_SIZE + CryptoHelper.NONCE_SIZE)
+        val proof = bytes.copyOfRange(SEQUENCE_SIZE + CryptoHelper.NONCE_SIZE, bytes.size)
+        return ChildAck(sequence, nonce, proof)
+    }
+
+    fun verifyChildAck(hello: ChildHello, response: ParentResponse, ack: ChildAck, authKey: ByteArray): Boolean {
+        if (ack.nonce.contentEquals(response.nonce)) return false
+        val aad = concat(CHILD_PROOF_LABEL, hello.toByteArray(), response.toByteArray(), ack.prefixBytes())
+        return CryptoHelper.verifyProof(ack.proof, response.parentChallenge, authKey, ack.nonce, aad)
+    }
+
+    fun streamKeyContext(hello: ChildHello): ByteArray {
+        val fixed = hello.toByteArray()
+        return fixed.copyOfRange(0, CHILD_HELLO_SIZE - CryptoHelper.CHALLENGE_SIZE)
     }
 
     fun isVersionSupported(version: Int): Boolean = version == PROTOCOL_VERSION
 
-    fun negotiateCapabilities(childCaps: Int, parentCaps: Int): Int {
-        val shared = childCaps and parentCaps
-        if (shared == 0) {
-            throw IllegalStateException("No shared codec capability")
-        }
-        return shared
+    fun isCompatible(version: Int, capabilities: Int): Boolean =
+        version == PROTOCOL_VERSION && capabilities == CURRENT_CAPABILITIES
+
+    private fun generateDistinctNonce(other: ByteArray): ByteArray {
+        var nonce: ByteArray
+        do {
+            nonce = CryptoHelper.generateNonce()
+        } while (nonce.contentEquals(other))
+        return nonce
     }
 
-    private fun readFully(input: InputStream, buffer: ByteArray, offset: Int, length: Int): Boolean {
-        var bytesRead = 0
-        while (bytesRead < length) {
-            val read = input.read(buffer, offset + bytesRead, length - bytesRead)
-            if (read < 0) return false
-            bytesRead += read
+    private fun readFixed(input: InputStream, size: Int): ByteArray? {
+        val bytes = ByteArray(size)
+        var offset = 0
+        while (offset < size) {
+            val count = input.read(bytes, offset, size - offset)
+            if (count < 0) return null
+            if (count == 0) continue
+            offset += count
         }
-        return true
+        return bytes
+    }
+
+    private fun readId(bytes: ByteArray, offset: Int): String? {
+        val value = String(bytes, offset, ID_SIZE, Charsets.US_ASCII)
+        return value.takeIf(ID_PATTERN::matches)
+    }
+
+    private fun putU16(bytes: ByteArray, offset: Int, value: Int): Int {
+        bytes[offset] = (value ushr 8).toByte()
+        bytes[offset + 1] = value.toByte()
+        return offset + VERSION_SIZE
+    }
+
+    private fun readU16(bytes: ByteArray, offset: Int): Int =
+        ((bytes[offset].toInt() and 0xff) shl 8) or (bytes[offset + 1].toInt() and 0xff)
+
+    private fun putU32(bytes: ByteArray, offset: Int, value: Int) {
+        bytes[offset] = (value ushr 24).toByte()
+        bytes[offset + 1] = (value ushr 16).toByte()
+        bytes[offset + 2] = (value ushr 8).toByte()
+        bytes[offset + 3] = value.toByte()
+    }
+
+    private fun readU32(bytes: ByteArray, offset: Int): Int? {
+        val value = ((bytes[offset].toLong() and 0xff) shl 24) or
+            ((bytes[offset + 1].toLong() and 0xff) shl 16) or
+            ((bytes[offset + 2].toLong() and 0xff) shl 8) or
+            (bytes[offset + 3].toLong() and 0xff)
+        return value.takeIf { it <= Int.MAX_VALUE }?.toInt()
+    }
+
+    private fun concat(vararg values: ByteArray): ByteArray {
+        val total = values.sumOf { it.size }
+        val result = ByteArray(total)
+        var offset = 0
+        values.forEach {
+            it.copyInto(result, offset)
+            offset += it.size
+        }
+        return result
     }
 }

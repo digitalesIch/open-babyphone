@@ -17,10 +17,11 @@
 package org.openbabyphone
 
 import android.media.AudioFormat
+import org.openbabyphone.audio.AudioFrameTiming
 import org.openbabyphone.audio.G711UCodec
 
 object AudioCodecDefines {
-    const val FREQUENCY = 8000
+    const val FREQUENCY = AudioFrameTiming.SAMPLE_RATE_HZ
     const val ENCODING = AudioFormat.ENCODING_PCM_16BIT
     val CODEC = G711UCodec()
     const val CHANNEL_CONFIGURATION_IN = AudioFormat.CHANNEL_IN_MONO

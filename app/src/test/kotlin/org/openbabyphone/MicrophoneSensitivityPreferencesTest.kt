@@ -51,4 +51,14 @@ class MicrophoneSensitivityPreferencesTest {
                 .getString(MicrophoneSensitivityPreferences.KEY, null)
         )
     }
+
+    @Test
+    fun `write persists selected sensitivity`() {
+        assertEquals(
+            true,
+            MicrophoneSensitivityPreferences.write(context, MicrophoneSensitivity.HIGH)
+        )
+
+        assertEquals(MicrophoneSensitivity.HIGH, MicrophoneSensitivityPreferences.read(context))
+    }
 }

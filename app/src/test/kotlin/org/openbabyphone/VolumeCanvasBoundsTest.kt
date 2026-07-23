@@ -34,18 +34,26 @@ class VolumeCanvasBoundsTest {
     }
 
     @Test
-    fun `audioSignalState returns no audio when history is empty`() {
-        assertEquals(AudioSignalState.NoAudio, audioSignalState(floatArrayOf(), 1.0f, 0L, 1000L))
+    fun `audioSignalState returns no recent audio when history is empty`() {
+        assertEquals(AudioSignalState.NoRecentAudio, audioSignalState(floatArrayOf(), 1.0f, 0L, 1000L))
     }
 
     @Test
-    fun `audioSignalState returns no audio when frames are stale`() {
-        assertEquals(AudioSignalState.NoAudio, audioSignalState(floatArrayOf(0.3f), 1.0f, 1000L, 4000L))
+    fun `audioSignalState returns no recent audio when frames are stale`() {
+        assertEquals(AudioSignalState.NoRecentAudio, audioSignalState(floatArrayOf(0.3f), 1.0f, 1000L, 4000L))
     }
 
     @Test
-    fun `audioSignalState returns audio detected for recent quiet frames`() {
-        assertEquals(AudioSignalState.AudioDetected, audioSignalState(floatArrayOf(0.1f, 0.2f), 1.0f, 1000L, 2000L))
+    fun `audioSignalState returns quiet for fresh silent frames`() {
+        assertEquals(AudioSignalState.Quiet, audioSignalState(floatArrayOf(0f, 0f), 1.0f, 1000L, 2000L))
+    }
+
+    @Test
+    fun `audioSignalState returns sound detected for recent sound`() {
+        assertEquals(
+            AudioSignalState.SoundDetected,
+            audioSignalState(floatArrayOf(0.1f, 0.2f), 1.0f, 1000L, 2000L)
+        )
     }
 
     @Test
@@ -55,9 +63,10 @@ class VolumeCanvasBoundsTest {
 
     @Test
     fun `signalBarCount maps states to glanceable levels`() {
-        assertEquals(0, signalBarCount(AudioSignalState.NoAudio, 0.0f))
-        assertEquals(1, signalBarCount(AudioSignalState.AudioDetected, 0.01f))
-        assertEquals(3, signalBarCount(AudioSignalState.AudioDetected, 0.5f))
+        assertEquals(0, signalBarCount(AudioSignalState.NoRecentAudio, 0.0f))
+        assertEquals(1, signalBarCount(AudioSignalState.Quiet, 0.01f))
+        assertEquals(2, signalBarCount(AudioSignalState.SoundDetected, 0.1f))
+        assertEquals(3, signalBarCount(AudioSignalState.SoundDetected, 0.5f))
         assertEquals(6, signalBarCount(AudioSignalState.LoudSound, 0.9f))
     }
 }

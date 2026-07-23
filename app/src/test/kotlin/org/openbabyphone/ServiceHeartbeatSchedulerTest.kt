@@ -46,20 +46,29 @@ class ServiceHeartbeatSchedulerTest {
     }
 
     @Test
-    fun `listen heartbeat intent preserves restart extras`() {
+    fun `listen heartbeat intent preserves only non-secret identity extras`() {
         val restartIntent = Intent(context, ListenService::class.java).apply {
             putExtra("name", "Nursery")
             putExtra("address", "nursery.local")
             putExtra("port", 10000)
             putExtra("pairingCode", "ABCDEF12")
+            putExtra("expectedChildId", "abcdefghijklmnop")
+            putExtra("expectedPairingId", "1234567890abcdef")
         }
 
-        val heartbeatIntent = ServiceHeartbeatScheduler.listenHeartbeatIntent(context, restartIntent)
+        val heartbeatIntent = ServiceHeartbeatScheduler.listenHeartbeatIntent(
+            context,
+            restartIntent,
+            sessionToken = 42L
+        )
 
         assertEquals(ServiceHeartbeatScheduler.ACTION_LISTEN_HEARTBEAT, heartbeatIntent.action)
-        assertEquals("Nursery", heartbeatIntent.getStringExtra("name"))
-        assertEquals("nursery.local", heartbeatIntent.getStringExtra("address"))
-        assertEquals(10000, heartbeatIntent.getIntExtra("port", 0))
-        assertEquals("ABCDEF12", heartbeatIntent.getStringExtra("pairingCode"))
+        assertEquals(false, heartbeatIntent.hasExtra("name"))
+        assertEquals(false, heartbeatIntent.hasExtra("address"))
+        assertEquals(false, heartbeatIntent.hasExtra("port"))
+        assertEquals(false, heartbeatIntent.hasExtra("pairingCode"))
+        assertEquals("abcdefghijklmnop", heartbeatIntent.getStringExtra("expectedChildId"))
+        assertEquals("1234567890abcdef", heartbeatIntent.getStringExtra("expectedPairingId"))
+        assertEquals(42L, heartbeatIntent.getLongExtra(ListenResumeActivity.EXTRA_SESSION_TOKEN, -1L))
     }
 }

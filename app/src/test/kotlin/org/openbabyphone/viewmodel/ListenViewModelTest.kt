@@ -2,21 +2,22 @@ package org.openbabyphone.viewmodel
 
 import android.app.Application
 import android.os.Looper
-import org.openbabyphone.R
-import org.openbabyphone.service.ListenServiceRepository
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.openbabyphone.R
+import org.openbabyphone.service.ListenServiceRepository
+import org.openbabyphone.service.ListenSessionError
+import org.openbabyphone.service.ListenSessionState
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 
 @RunWith(RobolectricTestRunner::class)
 class ListenViewModelTest {
-
     private lateinit var viewModel: ListenViewModel
     private lateinit var context: Application
 
@@ -28,64 +29,85 @@ class ListenViewModelTest {
     }
 
     @Test
-    fun `initial state has connecting status`() {
-        val connecting = context.getString(R.string.connecting)
-        val state = currentState { it.status == connecting }
-        assertEquals(connecting, state.status)
+    fun `presentation is derived from connecting state`() {
+        ListenServiceRepository.startConnecting("Nursery")
+        val state = currentState { it.sessionState == ListenSessionState.Connecting }
+        assertEquals(context.getString(R.string.listen_connecting_title), state.presentation.message)
+        assertTrue(state.presentation.showProgress)
+        assertEquals(null, state.presentation.primaryAction)
     }
 
     @Test
-    fun `updateVolumeHistory updates state`() {
-        val history = floatArrayOf(0.1f, 0.5f, 0.9f)
-        viewModel.updateVolumeHistory(history, 2.0f)
+    fun `listening presentation has no action or spinner`() {
+        ListenServiceRepository.updateListening()
+        val state = currentState { it.sessionState == ListenSessionState.Listening }
+        assertEquals(context.getString(R.string.listen_listening_title), state.presentation.message)
+        assertFalse(state.presentation.showProgress)
+        assertEquals(null, state.presentation.primaryAction)
+    }
+
+    @Test
+    fun `disrupted presentation promises automatic recovery without action`() {
+        ListenServiceRepository.updateDisrupted()
+        val state = currentState { it.sessionState == ListenSessionState.Disrupted }
+        assertEquals(context.getString(R.string.audio_interrupted), state.presentation.message)
+        assertEquals(null, state.presentation.primaryAction)
+    }
+
+    @Test
+    fun `reconnecting presentation has one progress state and no action`() {
+        val reconnecting = ListenSessionState.Reconnecting(2, 5)
+        ListenServiceRepository.updateReconnecting(2, 5)
+        val state = currentState { it.sessionState == reconnecting }
+        assertTrue(state.presentation.showProgress)
+        assertEquals(context.getString(R.string.listen_reconnecting_detail, 2, 5), state.presentation.detail)
+        assertEquals(null, state.presentation.primaryAction)
+    }
+
+    @Test
+    fun `lost presentation retries`() {
+        ListenServiceRepository.updateLost()
+        val state = currentState { it.sessionState == ListenSessionState.Lost }
+        assertEquals(context.getString(R.string.connection_lost), state.presentation.message)
+        assertEquals(ListenPrimaryAction.Retry, state.presentation.primaryAction)
+    }
+
+    @Test
+    fun `typed terminal failures expose only their actionable recovery`() {
+        val cases = listOf(
+            ListenSessionError.Unreachable to ListenPrimaryAction.Retry,
+            ListenSessionError.Authentication to ListenPrimaryAction.PairAgain,
+            ListenSessionError.CredentialStorage to ListenPrimaryAction.Retry,
+            ListenSessionError.Playback to ListenPrimaryAction.Retry,
+            ListenSessionError.Decoding to ListenPrimaryAction.ConnectionHelp
+        )
+        cases.forEach { (error, action) ->
+            val presentation = listenPresentation(context, ListenSessionState.Error(error, "internal reason"))
+            assertEquals(action, presentation.primaryAction)
+            assertFalse(presentation.showProgress)
+        }
+    }
+
+    @Test
+    fun `idle and stopped presentation has no recovery action`() {
+        listOf(ListenSessionState.Idle, ListenSessionState.Stopped).forEach { state ->
+            assertEquals(null, listenPresentation(context, state).primaryAction)
+        }
+    }
+
+    @Test
+    fun `updateVolumeHistory updates qualitative meter input`() {
+        viewModel.updateVolumeHistory(floatArrayOf(0f, 0.5f, 0.9f), 2.0f)
         val state = currentState { it.volumeHistory.isNotEmpty() }
         assertEquals(3, state.volumeHistory.size)
         assertEquals(2.0f, state.volumeNorm, 0.01f)
-    }
-
-    @Test
-    fun `listening state reflects in state`() {
-        ListenServiceRepository.updateListening()
-        val state = currentState { it.isConnected }
-        assertTrue(state.isConnected)
-        assertFalse(state.isReconnecting)
-    }
-
-    @Test
-    fun `error updates state to disconnected`() {
-        ListenServiceRepository.updateError(context.getString(R.string.disconnected))
-        val state = currentState { it.isError }
-        assertTrue(state.isError)
-        assertFalse(state.isConnected)
-        assertFalse(state.isReconnecting)
-        assertEquals(context.getString(R.string.disconnected), state.status)
-    }
-
-    @Test
-    fun `reconnecting state reflects in state`() {
-        ListenServiceRepository.updateReconnecting(1, 5)
-        val state = currentState { it.isReconnecting }
-        assertFalse(state.isConnected)
-        assertFalse(state.isError)
-        assertTrue(state.isReconnecting)
-        assertEquals(context.getString(R.string.reconnecting_status, 1, 5), state.status)
-    }
-
-    @Test
-    fun `successful reconnect clears previous error`() {
-        ListenServiceRepository.updateError(context.getString(R.string.disconnected))
-        ListenServiceRepository.updateListening()
-
-        val state = currentState { it.isConnected }
-        assertFalse(state.isError)
-        assertEquals(context.getString(R.string.listening), state.status)
+        assertTrue(state.lastAudioUpdateAtMillis > 0L)
     }
 
     @Test
     fun `child device name reflects in state`() {
-        ListenServiceRepository.updateChildDeviceName("ChildDevice01")
-        val state = currentState { it.childDeviceName == "ChildDevice01" }
-        assertEquals("ChildDevice01", state.childDeviceName)
+        ListenServiceRepository.updateChildDeviceName("Nursery")
+        assertEquals("Nursery", currentState { it.childDeviceName == "Nursery" }.childDeviceName)
     }
 
     private fun currentState(predicate: (ListenUiState) -> Boolean): ListenUiState {

@@ -17,13 +17,12 @@
 package org.openbabyphone
 
 object PairingCode {
-    private val PATTERN = Regex("[A-Za-z0-9]{1,64}")
+    const val MIN_LENGTH = 8
+    const val MAX_LENGTH = 64
+    private val PATTERN = Regex("[A-Za-z0-9]{$MIN_LENGTH,$MAX_LENGTH}")
 
     fun isValid(code: String): Boolean {
         val trimmed = code.trim()
-        if (trimmed.isEmpty()) {
-            return true
-        }
         return PATTERN.matches(trimmed)
     }
 

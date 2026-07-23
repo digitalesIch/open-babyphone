@@ -59,4 +59,15 @@ class VolumeHistoryTest {
         assertTrue(value >= 0.0)
         assertTrue(value <= 1.0)
     }
+
+    @Test
+    fun `offset and length ignore samples outside the requested range`() {
+        val history = VolumeHistory(10)
+        val audioData = shortArrayOf(Short.MAX_VALUE, 64, 64, Short.MAX_VALUE)
+
+        history.onAudioData(audioData, 1, 2)
+        ShadowLooper.idleMainLooper()
+
+        assertEquals(0.25, history[0], 0.001)
+    }
 }

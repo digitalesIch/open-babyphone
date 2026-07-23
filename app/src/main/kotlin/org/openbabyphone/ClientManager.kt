@@ -16,62 +16,88 @@
  */
 package org.openbabyphone
 
+import android.os.SystemClock
 import android.util.Log
 import java.net.Socket
 
 class ClientManager(
-    private val clock: () -> Long = System::currentTimeMillis
+    private val clock: () -> Long = SystemClock::elapsedRealtime
 ) {
     companion object {
         private const val TAG = "ClientManager"
         const val MAX_CLIENTS = 5
+        const val MAX_FRAME_BUFFER_BYTES = MAX_CLIENTS * Client.MAX_FRAME_BUFFER_BYTES
     }
 
     private val clients = mutableListOf<Client>()
+    private val broadcastLock = Any()
+    private val removedClients = arrayOfNulls<Client>(MAX_CLIENTS)
     private var nextClientId = 0
-    private var clientCountListener: ((Int) -> Unit)? = null
+    @Volatile private var clientCountListener: ((Int) -> Unit)? = null
 
     fun setClientCountListener(listener: ((Int) -> Unit)?) {
         clientCountListener = listener
     }
 
-    @Synchronized
     fun addClient(socket: Socket, pairingCode: String): Client? {
-        if (clients.size >= MAX_CLIENTS) {
-            Log.w(TAG, "Cannot add client - max clients ($MAX_CLIENTS) reached")
-            return null
-        }
-        val client = Client(socket, nextClientId++, pairingCode, clock)
-        clients.add(client)
-        client.startSending()
-        Log.i(TAG, "Client ${client.id} added, total: ${clients.size}/$MAX_CLIENTS")
-        clientCountListener?.invoke(clients.size)
-        return client
-    }
-
-    @Synchronized
-    fun removeClient(client: Client) {
-        if (clients.remove(client)) {
-            client.stop()
-            Log.i(TAG, "Client ${client.id} removed, total: ${clients.size}/$MAX_CLIENTS")
-            clientCountListener?.invoke(clients.size)
-        }
-    }
-
-    @Synchronized
-    fun broadcastFrame(frame: ByteArray) {
-        val iterator = clients.iterator()
-        while (iterator.hasNext()) {
-            val client = iterator.next()
-            if (!client.queueFrame(frame)) {
-                if (client.shouldDisconnect()) {
-                    Log.w(TAG, "Disconnecting client ${client.id} - too many dropped frames")
-                    iterator.remove()
-                    client.stop()
-                    Log.i(TAG, "Client ${client.id} removed, total: ${clients.size}/$MAX_CLIENTS")
-                    clientCountListener?.invoke(clients.size)
-                }
+        val result = synchronized(this) {
+            if (clients.size >= MAX_CLIENTS) {
+                Log.w(TAG, "Cannot add client - max clients ($MAX_CLIENTS) reached")
+                return@synchronized null
             }
+            Client(socket, nextClientId++, pairingCode, clock).also { client ->
+                clients.add(client)
+                client.startSending()
+                Log.i(TAG, "Client ${client.id} added, total: ${clients.size}/$MAX_CLIENTS")
+            } to clients.size
+        }
+        result ?: return null
+        clientCountListener?.invoke(result.second)
+        return result.first
+    }
+
+    fun removeClient(client: Client) {
+        val count = synchronized(this) {
+            if (!clients.remove(client)) return
+            clients.size
+        }
+        client.stop()
+        Log.i(TAG, "Client ${client.id} removed, total: $count/$MAX_CLIENTS")
+        clientCountListener?.invoke(count)
+    }
+
+    fun broadcastFrame(frame: ByteArray) {
+        broadcastFrame(frame, 0, frame.size)
+    }
+
+    fun broadcastFrame(frame: ByteArray, offset: Int, length: Int) {
+        var removedCount = 0
+        var count = 0
+        synchronized(broadcastLock) {
+            synchronized(this) {
+                var index = 0
+                while (index < clients.size) {
+                    val client = clients[index]
+                    if (!client.queueFrame(frame, offset, length) && client.shouldDisconnect()) {
+                        Log.w(TAG, "Disconnecting client ${client.id} - too many dropped frames")
+                        clients.removeAt(index)
+                        removedClients[removedCount++] = client
+                    } else {
+                        index++
+                    }
+                }
+                count = clients.size
+            }
+            var index = 0
+            while (index < removedCount) {
+                removedClients[index]!!.stop()
+                removedClients[index] = null
+                index++
+            }
+        }
+        if (removedCount > 0) {
+            Log.i(TAG, "Removed $removedCount slow client(s), total: $count/$MAX_CLIENTS")
+            clientCountListener?.invoke(count)
         }
     }
 
@@ -81,10 +107,11 @@ class ClientManager(
     @Synchronized
     fun canAcceptMoreClients(): Boolean = clients.size < MAX_CLIENTS
 
-    @Synchronized
     fun removeAllClients() {
-        clients.forEach { it.stop() }
-        clients.clear()
+        val removed = synchronized(this) {
+            clients.toList().also { clients.clear() }
+        }
+        removed.forEach { it.stop() }
         Log.i(TAG, "All clients removed")
         clientCountListener?.invoke(0)
     }

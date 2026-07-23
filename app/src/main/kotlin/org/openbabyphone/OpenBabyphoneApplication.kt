@@ -18,28 +18,28 @@ package org.openbabyphone
 
 import android.app.Application
 import android.content.Context
-import android.content.SharedPreferences
-import androidx.appcompat.app.AppCompatDelegate
 
 class OpenBabyphoneApplication : Application() {
+    lateinit var trustedChildStore: TrustedChildStore
+        private set
+    val wifiDirectCleanupCoordinator = WifiDirectCleanupCoordinator()
+
     companion object {
         const val SETTINGS_PREFS_NAME = "settings"
-        const val THEME_MODE_KEY = "theme_mode"
     }
 
     override fun onCreate() {
         super.onCreate()
-        applySavedTheme()
-    }
-
-    private fun applySavedTheme() {
-        val prefs = getSharedPreferences(SETTINGS_PREFS_NAME, Context.MODE_PRIVATE)
-        val themeMode = prefs.getString(THEME_MODE_KEY, "system") ?: "system"
-        val mode = when (themeMode) {
-            "light" -> AppCompatDelegate.MODE_NIGHT_NO
-            "dark" -> AppCompatDelegate.MODE_NIGHT_YES
-            else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+        check(getSharedPreferences("DiscoverPrefs", Context.MODE_PRIVATE).edit().clear().commit()) {
+            "Failed to remove legacy parent pairing preferences"
         }
-        AppCompatDelegate.setDefaultNightMode(mode)
+        trustedChildStore = TrustedChildStore(this)
+        ThemePreferences.apply(ThemePreferences.read(this))
     }
 }
+
+fun Context.trustedChildStore(): TrustedChildStore =
+    (applicationContext as OpenBabyphoneApplication).trustedChildStore
+
+fun Context.wifiDirectCleanupCoordinator(): WifiDirectCleanupCoordinator =
+    (applicationContext as OpenBabyphoneApplication).wifiDirectCleanupCoordinator

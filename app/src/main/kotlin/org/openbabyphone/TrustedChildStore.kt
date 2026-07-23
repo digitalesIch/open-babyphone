@@ -20,171 +20,251 @@ import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 
-/**
- * A child device the parent has paired with at least once and should remember
- * for quick reconnection without re-scanning the QR code.
- */
 data class TrustedChild(
     val childId: String,
     val pairingId: String,
     val displayName: String,
-    val pairingCode: String,
     val lastKnownAddress: String? = null,
     val lastKnownPort: Int? = null,
     val lastSeenAt: Long = 0L
 ) {
-    /**
-     * Returns `true` when the stored [pairingId] matches the given id,
-     * meaning the pairing is still valid.
-     */
-    fun matchesPairing(otherPairingId: String): Boolean {
-        return pairingId == otherPairingId
-    }
+    fun matchesPairing(otherPairingId: String): Boolean = pairingId == otherPairingId
 }
 
-/**
- * Persists [TrustedChild] profiles on the parent device using SharedPreferences
- * and JSON serialisation.
- *
- * All data stays local; no cloud sync or relay is involved.
- */
-class TrustedChildStore(context: Context) {
+sealed interface TrustedConnectionResult {
+    data class Available(val child: TrustedChild, val pairingCode: CharArray) : TrustedConnectionResult
+    data object Missing : TrustedConnectionResult
+    data object Unavailable : TrustedConnectionResult
+}
 
-    private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+enum class CredentialStorageResult {
+    Success,
+    Unavailable,
+    Failed
+}
 
-    private val cached: MutableList<TrustedChild> = mutableListOf()
+/** Authoritative parent-side store for trusted metadata and protected credentials. */
+class TrustedChildStore(
+    context: Context,
+    crypto: TrustedCredentialCrypto = AndroidKeystoreTrustedCredentialCrypto()
+) {
+    private val appContext = context.applicationContext
+    private val metadataPrefs = appContext.getSharedPreferences(METADATA_PREFS_NAME, Context.MODE_PRIVATE)
+    private val credentials = ProtectedTrustedCredentialStore(
+        appContext.getSharedPreferences(ProtectedTrustedCredentialStore.PREFS_NAME, Context.MODE_PRIVATE),
+        crypto
+    )
 
     init {
-        load()
+        synchronized(STORE_LOCK) { reconcileLocked() }
     }
 
-    /**
-     * Returns the current list of trusted children.
-     */
-    fun getAll(): List<TrustedChild> {
-        synchronized(cached) {
-            return cached.toList()
+    fun getAll(): List<TrustedChild> = synchronized(STORE_LOCK) { reconcileLocked().toList() }
+
+    fun findById(childId: String): TrustedChild? = synchronized(STORE_LOCK) {
+        reconcileLocked().firstOrNull { it.childId == childId }
+    }
+
+    fun resolveConnection(childId: String, pairingId: String): TrustedConnectionResult =
+        synchronized(STORE_LOCK) {
+            val profiles = reconcileLocked().toMutableList()
+            val child = profiles.firstOrNull { it.childId == childId && it.pairingId == pairingId }
+                ?: return@synchronized TrustedConnectionResult.Missing
+            when (val result = credentials.get(childId, pairingId)) {
+                is CredentialReadResult.Available -> TrustedConnectionResult.Available(child, result.value)
+                CredentialReadResult.Unavailable -> TrustedConnectionResult.Unavailable
+                CredentialReadResult.Missing,
+                CredentialReadResult.Corrupt -> {
+                    profiles.removeAll { it.childId == childId && it.pairingId == pairingId }
+                    if (persistMetadataLocked(profiles)) credentials.remove(childId, pairingId)
+                    TrustedConnectionResult.Missing
+                }
+            }
+        }
+
+    /** Stores or rotates trust only after the caller has completed mutual authentication. */
+    fun trustAuthenticated(
+        childId: String,
+        pairingId: String,
+        displayName: String,
+        pairingCode: CharArray,
+        address: String,
+        port: Int
+    ): CredentialStorageResult {
+        if (childId.isBlank() || pairingId.isBlank() || address.isBlank() || port !in 1..65535) {
+            return CredentialStorageResult.Failed
+        }
+        return synchronized(STORE_LOCK) {
+            val profiles = reconcileLocked().toMutableList()
+            val old = profiles.firstOrNull { it.childId == childId }
+            when (credentials.put(childId, pairingId, pairingCode)) {
+                CredentialWriteResult.Unavailable -> return@synchronized CredentialStorageResult.Unavailable
+                CredentialWriteResult.Failed -> return@synchronized CredentialStorageResult.Failed
+                CredentialWriteResult.Success -> Unit
+            }
+            val replacement = TrustedChild(
+                childId = childId,
+                pairingId = pairingId,
+                displayName = displayName,
+                lastKnownAddress = address,
+                lastKnownPort = port,
+                lastSeenAt = System.currentTimeMillis()
+            )
+            profiles.removeAll { it.childId == childId }
+            profiles.add(replacement)
+            if (!persistMetadataLocked(profiles)) {
+                if (old?.pairingId != pairingId) credentials.remove(childId, pairingId)
+                return@synchronized CredentialStorageResult.Failed
+            }
+            if (old != null && old.pairingId != pairingId) credentials.remove(childId, old.pairingId)
+            CredentialStorageResult.Success
         }
     }
 
-    /**
-     * Returns the trusted child with the given [childId], or `null`.
-     */
-    fun findById(childId: String): TrustedChild? {
-        synchronized(cached) {
-            return cached.firstOrNull { it.childId == childId }
+    fun updateLastKnownAuthenticated(childId: String, pairingId: String, address: String, port: Int): Boolean {
+        if (address.isBlank() || port !in 1..65535) return false
+        return synchronized(STORE_LOCK) {
+            val profiles = reconcileLocked().toMutableList()
+            val index = profiles.indexOfFirst { it.childId == childId && it.pairingId == pairingId }
+            if (index < 0) return@synchronized false
+            profiles[index] = profiles[index].copy(
+                lastKnownAddress = address,
+                lastKnownPort = port,
+                lastSeenAt = System.currentTimeMillis()
+            )
+            persistMetadataLocked(profiles)
         }
     }
 
-    /**
-     * Adds or replaces a trusted child profile. If a profile with the same
-     * [TrustedChild.childId] already exists, it is overwritten.
-     */
-    fun upsert(child: TrustedChild) {
-        synchronized(cached) {
-            val existing = cached.firstOrNull { it.childId == child.childId }
-            val toStore = if (existing != null && child.lastKnownAddress == null) {
-                child.copy(
-                    lastKnownAddress = existing.lastKnownAddress,
-                    lastKnownPort = existing.lastKnownPort,
-                    lastSeenAt = existing.lastSeenAt
-                )
+    fun forget(childId: String): Boolean {
+        val deleted = synchronized(STORE_LOCK) {
+            val profiles = reconcileLocked().toMutableList()
+            val matching = profiles.filter { it.childId == childId }
+            if (matching.isEmpty()) return@synchronized true
+            profiles.removeAll(matching)
+            if (!persistMetadataLocked(profiles)) {
+                false
             } else {
-                child
-            }
-            cached.removeAll { it.childId == child.childId }
-            cached.add(toStore)
-            persist()
-        }
-    }
-
-    /**
-     * Updates [lastKnownAddress], [lastKnownPort] and [lastSeenAt] for the
-     * trusted child identified by [childId]. No-op if the child is not known.
-     */
-    fun updateLastKnown(childId: String, address: String, port: Int) {
-        synchronized(cached) {
-            val idx = cached.indexOfFirst { it.childId == childId }
-            if (idx >= 0) {
-                val existing = cached[idx]
-                cached[idx] = existing.copy(
-                    lastKnownAddress = address,
-                    lastKnownPort = port,
-                    lastSeenAt = System.currentTimeMillis()
-                )
-                persist()
+                var credentialsDeleted = true
+                matching.forEach {
+                    credentialsDeleted = credentials.remove(it.childId, it.pairingId) && credentialsDeleted
+                }
+                if (!credentialsDeleted) credentialsDeleted = credentials.clear()
+                credentialsDeleted
             }
         }
+        PendingConnections.store.removeForChild(childId)
+        ActiveListenSessionRegistry.revoke(appContext, childId)
+        return deleted
     }
 
-    /**
-     * Removes the trusted child with the given [childId]. No-op if not found.
-     */
-    fun forget(childId: String) {
-        synchronized(cached) {
-            cached.removeAll { it.childId == childId }
-            persist()
+    fun clear(): Boolean {
+        val credentialsDeleted = synchronized(STORE_LOCK) {
+            metadataPrefs.edit().remove(KEY_TRUSTED_CHILDREN).commit() && credentials.clear()
         }
+        PendingConnections.store.clear()
+        ActiveListenSessionRegistry.revokeAll(appContext)
+        return credentialsDeleted
     }
 
-    /**
-     * Removes all trusted children.
-     */
-    fun clear() {
-        synchronized(cached) {
-            cached.clear()
-            persist()
+    private fun reconcileLocked(): List<TrustedChild> {
+        val raw = metadataPrefs.getString(KEY_TRUSTED_CHILDREN, null) ?: run {
+            credentials.clear()
+            return emptyList()
         }
-    }
-
-    private fun persist() {
-        val arr = JSONArray()
-        for (child in cached) {
-            arr.put(child.toJson())
-        }
-        prefs.edit().putString(KEY_TRUSTED_CHILDREN, arr.toString()).apply()
-    }
-
-    private fun load() {
-        val raw = prefs.getString(KEY_TRUSTED_CHILDREN, null) ?: return
+        val loaded = mutableListOf<TrustedChild>()
+        var changed = false
         try {
-            val arr = JSONArray(raw)
-            for (i in 0 until arr.length()) {
-                val obj = arr.getJSONObject(i)
-                cached.add(trustedChildFromJson(obj))
+            val array = JSONArray(raw)
+            for (index in 0 until array.length()) {
+                val value = array.optJSONObject(index)
+                if (value == null) {
+                    changed = true
+                    continue
+                }
+                val child = trustedChildFromJson(value)
+                if (child == null) {
+                    changed = true
+                    continue
+                }
+                val plaintext = value.optString(LEGACY_PAIRING_CODE_KEY, "")
+                val usable = if (plaintext.isNotEmpty()) {
+                    changed = true
+                    val chars = plaintext.toCharArray()
+                    try {
+                        credentials.put(child.childId, child.pairingId, chars) == CredentialWriteResult.Success
+                    } finally {
+                        chars.fill('\u0000')
+                    }
+                } else {
+                    when (val result = credentials.get(child.childId, child.pairingId)) {
+                        is CredentialReadResult.Available -> {
+                            result.value.fill('\u0000')
+                            true
+                        }
+                        CredentialReadResult.Unavailable -> true
+                        CredentialReadResult.Missing,
+                        CredentialReadResult.Corrupt -> {
+                            changed = true
+                            credentials.remove(child.childId, child.pairingId)
+                            false
+                        }
+                    }
+                }
+                if (usable) {
+                    if (loaded.removeAll { it.childId == child.childId }) changed = true
+                    loaded.add(child)
+                }
             }
-        } catch (e: Exception) {
-            // Corrupt JSON – start fresh
-            prefs.edit().remove(KEY_TRUSTED_CHILDREN).apply()
+        } catch (_: Exception) {
+            credentials.clear()
+            metadataPrefs.edit().remove(KEY_TRUSTED_CHILDREN).commit()
+            return emptyList()
         }
+        credentials.retain(loaded.map { it.childId to it.pairingId })
+        if (changed && !persistMetadataLocked(loaded)) {
+            credentials.clear()
+            metadataPrefs.edit().remove(KEY_TRUSTED_CHILDREN).commit()
+            return emptyList()
+        }
+        return loaded
+    }
+
+    private fun persistMetadataLocked(children: List<TrustedChild>): Boolean {
+        val array = JSONArray()
+        children.forEach { array.put(it.toJson()) }
+        return metadataPrefs.edit().putString(KEY_TRUSTED_CHILDREN, array.toString()).commit()
     }
 
     companion object {
-        private const val PREFS_NAME = "trusted_children"
-        private const val KEY_TRUSTED_CHILDREN = "trustedChildren"
+        internal const val METADATA_PREFS_NAME = "trusted_children"
+        internal const val KEY_TRUSTED_CHILDREN = "trustedChildren"
+        internal const val LEGACY_PAIRING_CODE_KEY = "pairingCode"
+        private val STORE_LOCK = Any()
     }
 }
 
-private fun TrustedChild.toJson(): JSONObject {
-    return JSONObject().apply {
-        put("childId", childId)
-        put("pairingId", pairingId)
-        put("displayName", displayName)
-        put("pairingCode", pairingCode)
-        put("lastKnownAddress", lastKnownAddress ?: JSONObject.NULL)
-        put("lastKnownPort", lastKnownPort ?: JSONObject.NULL)
-        put("lastSeenAt", lastSeenAt)
-    }
+private fun TrustedChild.toJson(): JSONObject = JSONObject().apply {
+    put("childId", childId)
+    put("pairingId", pairingId)
+    put("displayName", displayName)
+    put("lastKnownAddress", lastKnownAddress ?: JSONObject.NULL)
+    put("lastKnownPort", lastKnownPort ?: JSONObject.NULL)
+    put("lastSeenAt", lastSeenAt)
 }
 
-private fun trustedChildFromJson(obj: JSONObject): TrustedChild {
-    return TrustedChild(
-        childId = obj.getString("childId"),
-        pairingId = obj.getString("pairingId"),
-        displayName = obj.optString("displayName", ""),
-        pairingCode = obj.optString("pairingCode", ""),
-        lastKnownAddress = if (obj.isNull("lastKnownAddress")) null else obj.optString("lastKnownAddress"),
-        lastKnownPort = if (obj.isNull("lastKnownPort")) null else obj.optInt("lastKnownPort", -1).takeIf { it > 0 },
-        lastSeenAt = obj.optLong("lastSeenAt", 0L)
+private fun trustedChildFromJson(value: JSONObject): TrustedChild? = try {
+    val childId = value.getString("childId").takeIf { it.isNotBlank() } ?: return null
+    val pairingId = value.getString("pairingId").takeIf { it.isNotBlank() } ?: return null
+    TrustedChild(
+        childId = childId,
+        pairingId = pairingId,
+        displayName = value.optString("displayName", ""),
+        lastKnownAddress = if (value.isNull("lastKnownAddress")) null else value.optString("lastKnownAddress"),
+        lastKnownPort = if (value.isNull("lastKnownPort")) null else value.optInt("lastKnownPort", -1)
+            .takeIf { it in 1..65535 },
+        lastSeenAt = value.optLong("lastSeenAt", 0L)
     )
+} catch (_: Exception) {
+    null
 }
