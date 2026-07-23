@@ -64,7 +64,7 @@ class ListenViewModel(application: Application) : AndroidViewModel(application) 
             isError = isError,
             isReconnecting = sessionState is ListenSessionState.Reconnecting
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ListenUiState(status = connectingStatus))
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, ListenUiState(status = connectingStatus))
 
     fun updateVolumeHistory(history: FloatArray, norm: Float) {
         _volumeHistory.value = history
