@@ -18,8 +18,8 @@ android {
         applicationId = "org.openbabyphone"
         minSdk = 30
         targetSdk = 34
-        versionCode = 25
-        versionName = "1.1.0-alpha.10"
+        versionCode = 26
+        versionName = "1.1.0-alpha.11"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
