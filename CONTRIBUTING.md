@@ -42,15 +42,21 @@ This is the Android lint checker, run using:
 
     # ./gradlew lintRelease
 
-The final check is by testing the application on a live device and verifying
-the basic functionality works as expected.
+The final check, when behavior depends on Android hardware or platform services,
+is testing on an available live device and recording what was actually covered.
 
-The release-grade verification command that runs all checks is:
+The host-side CI-grade verification command is:
 
-    # ./gradlew assembleRelease test lintRelease
+    # ./gradlew --dependency-verification strict test lintRelease assembleRelease assembleDebugAndroidTest validateDebugScreenshotTest jacocoDebugUnitTestReport
 
-For the real-device reliability test matrix and release verification guidance,
-see [docs/testing.md](docs/testing.md).
+For the available-device reliability checks and release verification guidance,
+see [docs/testing.md](docs/testing.md). GitHub release signing uses the separate
+[signed APK checklist](docs/release/github-signed-apk-checklist.md).
+
+Open Babyphone is a no-budget project maintained by one developer. Contributions
+must not require paid services, external usability panels, purchased test
+hardware, or broad OEM coverage. Prefer automated checks and focused validation
+on devices already available to the maintainer.
 
 ## Local Release Signing
 

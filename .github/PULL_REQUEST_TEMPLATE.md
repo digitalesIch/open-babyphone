@@ -18,7 +18,7 @@ Describe how you tested your changes:
 - [ ] `./gradlew assembleRelease` passes
 - [ ] `./gradlew lintRelease` passes
 - [ ] `./gradlew test` passes (if applicable)
-- [ ] Tested on real device(s)
+- [ ] Tested on an available real device when the change needs hardware validation
 
 If this is a bug fix, include a reproducer for the original bug and instructions for verifying it is fixed.
 
