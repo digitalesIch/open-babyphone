@@ -1,8 +1,7 @@
 package org.openbabyphone.viewmodel
 
 import android.app.Application
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.test.runTest
+import android.os.Looper
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -15,6 +14,7 @@ import org.openbabyphone.service.ListenSessionError
 import org.openbabyphone.service.ListenSessionState
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 
 @RunWith(RobolectricTestRunner::class)
 class ListenViewModelTest {
@@ -29,64 +29,51 @@ class ListenViewModelTest {
     }
 
     @Test
-    fun `presentation is derived from connecting state`() = runTest {
+    fun `presentation is derived from connecting state`() {
         ListenServiceRepository.startConnecting("Nursery")
-
-        val state = awaitState(ListenSessionState.Connecting)
-
+        val state = currentState { it.sessionState == ListenSessionState.Connecting }
         assertEquals(context.getString(R.string.listen_connecting_title), state.presentation.message)
         assertTrue(state.presentation.showProgress)
         assertEquals(null, state.presentation.primaryAction)
     }
 
     @Test
-    fun `listening presentation has no action or spinner`() = runTest {
+    fun `listening presentation has no action or spinner`() {
         ListenServiceRepository.updateListening()
-
-        val state = awaitState(ListenSessionState.Listening)
-
+        val state = currentState { it.sessionState == ListenSessionState.Listening }
         assertEquals(context.getString(R.string.listen_listening_title), state.presentation.message)
         assertFalse(state.presentation.showProgress)
         assertEquals(null, state.presentation.primaryAction)
     }
 
     @Test
-    fun `disrupted presentation promises automatic recovery without action`() = runTest {
+    fun `disrupted presentation promises automatic recovery without action`() {
         ListenServiceRepository.updateDisrupted()
-
-        val state = awaitState(ListenSessionState.Disrupted)
-
+        val state = currentState { it.sessionState == ListenSessionState.Disrupted }
         assertEquals(context.getString(R.string.audio_interrupted), state.presentation.message)
         assertEquals(null, state.presentation.primaryAction)
     }
 
     @Test
-    fun `reconnecting presentation has one progress state and no action`() = runTest {
+    fun `reconnecting presentation has one progress state and no action`() {
         val reconnecting = ListenSessionState.Reconnecting(2, 5)
         ListenServiceRepository.updateReconnecting(2, 5)
-
-        val state = awaitState(reconnecting)
-
+        val state = currentState { it.sessionState == reconnecting }
         assertTrue(state.presentation.showProgress)
-        assertEquals(
-            context.getString(R.string.listen_reconnecting_detail, 2, 5),
-            state.presentation.detail
-        )
+        assertEquals(context.getString(R.string.listen_reconnecting_detail, 2, 5), state.presentation.detail)
         assertEquals(null, state.presentation.primaryAction)
     }
 
     @Test
-    fun `lost presentation retries`() = runTest {
+    fun `lost presentation retries`() {
         ListenServiceRepository.updateLost()
-
-        val state = awaitState(ListenSessionState.Lost)
-
+        val state = currentState { it.sessionState == ListenSessionState.Lost }
         assertEquals(context.getString(R.string.connection_lost), state.presentation.message)
         assertEquals(ListenPrimaryAction.Retry, state.presentation.primaryAction)
     }
 
     @Test
-    fun `typed terminal failures expose only their actionable recovery`() = runTest {
+    fun `typed terminal failures expose only their actionable recovery`() {
         val cases = listOf(
             ListenSessionError.Unreachable to ListenPrimaryAction.Retry,
             ListenSessionError.Authentication to ListenPrimaryAction.PairAgain,
@@ -94,12 +81,8 @@ class ListenViewModelTest {
             ListenSessionError.Playback to ListenPrimaryAction.Retry,
             ListenSessionError.Decoding to ListenPrimaryAction.ConnectionHelp
         )
-
         cases.forEach { (error, action) ->
-            val presentation = listenPresentation(
-                context,
-                ListenSessionState.Error(error, "internal reason")
-            )
+            val presentation = listenPresentation(context, ListenSessionState.Error(error, "internal reason"))
             assertEquals(action, presentation.primaryAction)
             assertFalse(presentation.showProgress)
         }
@@ -113,22 +96,26 @@ class ListenViewModelTest {
     }
 
     @Test
-    fun `updateVolumeHistory updates qualitative meter input`() = runTest {
+    fun `updateVolumeHistory updates qualitative meter input`() {
         viewModel.updateVolumeHistory(floatArrayOf(0f, 0.5f, 0.9f), 2.0f)
-
-        val state = viewModel.uiState.first { it.volumeHistory.isNotEmpty() }
-
+        val state = currentState { it.volumeHistory.isNotEmpty() }
         assertEquals(3, state.volumeHistory.size)
         assertEquals(2.0f, state.volumeNorm, 0.01f)
         assertTrue(state.lastAudioUpdateAtMillis > 0L)
     }
 
     @Test
-    fun `child device name reflects in state`() = runTest {
+    fun `child device name reflects in state`() {
         ListenServiceRepository.updateChildDeviceName("Nursery")
-        assertEquals("Nursery", viewModel.uiState.first { it.childDeviceName == "Nursery" }.childDeviceName)
+        assertEquals("Nursery", currentState { it.childDeviceName == "Nursery" }.childDeviceName)
     }
 
-    private suspend fun awaitState(expected: ListenSessionState): ListenUiState =
-        viewModel.uiState.first { it.sessionState == expected }
+    private fun currentState(predicate: (ListenUiState) -> Boolean): ListenUiState {
+        repeat(5) {
+            shadowOf(Looper.getMainLooper()).idle()
+            val state = viewModel.uiState.value
+            if (predicate(state)) return state
+        }
+        throw AssertionError("ViewModel state did not reach the expected value")
+    }
 }
