@@ -1,6 +1,32 @@
 Open Babyphone (fork of Child Monitor)
 ======================================
 
+July 2026: 1.1.0-alpha.11 (current development version, versionCode 26)
+
+  * Require OBP4 mutual authentication and ChaCha20-Poly1305 transport encryption
+  * Replace native libsodium crypto with pure-Java Bouncy Castle Argon2id and JCA primitives
+  * Protect remembered parent credentials with Android Keystore AES-GCM and authenticated metadata
+  * Remove the external listen deep link in favor of a non-exported resume activity
+  * Add atomic pairing reset, bounded pending credentials, and explicit Forget controls
+  * Improve service restart containment, stale-worker rejection, reconnect health, and recovery notifications
+  * Refresh role chooser, child monitoring, Parent Home, Listen, Connection Help, and Compose Settings UX
+  * Add child display names, microphone sensitivity controls, and clearer status/accessibility semantics
+  * Expand JVM, Robolectric, Compose instrumentation, Android crypto, configuration, and navigation coverage
+  * Add reviewed Compose Preview Screenshot Testing baselines and JaCoCo reports
+  * Add API 30 and API 36 instrumentation plus API 35 16 KB page-size smoke coverage
+  * Gate branch protection through a final aggregate `build` job and pin GitHub Actions by commit SHA
+  * Add strict Gradle SHA-256 dependency verification and GitHub Actions Dependabot updates
+  * Add static release APK zip/ELF 16 KB alignment verification
+  * Complete Freesound and Bouncy Castle attribution and direct-dependency license inventory
+  * Correct local NSD, trusted endpoint, credential retention, backup, and deletion disclosures
+  * Prepare F-Droid metadata, screenshots, source-build templates, and signed GitHub APK checklists locally
+  * Keep targetSdk 34 until API 36 behavior is checked on the maintainer's available phones
+  * Keep R8 disabled for this development release while release-risk and Bouncy Castle size are evaluated
+
+This entry describes the current alpha candidate work. It does not claim a
+stable release, F-Droid acceptance, signed publication, scanner pass, or
+physical-device reliability beyond the devices explicitly recorded by the maintainer.
+
 June 2026: 1.1.0-alpha.3
 
   * App icon redesigned to paired-phones brand mark (#135)

@@ -1,0 +1,9 @@
+Development release 1.1.0-alpha.11:
+
+* Requires mutual authentication and encrypted audio transport
+* Protects remembered child credentials with Android Keystore
+* Improves reconnect, foreground-service recovery, and connection guidance
+* Adds Compose Settings, trusted-child controls, and refreshed child/parent UI
+* Adds API 30/36 tests, API 35 16 KB smoke checks, screenshots, lint, and coverage
+
+Wi-Fi Direct remains experimental. Run overnight validation when affected behavior changes.

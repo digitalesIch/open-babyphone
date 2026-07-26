@@ -46,13 +46,18 @@ flow and not a remote-access product goal.
 The fork already has several important foundations:
 
 - GitHub Actions CI for release build, unit tests, and lint
-- Optional persistent pairing code for parent authentication
-- Optional ChaCha20-Poly1305 transport encryption when a pairing code is configured
+- Initial persistent pairing-code support for parent authentication
+- Initial ChaCha20-Poly1305 transport behind pairing-code configuration
 - Frame-based audio protocol with sequence numbers, timestamps, and heartbeats
 - Jitter buffer and parent-side reconnect behavior
 - Multi-client audio fan-out from one microphone pipeline
 - Initial Material 3 theme work and day/night support
 - Unit tests for codec, framing, jitter buffer, crypto, and client management
+
+These bullets describe the archived baseline, not the current implementation.
+Current Open Babyphone requires pairing, mutual authentication, and encrypted
+transport; the current CI and release posture are documented in `README.md` and
+`docs/testing.md`.
 
 The remaining work is mostly product hardening: safe defaults, real-device reliability,
 clear UX, release readiness, and removing stale fork-era assumptions.

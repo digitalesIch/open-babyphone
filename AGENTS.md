@@ -33,7 +33,7 @@
 ## Android Config Gotchas
 - `compileSdk` is 37, `targetSdk` is 34; `minSdkVersion` is 30 and README promises Android 11+.
 - Raising `targetSdk` to 36 is blocked on successful API 36 behavior checks on the maintainer's available devices; the API 36 emulator job alone is not sufficient, but broader device-lab coverage is not required.
-- Gradle `defaultConfig` has the effective release version (`versionCode 25`, `versionName "1.1.0-alpha.10"`); the manifest does not define version fields.
+- Gradle `defaultConfig` has the effective release version (`versionCode 26`, `versionName "1.1.0-alpha.11"`); the manifest does not define version fields.
 - `project.properties` is a generated legacy Android Tools file targeting `android-25`; do not edit it for Gradle behavior.
 - `gradle.properties` enables AndroidX, disables Jetifier, enables configuration cache, and uses non-transitive R classes.
 

@@ -70,11 +70,11 @@ For current build versions, see `AGENTS.md` and `app/build.gradle`.
 
 - Legacy Activities and XML layouts removed
 - AndroidManifest cleaned up
-- Deep-Link support (`quiet-engine://listen`)
+- Internal notification resume through a non-exported trampoline activity
 - Unit tests covering codec, framing, jitter buffer, crypto, client management,
   handshake, ViewModels, pairing QR, trusted child store, microphone sensitivity,
   Wi-Fi Direct errors and TXT records, volume statistics and history
-- Instrumentation tests covering crypto JNI, Compose UI screens, frame codec crypto
+- Instrumentation tests covering Android JCA crypto, Compose UI screens, frame codec crypto
 - All tests passing
 - Lint passing
 

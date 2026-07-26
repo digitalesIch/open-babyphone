@@ -1,0 +1,27 @@
+# TEMPLATE ONLY. This file is not an F-Droid submission and is not consumed by
+# this repository's build. Copy and adapt it in the external fdroid/fdroiddata
+# repository only after a release tag/commit and scanner results exist.
+Categories:
+  - Connectivity
+License: GPL-3.0-or-later
+AuthorName: digitalesIch
+WebSite: https://openbabyphone.org/
+SourceCode: https://github.com/digitalesIch/open-babyphone
+IssueTracker: https://github.com/digitalesIch/open-babyphone/issues
+
+AutoName: Open Babyphone
+
+RepoType: git
+Repo: https://github.com/digitalesIch/open-babyphone.git
+
+Builds:
+  - versionName: 1.1.0-alpha.11
+    versionCode: 26
+    commit: <release-tag-or-immutable-commit>
+    gradle:
+      - yes
+
+AutoUpdateMode: None
+UpdateCheckMode: None
+CurrentVersion: 1.1.0-alpha.11
+CurrentVersionCode: 26
