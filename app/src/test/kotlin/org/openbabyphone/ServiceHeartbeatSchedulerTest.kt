@@ -31,7 +31,7 @@ class ServiceHeartbeatSchedulerTest {
 
         val scheduledAlarm = shadowOf(alarmManager).nextScheduledAlarm
         assertNotNull(scheduledAlarm)
-        assertEquals(AlarmManager.ELAPSED_REALTIME_WAKEUP, scheduledAlarm.type)
+        assertEquals(AlarmManager.ELAPSED_REALTIME_WAKEUP, scheduledAlarm!!.type)
     }
 
     @Test

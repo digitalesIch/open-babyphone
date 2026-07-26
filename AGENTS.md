@@ -19,7 +19,7 @@
 ## Build And Checks
 - Use the checked-in wrapper: `./gradlew ...`.
 - Before any write operation (commit, push, branch creation), always sync the local repository first: `git fetch origin` then `git pull --ff-only origin main` (or the current base branch). This prevents stale local branches when multiple agent sessions work on the same repository. If the pull fails, stop and inform the user.
-- Gradle wrapper is 9.4.1; Android Gradle Plugin is 9.2.1; Kotlin is 2.4.0; Compose BOM is 2026.06.01; Compose Compiler is configured through the Kotlin Compose compiler Gradle plugin; navigation-compose is 2.9.8.
+- Gradle wrapper is 9.5.0; Android Gradle Plugin is 9.3.1; Kotlin is 2.4.10; Compose BOM is 2026.06.01; Compose Compiler is configured through the Kotlin Compose compiler Gradle plugin; navigation-compose is 2.9.8.
 - Use JDK 21; Gradle emits Java 17 bytecode (`sourceCompatibility`, `targetCompatibility`, Kotlin `jvmTarget`) and sets `jvmToolchain(21)`.
 - CI uses `host-checks` for strict dependency verification, release/debug assembly, JVM tests, lint, screenshot validation, JaCoCo, and static 16 KB APK/ELF checks. KVM emulator jobs run instrumentation on API 30 and API 36; API 35 `google_apis_ps16k` asserts the page size and runs crypto/credential/handshake plus app-launch smoke tests. The final required job is named exactly `build` and gates all three dependencies.
 - Useful focused checks are `./gradlew test`, `./gradlew assembleDebugAndroidTest`, `./gradlew lintRelease`, `./gradlew assembleRelease`, `./gradlew validateDebugScreenshotTest`, and `./gradlew jacocoDebugUnitTestReport`.
