@@ -34,7 +34,7 @@ class CryptoHelperTest {
         val key = CryptoHelper.deriveKey("test123", salt)
 
         assertArrayEquals(
-            Base64.getDecoder().decode("+3VJVjW8uwvi7cI+WVlEVgSU2UM3xm+1zIdfI9sN/zg="),
+            Base64.getDecoder().decode("z1l9Q8k6NyYzMT5fW2xOGmYSKPxm/kuUbP/SeTijK4k="),
             key
         )
     }

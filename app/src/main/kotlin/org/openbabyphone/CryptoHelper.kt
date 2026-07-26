@@ -29,7 +29,7 @@ import javax.crypto.spec.SecretKeySpec
 object CryptoHelper {
 
     private const val ARGON2_ITERATIONS = 3
-    private const val ARGON2_MEMORY_KIB = 16 * 1024
+    private const val ARGON2_MEMORY_KIB = 8 * 1024
     private const val ARGON2_PARALLELISM = 1
     const val KEY_SIZE = 32
     private const val CHACHA20_POLY1305 = "ChaCha20/Poly1305/NoPadding"

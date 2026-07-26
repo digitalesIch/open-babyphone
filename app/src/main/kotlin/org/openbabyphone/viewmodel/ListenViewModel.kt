@@ -62,7 +62,7 @@ class ListenViewModel(application: Application) : AndroidViewModel(application) 
         )
     }.stateIn(
         viewModelScope,
-        SharingStarted.WhileSubscribed(5000),
+        SharingStarted.Eagerly,
         ListenUiState(
             sessionState = ListenSessionState.Connecting,
             presentation = listenPresentation(application, ListenSessionState.Connecting)
