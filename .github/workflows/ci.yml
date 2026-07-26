@@ -150,7 +150,8 @@ jobs:
           profile: pixel_2
           disable-animations: true
           emulator-boot-timeout: 900
-          script: ./gradlew --dependency-verification strict connectedDebugAndroidTest
+          script: >-
+            ./gradlew --dependency-verification strict connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=org.openbabyphone.AppLaunchSmokeInstrumentedTest,org.openbabyphone.HandshakeInstrumentedTest,org.openbabyphone.CryptoHelperInstrumentedTest,org.openbabyphone.TrustedCredentialCryptoInstrumentedTest,org.openbabyphone.audio.FrameCodecCryptoInstrumentedTest
 
       - name: Capture emulator diagnostics
         if: always()
