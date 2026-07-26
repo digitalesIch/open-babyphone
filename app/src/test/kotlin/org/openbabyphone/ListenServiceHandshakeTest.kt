@@ -127,14 +127,11 @@ class ListenServiceHandshakeTest {
                 val controller = Robolectric.buildService(ListenService::class.java, intent).create()
 
                 controller.get().onStartCommand(intent, 0, 1)
-                repeat(100) {
-                    if (ListenServiceRepository.sessionState.value is ListenSessionState.Error) return@repeat
-                    Thread.sleep(20)
-                }
+                val error = awaitError()
 
                 assertEquals(
                     ListenSessionError.CredentialStorage,
-                    (ListenServiceRepository.sessionState.value as ListenSessionState.Error).type
+                    error.type
                 )
                 assertTrue(PendingConnections.store.contains(requestId))
                 assertTrue(application.trustedChildStore.getAll().isEmpty())
@@ -203,14 +200,11 @@ class ListenServiceHandshakeTest {
 
             try {
                 controller.get().onStartCommand(intent, 0, 1)
-                repeat(100) {
-                    if (ListenServiceRepository.sessionState.value is ListenSessionState.Error) return@repeat
-                    Thread.sleep(20)
-                }
+                val error = awaitError()
 
                 assertEquals(
                     ListenSessionError.Authentication,
-                    (ListenServiceRepository.sessionState.value as ListenSessionState.Error).type
+                    error.type
                 )
                 assertTrue(PendingConnections.store.contains(requestId))
                 child.join(2_000)
@@ -233,6 +227,15 @@ class ListenServiceHandshakeTest {
     ).run {
         isAccessible = true
         invoke(service, socket, "ABCDEF12".toCharArray(), expectedIdentity) as SessionInfo?
+    }
+
+    private fun awaitError(): ListenSessionState.Error {
+        repeat(100) {
+            val state = ListenServiceRepository.sessionState.value
+            if (state is ListenSessionState.Error) return state
+            Thread.sleep(20)
+        }
+        throw AssertionError("Listen service did not publish a terminal error")
     }
 
     private class UnavailableCrypto : TrustedCredentialCrypto {
