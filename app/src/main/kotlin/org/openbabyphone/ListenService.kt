@@ -294,6 +294,7 @@ class ListenService : Service() {
         val text = getText(R.string.listening)
         val resumeIntent = Intent(this, ListenResumeActivity::class.java).apply {
             registeredSessionToken?.let { putExtra(ListenResumeActivity.EXTRA_SESSION_TOKEN, it) }
+            ListenResumeActivity.putExpectedIdentity(this, registeredIdentity())
         }
         val contentIntent = PendingIntent.getActivity(
             this,
@@ -370,6 +371,7 @@ class ListenService : Service() {
     private fun buildResumePendingIntent(requestCode: Int): PendingIntent {
         val resumeIntent = Intent(this, ListenResumeActivity::class.java).apply {
             registeredSessionToken?.let { putExtra(ListenResumeActivity.EXTRA_SESSION_TOKEN, it) }
+            ListenResumeActivity.putExpectedIdentity(this, registeredIdentity())
         }
         return PendingIntent.getActivity(
             this,
@@ -378,6 +380,10 @@ class ListenService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
     }
+
+    private fun registeredIdentity(): ExpectedChildIdentity? = registeredSessionToken
+        ?.let(ActiveListenSessionRegistry::resolve)
+        ?.identity
 
     inner class ListenBinder : Binder() {
         val service: ListenService

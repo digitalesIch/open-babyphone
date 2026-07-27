@@ -56,6 +56,16 @@ object ActiveListenSessionRegistry {
         ?.let { RouteSession(it.token, it.identity, it.requestId, it.active) }
 
     @Synchronized
+    fun matchesActive(requestId: String, identity: ExpectedChildIdentity?): Boolean {
+        val current = session?.takeIf { it.active } ?: return false
+        return when {
+            identity != null -> current.identity == identity
+            requestId.isNotBlank() -> current.requestId == requestId
+            else -> true
+        }
+    }
+
+    @Synchronized
     internal fun clearForTests() {
         session = null
     }

@@ -6,6 +6,8 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.os.IBinder
 import androidx.core.content.ContextCompat
+import org.openbabyphone.ActiveListenSessionRegistry
+import org.openbabyphone.ExpectedChildIdentity
 import org.openbabyphone.ListenService
 import org.openbabyphone.MonitorService
 import org.openbabyphone.viewmodel.ListenViewModel
@@ -113,7 +115,16 @@ object ServiceConnectionManager {
             }
         }
 
-        var bound = if (resumeOnly) {
+        val validExpectedIdentity = expectedChildId.isBlank() == expectedPairingId.isBlank()
+        val validConnection = (requestId.isNotBlank() || expectedChildId.isNotBlank()) && validExpectedIdentity
+        val expectedIdentity = if (expectedChildId.isNotBlank() && expectedPairingId.isNotBlank()) {
+            ExpectedChildIdentity(expectedChildId, expectedPairingId)
+        } else {
+            null
+        }
+        val shouldAttach = ListenServiceRepository.sessionState.value.isAuthoritativelyActive() &&
+            ActiveListenSessionRegistry.matchesActive(requestId, expectedIdentity)
+        var bound = if (shouldAttach) {
             try {
                 context.bindService(Intent(context, ListenService::class.java), connection, 0)
             } catch (exception: RuntimeException) {
@@ -122,9 +133,7 @@ object ServiceConnectionManager {
         } else {
             false
         }
-        val validExpectedIdentity = expectedChildId.isBlank() == expectedPairingId.isBlank()
-        val validConnection = (requestId.isNotBlank() || expectedChildId.isNotBlank()) && validExpectedIdentity
-        if (!bound && validConnection) {
+        if (!bound && !resumeOnly && validConnection) {
             val started = try {
                 ContextCompat.startForegroundService(context, intent)
                 true

@@ -101,6 +101,8 @@ class ListenServiceAlertTest {
         assertEquals(ListenResumeActivity::class.java.name, savedIntent!!.component?.className)
         assertNull(savedIntent.data)
         assertFalse(savedIntent.hasExtra("pairingCode"))
+        assertEquals("child-1", savedIntent.getStringExtra(ListenResumeActivity.EXTRA_CHILD_ID))
+        assertEquals("pair-1", savedIntent.getStringExtra(ListenResumeActivity.EXTRA_PAIRING_ID))
         assertEquals(token, savedIntent.getLongExtra(ListenResumeActivity.EXTRA_SESSION_TOKEN, -1L))
 
         controller.destroy()

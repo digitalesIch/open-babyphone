@@ -49,7 +49,7 @@ class ListenResumeActivityTest {
         val started = launchResume(token)
         val route = consumeStartedRoute(started)
 
-        assertEquals(Listen(resumeOnly = true), route)
+        assertEquals(Listen(requestId = "manual-request", resumeOnly = true), route)
         assertFalse(started.hasExtra("resumeOnly"))
         assertFalse(started.hasExtra("pairingCode"))
     }
@@ -113,6 +113,28 @@ class ListenResumeActivityTest {
     }
 
     @Test
+    fun `trusted notification identity reconnects after process-local state is lost`() {
+        withTrustedChild {
+            val identity = ExpectedChildIdentity("child1", "pair1")
+            val token = ActiveListenSessionRegistry.register(identity)
+            ActiveListenSessionRegistry.clearForTests()
+            PendingConnections.store.clear()
+            ListenServiceRepository.reset()
+
+            val started = launchResume(token, identity)
+            val route = consumeStartedRoute(started)
+
+            assertNotNull(route)
+            assertFalse(route!!.resumeOnly)
+            assertEquals("child1", route.expectedChildId)
+            assertEquals("pair1", route.expectedPairingId)
+            val pending = PendingConnections.store.lease(route.requestId)
+            assertEquals("host", pending?.address)
+            assertNull(pending?.pairingCode)
+        }
+    }
+
+    @Test
     fun `onNewIntent route consumption is one shot`() {
         val route = Listen("request", "child", "pair")
         val routeId = InternalListenRouteRegistry.put(route)
@@ -122,9 +144,13 @@ class ListenResumeActivityTest {
         assertNull(consumeInternalListenRoute(intent))
     }
 
-    private fun launchResume(token: Long): Intent {
+    private fun launchResume(
+        token: Long,
+        identity: ExpectedChildIdentity? = null
+    ): Intent {
         val intent = Intent(application, ListenResumeActivity::class.java)
             .putExtra(ListenResumeActivity.EXTRA_SESSION_TOKEN, token)
+        ListenResumeActivity.putExpectedIdentity(intent, identity)
         Robolectric.buildActivity(ListenResumeActivity::class.java, intent).create()
         return shadowOf(application).nextStartedActivity
     }

@@ -19,6 +19,7 @@ package org.openbabyphone
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
@@ -891,11 +892,21 @@ class MonitorService : Service() {
 
     private fun buildNotification(): Notification {
         val text: CharSequence = getText(R.string.child_device)
+        val contentIntent = PendingIntent.getActivity(
+            this,
+            0,
+            Intent(this, MainActivity::class.java).apply {
+                action = MainActivity.ACTION_RESUME_MONITOR
+                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            },
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.listening_notification)
             .setOngoing(true)
             .setTicker(text)
             .setContentTitle(text)
+            .setContentIntent(contentIntent)
             .build()
     }
 

@@ -8,6 +8,8 @@ import android.content.Intent
 import android.content.ServiceConnection
 import org.openbabyphone.ListenService
 import org.openbabyphone.MonitorService
+import org.openbabyphone.ActiveListenSessionRegistry
+import org.openbabyphone.ExpectedChildIdentity
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -29,6 +31,8 @@ class ServiceConnectionManagerCallbacksTest {
     @Before
     fun setup() {
         context = RuntimeEnvironment.getApplication() as Application
+        ActiveListenSessionRegistry.clearForTests()
+        ListenServiceRepository.reset()
     }
 
     @Test
@@ -185,6 +189,8 @@ class ServiceConnectionManagerCallbacksTest {
     fun `listen foreground start runtime failure publishes retryable error`() {
         ListenServiceRepository.reset()
         val failingContext = object : ContextWrapper(context) {
+            override fun bindService(service: Intent, conn: ServiceConnection, flags: Int): Boolean = false
+
             override fun startForegroundService(service: Intent): ComponentName? {
                 throw IllegalStateException("Foreground start denied")
             }
@@ -200,6 +206,104 @@ class ServiceConnectionManagerCallbacksTest {
         val state = ListenServiceRepository.sessionState.value
         assertTrue(state is ListenSessionState.Error)
         assertEquals(ListenSessionError.Unreachable, (state as ListenSessionState.Error).type)
+    }
+
+    @Test
+    fun `normal listen route attaches to running service without restarting it`() {
+        val identity = ExpectedChildIdentity("child", "pairing")
+        ActiveListenSessionRegistry.register(identity, "pending-request")
+        ListenServiceRepository.startConnecting("Nursery")
+        var bindCount = 0
+        var startCount = 0
+        val recordingContext = object : ContextWrapper(context) {
+            override fun bindService(service: Intent, conn: ServiceConnection, flags: Int): Boolean {
+                bindCount++
+                assertEquals(0, flags)
+                return true
+            }
+
+            override fun startForegroundService(service: Intent): ComponentName? {
+                startCount++
+                return service.component
+            }
+        }
+
+        val viewModel = org.openbabyphone.viewmodel.ListenViewModel(context)
+        val first = ServiceConnectionManager.bindListenService(
+            recordingContext,
+            viewModel,
+            "pending-request",
+            identity.childId,
+            identity.pairingId
+        )
+        ServiceConnectionManager.disposeServiceBinding(recordingContext, first)
+        val recreated = ServiceConnectionManager.bindListenService(
+            recordingContext,
+            viewModel,
+            "pending-request",
+            identity.childId,
+            identity.pairingId
+        )
+
+        assertTrue(first.bound)
+        assertTrue(recreated.bound)
+        assertEquals(2, bindCount)
+        assertEquals(0, startCount)
+        assertNull(shadowOf(context).nextStoppedService)
+    }
+
+    @Test
+    fun `normal route for another child starts its requested session`() {
+        ActiveListenSessionRegistry.register(ExpectedChildIdentity("old-child", "old-pairing"))
+        ListenServiceRepository.startConnecting("Old nursery")
+        var startCount = 0
+        val bindFlags = mutableListOf<Int>()
+        val recordingContext = object : ContextWrapper(context) {
+            override fun bindService(service: Intent, conn: ServiceConnection, flags: Int): Boolean {
+                bindFlags += flags
+                return true
+            }
+
+            override fun startForegroundService(service: Intent): ComponentName? {
+                startCount++
+                return service.component
+            }
+        }
+
+        val binding = ServiceConnectionManager.bindListenService(
+            recordingContext,
+            org.openbabyphone.viewmodel.ListenViewModel(context),
+            requestId = "new-request",
+            expectedChildId = "new-child",
+            expectedPairingId = "new-pairing"
+        )
+
+        assertTrue(binding.bound)
+        assertEquals(1, startCount)
+        assertEquals(listOf(Context.BIND_AUTO_CREATE), bindFlags)
+    }
+
+    @Test
+    fun `missing resume-only service is never started`() {
+        var startCount = 0
+        val recordingContext = object : ContextWrapper(context) {
+            override fun bindService(service: Intent, conn: ServiceConnection, flags: Int): Boolean = false
+
+            override fun startForegroundService(service: Intent): ComponentName? {
+                startCount++
+                return service.component
+            }
+        }
+
+        val binding = ServiceConnectionManager.bindListenService(
+            recordingContext,
+            org.openbabyphone.viewmodel.ListenViewModel(context),
+            requestId = "pending-request",
+            resumeOnly = true
+        )
+
+        assertFalse(binding.bound)
+        assertEquals(0, startCount)
     }
 
     @Test
