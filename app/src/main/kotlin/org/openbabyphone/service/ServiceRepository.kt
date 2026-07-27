@@ -88,7 +88,8 @@ object ListenServiceRepository {
         _sessionState.update { current ->
             if (current is ListenSessionState.Lost ||
                 current is ListenSessionState.Error ||
-                current is ListenSessionState.Stopped
+                current is ListenSessionState.Stopped ||
+                current is ListenSessionState.Disrupted
             ) {
                 current
             } else {

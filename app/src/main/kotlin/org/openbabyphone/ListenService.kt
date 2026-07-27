@@ -53,6 +53,7 @@ import org.openbabyphone.audio.AudioDeliveryHealth
 import org.openbabyphone.audio.AudioDeliveryStatus
 import org.openbabyphone.audio.AudioWriteResult
 import org.openbabyphone.audio.writeAllAudioSamples
+import org.openbabyphone.audio.indicatesOverflow
 import org.openbabyphone.service.ListenServiceRepository
 import org.openbabyphone.service.ListenSessionError
 import org.openbabyphone.service.ListenSessionState
@@ -990,7 +991,7 @@ class ListenService : Service() {
             if (!isWorkerActive(claim) || terminalFailure) {
                 false
             } else {
-                deliveryHealth.arm()
+                deliveryHealth.armIfDisarmed()
                 true
             }
         }
@@ -1192,12 +1193,18 @@ class ListenService : Service() {
                     continue
                 }
 
-                val addResult = jitterBuffer.addFrame(
-                    JitterBuffer.DecodedFrame(frame.seqNum, frame.timestampMs, frame.ulawData, receiveTime)
-                )
+                val addResult = synchronized(sessionStateLock) {
+                    jitterBuffer.addFrame(
+                        JitterBuffer.DecodedFrame(frame.seqNum, frame.timestampMs, frame.ulawData, receiveTime)
+                    ).also { result ->
+                        if (result.indicatesOverflow() && isWorkerActive(claim) && !terminalFailure) {
+                            ListenServiceRepository.updateDisrupted()
+                        }
+                    }
+                }
                 if (addResult != JitterBuffer.AddResult.Accepted) {
                     val droppedFrames = jitterBuffer.getDroppedFrameCount()
-                    if (addResult == JitterBuffer.AddResult.AcceptedAfterDroppingOldest &&
+                    if (addResult.indicatesOverflow() &&
                         (droppedFrames == 1 || droppedFrames % JITTER_OVERFLOW_LOG_INTERVAL == 0)
                     ) {
                         Log.w(TAG, "Jitter buffer full; dropped $droppedFrames frame(s) total")

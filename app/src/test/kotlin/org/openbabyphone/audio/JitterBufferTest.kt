@@ -113,6 +113,15 @@ class JitterBufferTest {
     }
 
     @Test
+    fun `only capacity overflow results disrupt delivery`() {
+        assertTrue(JitterBuffer.AddResult.AcceptedAfterDroppingOldest.indicatesOverflow())
+        assertTrue(JitterBuffer.AddResult.DroppedOverflow.indicatesOverflow())
+        assertFalse(JitterBuffer.AddResult.Accepted.indicatesOverflow())
+        assertFalse(JitterBuffer.AddResult.DroppedDuplicate.indicatesOverflow())
+        assertFalse(JitterBuffer.AddResult.DroppedLate.indicatesOverflow())
+    }
+
+    @Test
     fun `stable arrivals keep base target`() {
         val buffer = JitterBuffer()
         repeat(20) { index ->
