@@ -34,7 +34,7 @@ cloud service, or project-operated server.
 
 The app guides first-time pairing and can remember trusted child devices for
 later sessions. Connection alternatives and detailed setup instructions are in
-the [user guide](docs/user-guide.md).
+the [user guide](https://openbabyphone.org/user-guide/).
 
 ## Scope And Safety
 
@@ -75,13 +75,20 @@ See the [security policy](SECURITY.md) for the technical security model and the
 
 | Topic | Documentation |
 |---|---|
-| Setup, connection options, and everyday use | [User guide](docs/user-guide.md) |
+| Setup, connection options, and everyday use | [User guide](https://openbabyphone.org/user-guide/) |
 | Privacy | [Privacy policy](privacy-policy.md) |
 | Security model and reporting | [Security policy](SECURITY.md) |
 | Development and release signing | [Contributing guide](CONTRIBUTING.md) |
 | Automated and real-device testing | [Testing guide](docs/testing.md) |
 | Strategic and operational roadmap | [Open Babyphone Roadmap](https://github.com/digitalesIch/open-babyphone/projects) |
 | Published changes | [GitHub releases](https://github.com/digitalesIch/open-babyphone/releases) and [NEWS](NEWS) |
+
+Build or preview the documentation locally with MkDocs Material:
+
+```shell
+python -m pip install --requirement requirements-docs.txt
+mkdocs serve
+```
 
 ## Contributing
 

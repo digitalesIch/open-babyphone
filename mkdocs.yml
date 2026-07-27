@@ -1,0 +1,63 @@
+site_name: Open Babyphone Documentation
+site_description: Setup, connection, privacy, security, and testing documentation for Open Babyphone.
+site_url: https://openbabyphone.org/
+repo_url: https://github.com/digitalesIch/open-babyphone
+repo_name: digitalesIch/open-babyphone
+edit_uri: edit/main/docs/
+
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+  language: en
+  logo: logo.svg
+  favicon: logo.svg
+  features:
+    - content.action.edit
+    - navigation.footer
+    - navigation.top
+    - search.highlight
+    - search.suggest
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+nav:
+  - User guide: user-guide.md
+  - Privacy policy: privacy.md
+  - Security policy: security.md
+  - Testing: testing.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - pymdownx.details
+  - pymdownx.snippets:
+      base_path:
+        - .
+      check_paths: true
+  - pymdownx.superfences
+  - tables
+
+plugins:
+  - search
+
+extra_css:
+  - stylesheets/extra.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/digitalesIch/open-babyphone
+      name: Open Babyphone on GitHub
+
+copyright: Open Babyphone is licensed under GPLv3.

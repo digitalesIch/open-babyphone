@@ -112,6 +112,6 @@ Wi-Fi Direct, or manual address entry on a trusted network.
 Open Babyphone is intended for local audio monitoring and is not a medical or
 safety-certified device. It is not a replacement for responsible supervision.
 
-Read the [privacy policy](../privacy-policy.md) and
-[security policy](../SECURITY.md) for the current data-handling and security
+Read the [privacy policy](privacy.md) and
+[security policy](security.md) for the current data-handling and security
 model.

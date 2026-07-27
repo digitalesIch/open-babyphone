@@ -1,0 +1,16 @@
+:root {
+  --md-primary-fg-color: #101827;
+  --md-primary-fg-color--light: #1c2b46;
+  --md-primary-fg-color--dark: #080b12;
+  --md-accent-fg-color: #087f6b;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #101827;
+  --md-accent-fg-color: #5ff2d2;
+  --md-typeset-a-color: #5da8ff;
+}
+
+.md-header {
+  background-image: linear-gradient(90deg, #101827, #172947);
+}
