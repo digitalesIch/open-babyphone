@@ -8,12 +8,13 @@ import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assert
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.material3.Text
@@ -90,15 +91,15 @@ class MonitorScreenTest {
             permissionRequester = { permission, result ->
                 requestedPermissions += permission
                 result(false)
-            }
+            },
+            notificationWarningChecker = { true }
         )
 
         composeTestRule.onNodeWithTag("start_monitoring_button").performClick()
-        composeTestRule.onNodeWithText("Close").performClick()
 
         assertEquals(listOf(Manifest.permission.POST_NOTIFICATIONS), requestedPermissions)
         composeTestRule.onNodeWithTag("monitoring_hero").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Notifications are off").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Notifications are off").performScrollTo().assertIsDisplayed()
         composeTestRule.onAllNodesWithTag("monitor_issue_banner").assertCountEquals(1)
     }
 

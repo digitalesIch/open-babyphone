@@ -1,15 +1,19 @@
 package org.openbabyphone
 
 import android.os.SystemClock
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 class ReconnectWakeSignal {
-    private val lock = Object()
+    private val lock = ReentrantLock()
+    private val signaled = lock.newCondition()
     private var generation = 0
 
     fun signal() {
-        synchronized(lock) {
+        lock.withLock {
             generation++
-            lock.notifyAll()
+            signaled.signalAll()
         }
     }
 
@@ -17,13 +21,13 @@ class ReconnectWakeSignal {
     fun waitFor(delayMs: Long, keepWaiting: () -> Boolean = { true }): Boolean {
         if (delayMs <= 0) return false
 
-        synchronized(lock) {
+        lock.withLock {
             val observedGeneration = generation
             val deadline = SystemClock.elapsedRealtime() + delayMs
             var remaining = delayMs
 
             while (keepWaiting() && observedGeneration == generation && remaining > 0) {
-                lock.wait(remaining)
+                signaled.await(remaining, TimeUnit.MILLISECONDS)
                 remaining = deadline - SystemClock.elapsedRealtime()
             }
 

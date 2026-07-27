@@ -8,7 +8,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assert
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -157,8 +158,12 @@ class SettingsScreenTest {
         composeTestRule.onNodeWithText("technical-pairing-id").assertDoesNotExist()
         composeTestRule.onNodeWithText("192.0.2.10").assertDoesNotExist()
         composeTestRule.onNodeWithText("12345").assertDoesNotExist()
-        composeTestRule.onNodeWithTag("forget_child_0").performClick()
+        composeTestRule.onNodeWithTag("forget_child_0").performScrollTo().performClick()
         assertEquals(1, store.getAll().size)
+        composeTestRule.waitUntil(5_000) {
+            composeTestRule.onAllNodesWithTag("confirm_forget_child")
+                .fetchSemanticsNodes().size == 1
+        }
         composeTestRule.onNodeWithTag("confirm_forget_child").performClick()
 
         assertTrue(store.getAll().isEmpty())
@@ -170,13 +175,17 @@ class SettingsScreenTest {
         val opened = mutableListOf<String>()
         setSettingsContent(externalLinkOpener = { _, url -> opened += url; true })
 
-        composeTestRule.onNodeWithTag("privacy_policy_link").performScrollTo().performClick()
-        composeTestRule.onNodeWithTag("source_code_link").performClick()
-        composeTestRule.onNodeWithTag("license_link").performClick()
-        composeTestRule.onNodeWithTag("notices_link").performClick()
-        composeTestRule.onNodeWithTag("support_link").performClick()
+        listOf(
+            "privacy_policy_link",
+            "source_code_link",
+            "license_link",
+            "notices_link",
+            "support_link"
+        ).forEach { tag ->
+            composeTestRule.onNodeWithTag(tag).performScrollTo().performClick()
+        }
+        composeTestRule.runOnIdle { assertEquals(5, opened.size) }
 
-        assertEquals(5, opened.size)
         assertTrue(opened.all { it.startsWith("https://github.com/digitalesIch/open-babyphone") })
         assertTrue(opened.any { it.endsWith("privacy-policy.md") })
         assertTrue(opened.any { it.endsWith("/LICENSE") })

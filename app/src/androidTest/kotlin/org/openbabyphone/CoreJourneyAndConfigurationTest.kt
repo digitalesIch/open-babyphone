@@ -17,7 +17,7 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -316,7 +316,7 @@ class CoreJourneyAndConfigurationTest {
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
 
         composeTestRule.runOnIdle { screen = 3 }
-        composeTestRule.onNodeWithTag("audio_freshness")
+        composeTestRule.onNodeWithTag("audio_signal_indicator")
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Quiet"))
         val liveNodes = composeTestRule.onAllNodes(
             SemanticsMatcher.keyIsDefined(SemanticsProperties.LiveRegion),
@@ -325,7 +325,7 @@ class CoreJourneyAndConfigurationTest {
         assertEquals(0, liveNodes.size)
         composeTestRule.onNodeWithTag("listen_state_hero", useUnmergedTree = true)
             .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.LiveRegion))
-        composeTestRule.onNodeWithTag("audio_freshness", useUnmergedTree = true)
+        composeTestRule.onNodeWithTag("audio_signal_indicator", useUnmergedTree = true)
             .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.LiveRegion))
         composeTestRule.onNodeWithTag("disconnect_button")
             .assert(hasAnyAncestor(hasTestTag("listen_state_hero")))

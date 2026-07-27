@@ -3,12 +3,8 @@ package org.openbabyphone
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -23,20 +19,6 @@ import org.openbabyphone.service.ListenServiceRepository
 import org.openbabyphone.service.MonitorServiceRepository
 import org.openbabyphone.service.MonitorSessionState
 import org.openbabyphone.service.ServiceConnectionManager
-import org.openbabyphone.ui.theme.QuietEngineTheme
-
-object SessionLifecycleTestHost {
-    var content: @Composable () -> Unit = {}
-}
-
-class SessionLifecycleTestActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent {
-            QuietEngineTheme { SessionLifecycleTestHost.content() }
-        }
-    }
-}
 
 @RunWith(AndroidJUnit4::class)
 class SessionLifecycleRecreationTest {

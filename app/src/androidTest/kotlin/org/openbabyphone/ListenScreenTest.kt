@@ -17,7 +17,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -117,7 +117,7 @@ class ListenScreenTest {
         composeTestRule.onNodeWithText("Retry").assertIsDisplayed()
 
         composeTestRule.runOnIdle { state = errorState(ListenSessionError.Authentication) }
-        composeTestRule.onNodeWithText("Pair again").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("listen_primary_action").assertIsDisplayed()
 
         composeTestRule.runOnIdle { state = errorState(ListenSessionError.CredentialStorage) }
         composeTestRule.onNodeWithText("Could not save pairing").assertIsDisplayed()
@@ -375,14 +375,14 @@ class ListenScreenTest {
         }
         composeTestRule.onNodeWithTag("listen_state_hero", useUnmergedTree = true)
             .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.LiveRegion))
-        composeTestRule.onNodeWithTag("audio_freshness", useUnmergedTree = true)
+        composeTestRule.onNodeWithTag("audio_signal_indicator", useUnmergedTree = true)
             .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.LiveRegion))
 
         composeTestRule.runOnIdle { notice = ListenReadinessNotice.ConnectionAlertsDisabled }
 
         composeTestRule.onNodeWithTag("listen_readiness_notice", useUnmergedTree = true)
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
-        composeTestRule.onNodeWithTag("audio_freshness", useUnmergedTree = true)
+        composeTestRule.onNodeWithTag("audio_signal_indicator", useUnmergedTree = true)
             .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.LiveRegion))
     }
 

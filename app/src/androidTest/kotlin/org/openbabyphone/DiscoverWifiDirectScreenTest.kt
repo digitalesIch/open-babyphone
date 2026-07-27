@@ -2,10 +2,13 @@ package org.openbabyphone
 
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
@@ -44,15 +47,35 @@ class DiscoverWifiDirectScreenTest {
 
     @Test
     fun progressConnectingAndError_eachExposeCancelAndSinglePresentation() {
-        listOf(
+        var state by mutableStateOf<WifiDirectState>(WifiDirectState.Starting)
+        composeTestRule.setContent {
+            QuietEngineTheme {
+                WifiDirectParentContent(
+                    uiState = WifiDirectParentUiState(wifiDirectState = state),
+                    credentialState = PendingCredentialState.None,
+                    permissionDenied = false,
+                    permissionPermanentlyDenied = false,
+                    onTry = {},
+                    onRetry = {},
+                    onCancel = {},
+                    onUseRegularWifi = {},
+                    onPairAgain = {},
+                    onOpenAppSettings = {},
+                    onPairingCodeChange = {},
+                    onConnect = {}
+                )
+            }
+        }
+
+        listOf<WifiDirectState>(
             WifiDirectState.Starting,
             WifiDirectState.Discovering(emptyList()),
             WifiDirectState.Connecting(peer()),
             WifiDirectState.Connected(WifiDirectEndpoint("child", 10000, "Nursery")),
             WifiDirectState.Advertising,
             WifiDirectState.Error("failed")
-        ).forEach { state ->
-            setWifiContent(state)
+        ).forEach { nextState ->
+            composeTestRule.runOnIdle { state = nextState }
             composeTestRule.onAllNodesWithTag("wifi_direct_state_presentation").assertCountEquals(1)
             composeTestRule.onNodeWithTag("wifi_direct_cancel").assertIsDisplayed()
         }
@@ -125,7 +148,7 @@ class DiscoverWifiDirectScreenTest {
                 )
             }
         }
-        composeTestRule.onAllNodesWithText("Wi-Fi Direct (experimental)").assertCountEquals(1)
+        composeTestRule.onAllNodesWithText("Wi-Fi Direct: Experimental").assertCountEquals(1)
         composeTestRule.onNodeWithTag("wifi_direct_try").assertIsDisplayed()
 
         composeTestRule.runOnIdle { PendingConnections.store.remove(requestId) }

@@ -5,8 +5,10 @@ import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.net.wifi.WifiManager
+import android.os.Build
 import android.os.SystemClock
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
@@ -117,6 +119,7 @@ class DiscoverViewModel @JvmOverloads constructor(
     val uiState: StateFlow<DiscoverUiState> = _uiState.asStateFlow()
 
     private var nsdManager: NsdManager? = null
+    private var serviceInfoResolver: Api34ServiceInfoResolver? = null
     private var discoveryListener: NsdManager.DiscoveryListener? = null
     private var multicastLock: WifiManager.MulticastLock? = null
     private val discoveredDevices = mutableListOf<DiscoveredDevice>()
@@ -300,6 +303,12 @@ class DiscoverViewModel @JvmOverloads constructor(
         if (_uiState.value.isDiscovering) return
         val context = getApplication<Application>()
         nsdManager = context.getSystemService(Context.NSD_SERVICE) as NsdManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            serviceInfoResolver = Api34ServiceInfoResolver(
+                requireNotNull(nsdManager),
+                context.mainExecutor
+            )
+        }
         val wifi = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         multicastLock = wifi.createMulticastLock("openBabyphoneDiscovery").apply {
             setReferenceCounted(false)
@@ -366,6 +375,10 @@ class DiscoverViewModel @JvmOverloads constructor(
         discoveryGeneration++
         resolveQueue.clear()
         isResolving = false
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            serviceInfoResolver?.close()
+        }
+        serviceInfoResolver = null
         val listener = discoveryListener
         discoveryListener = null
         if (listener != null) {
@@ -380,10 +393,18 @@ class DiscoverViewModel @JvmOverloads constructor(
     }
 
     private fun resolveService(service: NsdServiceInfo, generation: Int) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            serviceInfoResolver?.resolve(service) { serviceInfo, hostAddress ->
+                recordResolvedService(serviceInfo, hostAddress, generation)
+            }
+            return
+        }
+
         resolveQueue.add(service)
         processResolveQueue(generation)
     }
 
+    @Suppress("DEPRECATION")
     private fun processResolveQueue(generation: Int) {
         if (isResolving || generation != discoveryGeneration) return
         val service = resolveQueue.poll() ?: return
@@ -394,31 +415,35 @@ class DiscoverViewModel @JvmOverloads constructor(
             }
 
             override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
-                if (generation == discoveryGeneration) {
-                    val hostAddress = serviceInfo.host?.hostAddress
-                    if (hostAddress != null) {
-                        val txtMap = serviceInfo.attributes
-                        recordResolvedDevice(
-                            DiscoveredDevice(
-                                name = serviceInfo.serviceName
-                                    .replace("\\\\032", " ")
-                                    .replace("\\032", " "),
-                                address = hostAddress,
-                                port = serviceInfo.port,
-                                childId = txtMap?.get(ConnectionConstants.NSD_TXT_CHILD_ID)
-                                    ?.let { String(it, Charsets.UTF_8) },
-                                pairingId = txtMap?.get(ConnectionConstants.NSD_TXT_PAIRING_ID)
-                                    ?.let { String(it, Charsets.UTF_8) },
-                                displayName = txtMap?.get(ConnectionConstants.NSD_TXT_NAME)
-                                    ?.let { String(it, Charsets.UTF_8) }
-                            )
-                        )
-                    }
-                }
+                recordResolvedService(serviceInfo, serviceInfo.host?.hostAddress, generation)
                 finishResolve(generation)
             }
         }
         nsdManager?.resolveService(service, resolver)
+    }
+
+    private fun recordResolvedService(
+        serviceInfo: NsdServiceInfo,
+        hostAddress: String?,
+        generation: Int
+    ) {
+        if (generation != discoveryGeneration || hostAddress == null) return
+        val txtMap = serviceInfo.attributes
+        recordResolvedDevice(
+            DiscoveredDevice(
+                name = serviceInfo.serviceName
+                    .replace("\\\\032", " ")
+                    .replace("\\032", " "),
+                address = hostAddress,
+                port = serviceInfo.port,
+                childId = txtMap?.get(ConnectionConstants.NSD_TXT_CHILD_ID)
+                    ?.let { String(it, Charsets.UTF_8) },
+                pairingId = txtMap?.get(ConnectionConstants.NSD_TXT_PAIRING_ID)
+                    ?.let { String(it, Charsets.UTF_8) },
+                displayName = txtMap?.get(ConnectionConstants.NSD_TXT_NAME)
+                    ?.let { String(it, Charsets.UTF_8) }
+            )
+        )
     }
 
     private fun finishResolve(generation: Int) {
@@ -525,6 +550,59 @@ internal fun knownChildRows(
         },
         device = device?.takeIf { it.pairingId == child.pairingId }
     )
+}
+
+@RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+private class Api34ServiceInfoResolver(
+    private val nsdManager: NsdManager,
+    private val executor: java.util.concurrent.Executor
+) {
+    private val callbacks = mutableSetOf<NsdManager.ServiceInfoCallback>()
+
+    fun resolve(
+        service: NsdServiceInfo,
+        onResolved: (NsdServiceInfo, String?) -> Unit
+    ) {
+        val callback = object : NsdManager.ServiceInfoCallback {
+            override fun onServiceInfoCallbackRegistrationFailed(errorCode: Int) {
+                callbacks.remove(this)
+            }
+
+            override fun onServiceUpdated(serviceInfo: NsdServiceInfo) {
+                onResolved(serviceInfo, serviceInfo.hostAddresses.firstOrNull()?.hostAddress)
+                unregister(this)
+            }
+
+            override fun onServiceLost() {
+                unregister(this)
+            }
+
+            override fun onServiceInfoCallbackUnregistered() {
+                callbacks.remove(this)
+            }
+        }
+        callbacks.add(callback)
+        try {
+            nsdManager.registerServiceInfoCallback(service, executor, callback)
+        } catch (exception: RuntimeException) {
+            callbacks.remove(callback)
+            Log.d("DiscoverViewModel", "Failed to resolve service", exception)
+        }
+    }
+
+    fun close() {
+        callbacks.toList().forEach(::unregister)
+        callbacks.clear()
+    }
+
+    private fun unregister(callback: NsdManager.ServiceInfoCallback) {
+        if (!callbacks.remove(callback)) return
+        try {
+            nsdManager.unregisterServiceInfoCallback(callback)
+        } catch (exception: RuntimeException) {
+            Log.d("DiscoverViewModel", "Failed to stop resolving service", exception)
+        }
+    }
 }
 
 private inline fun <T> MutableList<T>.removeAllIndexedAfter(

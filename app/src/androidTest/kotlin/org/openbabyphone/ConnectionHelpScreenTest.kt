@@ -3,7 +3,7 @@ package org.openbabyphone
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -58,6 +58,7 @@ class ConnectionHelpScreenTest {
             )
         )
 
+        composeTestRule.onNodeWithTag("managed_child_0").performScrollTo()
         composeTestRule.onNodeWithText("Nursery").assertIsDisplayed()
         composeTestRule.onNodeWithText("Try last known connection").assertIsDisplayed()
         composeTestRule.onNodeWithText("Forget").assertIsDisplayed()

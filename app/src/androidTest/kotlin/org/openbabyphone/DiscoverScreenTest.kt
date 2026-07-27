@@ -6,7 +6,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -66,7 +66,7 @@ class DiscoverScreenTest {
         composeTestRule.onNodeWithText("Nursery").assertIsDisplayed()
         composeTestRule.onNodeWithText("Available").assertIsDisplayed()
         composeTestRule.onNodeWithText("Not found").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Pair again").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Pair again").assertCountEquals(2)
         composeTestRule.onNodeWithTag("known_child_action_1").assertIsNotEnabled()
         composeTestRule.onAllNodesWithText("raw-child-id-1").assertCountEquals(0)
         composeTestRule.onAllNodesWithText("last-known-host").assertCountEquals(0)
