@@ -250,6 +250,10 @@ walkthrough. Other scenarios are risk-based or opportunistic.
 | 38 | App backgrounded on parent | Stream continues, foreground service active |
 | 39 | Child app removed from recents while monitoring | Stream continues or stops with a clear parent alert |
 | 40 | Parent app removed from recents while listening | Playback continues or the foreground service stops cleanly |
+| 41 | Activity recreated during child monitoring | Monitor screen returns and the service is not restarted or stopped |
+| 42 | Activity recreated during parent listening | Listen screen returns and attaches without restarting or stopping the service |
+| 43 | Tap each ongoing notification from another app screen | The matching active Monitor or Listen screen opens |
+| 44 | Use toolbar Back, system Back, and Disconnect during listening | Each asks for confirmation; Cancel keeps audio running and confirm stops it |
 
 For scenarios 39 and 40 on Android 12+, also kill the process without force-stop
 and record whether Android redelivers the original service command. Verify that

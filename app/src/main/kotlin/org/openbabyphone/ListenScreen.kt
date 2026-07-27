@@ -28,12 +28,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -69,6 +71,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.delay
 import org.openbabyphone.service.ListenSessionState
 import org.openbabyphone.service.ServiceConnectionManager
+import org.openbabyphone.service.isAuthoritativelyActive
 import org.openbabyphone.ui.theme.Spacing
 import org.openbabyphone.viewmodel.ListenPrimaryAction
 import org.openbabyphone.viewmodel.ListenUiState
@@ -124,6 +127,7 @@ fun ListenScreen(
     }
     var currentReadiness by remember { mutableStateOf(readinessStatus(context)) }
     var serviceBinding by remember { mutableStateOf<ServiceConnectionManager.ServiceBinding?>(null) }
+    var showDisconnectDialog by rememberSaveable { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -144,8 +148,15 @@ fun ListenScreen(
         navigate()
     }
     val disconnect: () -> Unit = { stopAndNavigate(true, onNavigateBack) }
+    val requestDisconnect: () -> Unit = {
+        if (uiState.sessionState.isAuthoritativelyActive()) {
+            showDisconnectDialog = true
+        } else {
+            disconnect()
+        }
+    }
 
-    BackHandler { disconnect() }
+    BackHandler { requestDisconnect() }
 
     DisposableEffect(
         requestId,
@@ -164,7 +175,7 @@ fun ListenScreen(
                 requestId,
                 expectedChildId,
                 expectedPairingId,
-                resumeOnly
+                resumeOnly && retryToken == 0
             )
             serviceBinding = binding
             onDispose {
@@ -211,7 +222,7 @@ fun ListenScreen(
 
     val childName = uiState.childDeviceName.ifBlank { fallbackName }
     Scaffold(
-        topBar = { AppTopAppBar(childName, disconnect) }
+        topBar = { AppTopAppBar(childName, requestDisconnect) }
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -232,10 +243,37 @@ fun ListenScreen(
                     }
                 },
                 onOpenNotificationSettings = { openNotificationSettings(context) },
-                onDisconnect = disconnect,
+                onDisconnect = requestDisconnect,
                 modifier = modifier
             )
         }
+    }
+
+    if (showDisconnectDialog) {
+        AlertDialog(
+            onDismissRequest = { showDisconnectDialog = false },
+            title = { Text(stringResource(R.string.disconnect)) },
+            text = { Text(stringResource(R.string.disconnect_confirmation)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDisconnectDialog = false
+                        disconnect()
+                    },
+                    modifier = Modifier.testTag("confirm_disconnect")
+                ) {
+                    Text(stringResource(R.string.disconnect))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDisconnectDialog = false },
+                    modifier = Modifier.testTag("cancel_disconnect")
+                ) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
     }
 }
 

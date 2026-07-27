@@ -28,16 +28,23 @@ class ListenResumeActivity : Activity() {
         super.onCreate(savedInstanceState)
         val token = intent.getLongExtra(EXTRA_SESSION_TOKEN, INVALID_SESSION_TOKEN)
         val registered = ActiveListenSessionRegistry.resolve(token)
+        val fallbackIdentity = intent.expectedChildIdentity()
         val mainIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or
                 Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
-        val route = registered?.let { session ->
-            if (session.active && ListenServiceRepository.sessionState.value.isAuthoritativelyActive()) {
-                Listen(resumeOnly = true)
-            } else {
-                buildRetryRoute(session)
-            }
+        val route = if (registered?.active == true &&
+            ListenServiceRepository.sessionState.value.isAuthoritativelyActive()
+        ) {
+            val identity = registered.identity ?: fallbackIdentity
+            Listen(
+                requestId = registered.requestId.orEmpty(),
+                expectedChildId = identity?.childId.orEmpty(),
+                expectedPairingId = identity?.pairingId.orEmpty(),
+                resumeOnly = true
+            )
+        } else {
+            buildRetryRoute(registered?.requestId, registered?.identity ?: fallbackIdentity)
         }
         route?.let {
             mainIntent.putExtra(
@@ -49,16 +56,19 @@ class ListenResumeActivity : Activity() {
         finish()
     }
 
-    private fun buildRetryRoute(session: ActiveListenSessionRegistry.RouteSession): Listen? {
-        val existingRequest = session.requestId?.takeIf(PendingConnections.store::contains)
+    private fun buildRetryRoute(
+        sessionRequestId: String?,
+        identity: ExpectedChildIdentity?
+    ): Listen? {
+        val existingRequest = sessionRequestId?.takeIf(PendingConnections.store::contains)
         if (existingRequest != null) {
             return Listen(
                 requestId = existingRequest,
-                expectedChildId = session.identity?.childId.orEmpty(),
-                expectedPairingId = session.identity?.pairingId.orEmpty()
+                expectedChildId = identity?.childId.orEmpty(),
+                expectedPairingId = identity?.pairingId.orEmpty()
             )
         }
-        val identity = session.identity ?: return null
+        identity ?: return null
         val child = trustedChildStore().findById(identity.childId)
             ?.takeIf { it.pairingId == identity.pairingId }
             ?: return null
@@ -79,6 +89,24 @@ class ListenResumeActivity : Activity() {
 
     companion object {
         const val EXTRA_SESSION_TOKEN = "org.openbabyphone.extra.LISTEN_SESSION_TOKEN"
+        const val EXTRA_CHILD_ID = "org.openbabyphone.extra.LISTEN_CHILD_ID"
+        const val EXTRA_PAIRING_ID = "org.openbabyphone.extra.LISTEN_PAIRING_ID"
         private const val INVALID_SESSION_TOKEN = Long.MIN_VALUE
+
+        fun putExpectedIdentity(intent: Intent, identity: ExpectedChildIdentity?) {
+            identity ?: return
+            intent.putExtra(EXTRA_CHILD_ID, identity.childId)
+            intent.putExtra(EXTRA_PAIRING_ID, identity.pairingId)
+        }
+    }
+}
+
+private fun Intent.expectedChildIdentity(): ExpectedChildIdentity? {
+    val childId = getStringExtra(ListenResumeActivity.EXTRA_CHILD_ID).orEmpty()
+    val pairingId = getStringExtra(ListenResumeActivity.EXTRA_PAIRING_ID).orEmpty()
+    return if (childId.isNotBlank() && pairingId.isNotBlank()) {
+        ExpectedChildIdentity(childId, pairingId)
+    } else {
+        null
     }
 }

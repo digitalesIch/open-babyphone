@@ -34,6 +34,8 @@ internal object ServiceRecoveryNotifier {
         val intent = Intent(context, ListenResumeActivity::class.java).apply {
             sessionToken?.takeIf { it != Long.MIN_VALUE }
                 ?.let { putExtra(ListenResumeActivity.EXTRA_SESSION_TOKEN, it) }
+            val identity = sessionToken?.let(ActiveListenSessionRegistry::resolve)?.identity
+            ListenResumeActivity.putExpectedIdentity(this, identity)
         }
         notify(
             context,

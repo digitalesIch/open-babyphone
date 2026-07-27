@@ -167,17 +167,17 @@ class ListenScreenTest {
     }
 
     @Test
-    fun toolbarBackExplicitlyStopsNormalSession() {
-        assertBackStopsSession(resumeOnly = false, systemBack = false)
+    fun toolbarBackRequiresConfirmationForNormalSession() {
+        assertBackRequiresConfirmation(resumeOnly = false, systemBack = false)
     }
 
     @Test
-    fun systemBackExplicitlyStopsNotificationResumedSession() {
-        assertBackStopsSession(resumeOnly = true, systemBack = true)
+    fun systemBackRequiresConfirmationForNotificationResumedSession() {
+        assertBackRequiresConfirmation(resumeOnly = true, systemBack = true)
     }
 
     @Test
-    fun disconnectButtonExplicitlyStopsBeforeNavigating() {
+    fun disconnectButtonRequiresConfirmationBeforeStopping() {
         ListenServiceRepository.updateListening()
         var stopped = 0
         var navigated = 0
@@ -189,9 +189,34 @@ class ListenScreenTest {
         composeTestRule.onNodeWithTag("disconnect_button").performScrollTo().performClick()
 
         composeTestRule.runOnIdle {
+            assertEquals(0, stopped)
+            assertEquals(0, navigated)
+        }
+        composeTestRule.onNodeWithTag("confirm_disconnect").performClick()
+        composeTestRule.runOnIdle {
             assertEquals(1, stopped)
             assertEquals(1, navigated)
         }
+    }
+
+    @Test
+    fun cancellingDisconnectKeepsActiveSessionRunning() {
+        ListenServiceRepository.updateListening()
+        var stopped = 0
+        var navigated = 0
+        setListenScreen(
+            onNavigateBack = { navigated++ },
+            unbindAndStopService = { _, _ -> stopped++ }
+        )
+
+        composeTestRule.onNodeWithTag("disconnect_button").performScrollTo().performClick()
+        composeTestRule.onNodeWithTag("cancel_disconnect").performClick()
+
+        composeTestRule.runOnIdle {
+            assertEquals(0, stopped)
+            assertEquals(0, navigated)
+        }
+        composeTestRule.onNodeWithTag("confirm_disconnect").assertDoesNotExist()
     }
 
     @Test
@@ -212,6 +237,25 @@ class ListenScreenTest {
         composeTestRule.runOnIdle {
             assertEquals(2, bindCount)
             assertEquals(1, disposeCount)
+        }
+    }
+
+    @Test
+    fun retryFromResumeRouteCanRestartAServiceThatDiedBeforeBinding() {
+        ListenServiceRepository.updateError(ListenSessionError.Unreachable, "failed")
+        val resumeOnlyValues = mutableListOf<Boolean>()
+        setListenScreen(
+            resumeOnly = true,
+            bindListenService = { context, _, _, _, _, resumeOnly ->
+                resumeOnlyValues += resumeOnly
+                fakeBinding(context)
+            }
+        )
+
+        composeTestRule.onNodeWithText("Retry").performClick()
+
+        composeTestRule.runOnIdle {
+            assertEquals(listOf(true, false), resumeOnlyValues)
         }
     }
 
@@ -342,7 +386,7 @@ class ListenScreenTest {
             .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.LiveRegion))
     }
 
-    private fun assertBackStopsSession(resumeOnly: Boolean, systemBack: Boolean) {
+    private fun assertBackRequiresConfirmation(resumeOnly: Boolean, systemBack: Boolean) {
         ListenServiceRepository.updateListening()
         var stopped = 0
         var navigated = 0
@@ -360,6 +404,11 @@ class ListenScreenTest {
             composeTestRule.onNodeWithContentDescription("Back").performClick()
         }
 
+        composeTestRule.runOnIdle {
+            assertEquals(0, stopped)
+            assertEquals(0, navigated)
+        }
+        composeTestRule.onNodeWithTag("confirm_disconnect").performClick()
         composeTestRule.runOnIdle {
             assertEquals(1, stopped)
             assertEquals(1, navigated)

@@ -20,6 +20,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.openbabyphone.navigation.Discover
+import org.openbabyphone.navigation.Listen
 import org.openbabyphone.navigation.Monitor
 import org.openbabyphone.navigation.Start
 import org.openbabyphone.ui.theme.QuietEngineTheme
@@ -56,6 +57,45 @@ class AppNavigationTest {
         }
     }
 
+    @Test
+    fun confirmedDisconnectFromRootListenReplacesItWithDiscover() {
+        lateinit var navController: NavHostController
+        setNavigationContent(Listen()) { navController = it }
+
+        composeTestRule.onNodeWithTag("confirmed_disconnect").performClick()
+
+        composeTestRule.onNodeWithText("Discover destination").assertIsDisplayed()
+        composeTestRule.runOnIdle { assertFalse(navController.popBackStack()) }
+    }
+
+    @Test
+    fun notificationResumeReplacesExistingListenDestination() {
+        lateinit var navController: NavHostController
+        setNavigationContent(Discover) { navController = it }
+        composeTestRule.runOnIdle {
+            navController.navigate(Listen(requestId = "first"))
+            navigateToInternalListen(navController, Listen(resumeOnly = true))
+        }
+
+        composeTestRule.onNodeWithTag("confirmed_disconnect").performClick()
+
+        composeTestRule.onNodeWithText("Discover destination").assertIsDisplayed()
+        composeTestRule.runOnIdle { assertFalse(navController.popBackStack()) }
+    }
+
+    @Test
+    fun activeMonitorNotificationReturnsToExistingMonitorWithoutStackingIt() {
+        lateinit var navController: NavHostController
+        setNavigationContent(Monitor) { navController = it }
+        composeTestRule.runOnIdle {
+            navController.navigate(Discover)
+            navigateToActiveMonitor(navController)
+        }
+
+        composeTestRule.onNodeWithText("Monitor destination").assertIsDisplayed()
+        composeTestRule.runOnIdle { assertFalse(navController.popBackStack()) }
+    }
+
     private fun setNavigationContent(
         startDestination: Any,
         onController: (NavHostController) -> Unit
@@ -81,6 +121,14 @@ class AppNavigationTest {
                         }
                     }
                     composable<Discover> { Text("Discover destination") }
+                    composable<Listen> {
+                        TextButton(
+                            onClick = { navigateFromStoppedListen(navController) },
+                            modifier = Modifier.testTag("confirmed_disconnect")
+                        ) {
+                            Text("Confirmed disconnect")
+                        }
+                    }
                 }
             }
         }

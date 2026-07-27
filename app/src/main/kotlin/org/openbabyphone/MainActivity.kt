@@ -36,6 +36,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavHostController
 import androidx.navigation.toRoute
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.MutableSharedFlow
 import org.openbabyphone.navigation.Discover
 import org.openbabyphone.navigation.DiscoverAddress
@@ -59,10 +60,12 @@ val LocalWindowWidthSizeClass = staticCompositionLocalOf {
 
 class MainActivity : ComponentActivity() {
     private val internalRoutes = MutableSharedFlow<Listen>(extraBufferCapacity = 1)
+    private val monitorRoutes = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (intent.action == ACTION_RESUME_MONITOR) monitorRoutes.tryEmit(Unit)
         internalListenRoute(intent)?.let(internalRoutes::tryEmit)
     }
 
@@ -72,6 +75,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val requestedRoute = internalListenRoute(intent)
+        val requestedMonitor = intent.action == ACTION_RESUME_MONITOR
         setContent {
             var themeMode by remember { mutableStateOf(ThemePreferences.read(this@MainActivity)) }
             QuietEngineTheme(darkTheme = themeMode.useDarkTheme(isSystemInDarkTheme())) {
@@ -82,7 +86,9 @@ class MainActivity : ComponentActivity() {
                     val windowSizeClass = calculateWindowSizeClass(this@MainActivity)
                     val navController = rememberNavController()
                     val startDestination = remember {
-                        requestedRoute ?: when (
+                        requestedRoute ?: if (requestedMonitor) {
+                            Monitor
+                        } else when (
                             launcherDestination(
                                 MonitorServiceRepository.sessionState.value,
                                 ListenServiceRepository.sessionState.value
@@ -94,7 +100,29 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                     LaunchedEffect(navController) {
-                        internalRoutes.collect { navController.navigate(it) }
+                        internalRoutes.collect { navigateToInternalListen(navController, it) }
+                    }
+                    LaunchedEffect(navController) {
+                        monitorRoutes.collect { navigateToActiveMonitor(navController) }
+                    }
+                    LaunchedEffect(navController) {
+                        combine(
+                            MonitorServiceRepository.sessionState,
+                            ListenServiceRepository.sessionState
+                        ) { monitorState, listenState ->
+                            launcherDestination(monitorState, listenState)
+                        }.collect { destination ->
+                            if (navController.currentDestination?.route == Start::class.qualifiedName) {
+                                when (destination) {
+                                    LauncherDestination.Start -> Unit
+                                    LauncherDestination.Monitor -> navigateToActiveMonitor(navController)
+                                    LauncherDestination.Listen -> navigateToInternalListen(
+                                        navController,
+                                        Listen(resumeOnly = true)
+                                    )
+                                }
+                            }
+                        }
                     }
 
                     androidx.compose.runtime.CompositionLocalProvider(
@@ -236,9 +264,7 @@ class MainActivity : ComponentActivity() {
                                     expectedChildId = route.expectedChildId,
                                     expectedPairingId = route.expectedPairingId,
                                     resumeOnly = route.resumeOnly,
-                                    onNavigateBack = {
-                                        if (!navController.popBackStack()) navController.navigate(Discover)
-                                    },
+                                    onNavigateBack = { navigateFromStoppedListen(navController) },
                                     onPairAgain = {
                                         navController.navigate(Discover) {
                                             popUpTo<Listen> { inclusive = true }
@@ -268,6 +294,7 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_INTERNAL_ROUTE_ID = "org.openbabyphone.extra.INTERNAL_LISTEN_ROUTE_ID"
+        const val ACTION_RESUME_MONITOR = "org.openbabyphone.action.RESUME_MONITOR"
     }
 }
 
@@ -277,5 +304,27 @@ internal fun navigateFromStoppedMonitor(navController: NavHostController) {
             popUpTo<Monitor> { inclusive = true }
             launchSingleTop = true
         }
+    }
+}
+
+internal fun navigateFromStoppedListen(navController: NavHostController) {
+    if (!navController.popBackStack()) {
+        navController.navigate(Discover) {
+            popUpTo<Listen> { inclusive = true }
+            launchSingleTop = true
+        }
+    }
+}
+
+internal fun navigateToInternalListen(navController: NavHostController, route: Listen) {
+    navController.navigate(route) {
+        popUpTo<Listen> { inclusive = true }
+        launchSingleTop = true
+    }
+}
+
+internal fun navigateToActiveMonitor(navController: NavHostController) {
+    if (!navController.popBackStack<Monitor>(inclusive = false)) {
+        navController.navigate(Monitor) { launchSingleTop = true }
     }
 }
