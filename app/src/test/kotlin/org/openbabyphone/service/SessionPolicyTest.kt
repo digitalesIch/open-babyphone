@@ -44,20 +44,6 @@ class SessionPolicyTest {
     }
 
     @Test
-    fun `monitor heartbeat requires user action after terminal microphone failure`() {
-        assertFalse(
-            MonitorSessionState.Error(MonitorSessionError.AudioCapture, "failed")
-                .allowsHeartbeatRecovery()
-        )
-        assertFalse(MonitorSessionState.Stopped.allowsHeartbeatRecovery())
-        assertTrue(MonitorSessionState.Setup.allowsHeartbeatRecovery())
-        assertTrue(
-            MonitorSessionState.Error(MonitorSessionError.Advertising, "failed")
-                .allowsHeartbeatRecovery()
-        )
-    }
-
-    @Test
     fun `listen policy excludes idle and terminal states`() {
         val activeStates = listOf(
             ListenSessionState.Connecting,
@@ -76,14 +62,4 @@ class SessionPolicyTest {
         inactiveStates.forEach { assertFalse("Expected $it to be inactive", it.isAuthoritativelyActive()) }
     }
 
-    @Test
-    fun `heartbeat never revives terminal listen states`() {
-        assertFalse(ListenSessionState.Lost.allowsHeartbeatRecovery())
-        assertFalse(
-            ListenSessionState.Error(ListenSessionError.Unreachable, "failed")
-                .allowsHeartbeatRecovery()
-        )
-        assertFalse(ListenSessionState.Stopped.allowsHeartbeatRecovery())
-        assertTrue(ListenSessionState.Idle.allowsHeartbeatRecovery())
-    }
 }

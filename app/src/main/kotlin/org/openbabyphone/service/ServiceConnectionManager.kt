@@ -8,7 +8,6 @@ import android.os.IBinder
 import androidx.core.content.ContextCompat
 import org.openbabyphone.ListenService
 import org.openbabyphone.MonitorService
-import org.openbabyphone.ServiceHeartbeatScheduler
 import org.openbabyphone.viewmodel.ListenViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -115,15 +114,39 @@ object ServiceConnectionManager {
         }
 
         var bound = if (resumeOnly) {
-            context.bindService(Intent(context, ListenService::class.java), connection, 0)
+            try {
+                context.bindService(Intent(context, ListenService::class.java), connection, 0)
+            } catch (exception: RuntimeException) {
+                false
+            }
         } else {
             false
         }
         val validExpectedIdentity = expectedChildId.isBlank() == expectedPairingId.isBlank()
         val validConnection = (requestId.isNotBlank() || expectedChildId.isNotBlank()) && validExpectedIdentity
         if (!bound && validConnection) {
-            ContextCompat.startForegroundService(context, intent)
-            bound = context.bindService(intent, connection, Context.BIND_AUTO_CREATE)
+            val started = try {
+                ContextCompat.startForegroundService(context, intent)
+                true
+            } catch (exception: RuntimeException) {
+                publishListenStartupFailure(context)
+                false
+            }
+            if (started) {
+                bound = try {
+                    context.bindService(intent, connection, Context.BIND_AUTO_CREATE)
+                } catch (exception: RuntimeException) {
+                    false
+                }
+                if (!bound) {
+                    try {
+                        context.stopService(intent)
+                    } catch (exception: RuntimeException) {
+                        // The failed bind may mean there is no service to stop.
+                    }
+                    publishListenStartupFailure(context)
+                }
+            }
         }
         return ServiceBinding(
             intent = intent,
@@ -138,12 +161,10 @@ object ServiceConnectionManager {
     }
 
     fun stopMonitorService(context: Context) {
-        ServiceHeartbeatScheduler.cancelMonitor(context)
         context.stopService(Intent(context, MonitorService::class.java))
     }
 
     fun stopListenService(context: Context) {
-        ServiceHeartbeatScheduler.cancelListen(context)
         context.stopService(Intent(context, ListenService::class.java))
     }
 
@@ -151,6 +172,13 @@ object ServiceConnectionManager {
         MonitorServiceRepository.updateError(
             MonitorSessionError.Startup,
             context.getString(org.openbabyphone.R.string.monitoring_start_failed)
+        )
+    }
+
+    private fun publishListenStartupFailure(context: Context) {
+        ListenServiceRepository.updateError(
+            ListenSessionError.Unreachable,
+            context.getString(org.openbabyphone.R.string.disconnected)
         )
     }
 
@@ -162,10 +190,6 @@ object ServiceConnectionManager {
             } catch (e: IllegalArgumentException) {
                 // Service was already unbound.
             }
-        }
-        when (binding.intent.component?.className) {
-            MonitorService::class.java.name -> ServiceHeartbeatScheduler.cancelMonitor(context)
-            ListenService::class.java.name -> ServiceHeartbeatScheduler.cancelListen(context)
         }
         context.stopService(binding.intent)
     }

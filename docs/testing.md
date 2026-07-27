@@ -136,14 +136,15 @@ locks can increase battery drain and heat during overnight use, and the stream
 itself uses TCP unicast after NSD discovery completes. Parent discovery uses a
 short-lived multicast lock while searching for child devices.
 
-The scheduled service heartbeat is a best-effort health check, not a guarantee
-that Android will resurrect either foreground service. Android 12 and newer can
-reject background foreground-service starts, and microphone monitoring is also
-subject to the while-in-use permission restriction. The receiver contains these
-rejections, schedules another health check, and posts a user-action recovery
-notification. Trusted parent listening is retried when Android permits it; child
-microphone monitoring requires the user to reopen the app when Android blocks a
-background restart.
+The app does not schedule periodic alarms to restart either service. Android 12
+and newer can reject background foreground-service starts, and microphone
+monitoring is also subject to the while-in-use permission restriction. Both
+services use Android-managed `START_REDELIVER_INTENT` as best-effort process-death
+recovery. If a redelivered command cannot resume, the app stops the failed restart
+and posts one user-action recovery notification. Force-stop, reboot, the Android
+foreground-service Task Manager, and some OEM hard stops are not automatically
+reversed. Parent audio-delivery health and its connection-loss alert remain the
+fail-safe when child monitoring cannot recover.
 
 If any screen-off or overnight test below fails because Android suspends CPU,
 Wi-Fi, microphone capture, or playback, file a bug with device details and add
@@ -250,12 +251,13 @@ walkthrough. Other scenarios are risk-based or opportunistic.
 | 39 | Child app removed from recents while monitoring | Stream continues or stops with a clear parent alert |
 | 40 | Parent app removed from recents while listening | Playback continues or the foreground service stops cleanly |
 
-For scenarios 39 and 40 on Android 12+, also kill the process without force-stop and
-record whether the heartbeat start is accepted. If it is rejected, verify that
-the app does not crash or claim that monitoring resumed, that one recovery
-notification is posted, and that tapping it reaches the correct active-session
-resume or trusted retry flow. This behavior remains OEM- and device-policy-
-dependent and cannot be established by host-side tests.
+For scenarios 39 and 40 on Android 12+, also kill the process without force-stop
+and record whether Android redelivers the original service command. Verify that
+no periodic package alarm remains, an explicit in-app Stop does not redeliver,
+and a failed redelivery does not claim that monitoring resumed. It should post
+one recovery notification whose action reaches the correct active-session resume
+or trusted retry flow. This behavior remains OEM- and device-policy-dependent and
+cannot be established by host-side tests.
 
 ### Release Verification Checklist
 

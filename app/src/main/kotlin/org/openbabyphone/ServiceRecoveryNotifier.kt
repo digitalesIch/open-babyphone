@@ -44,6 +44,14 @@ internal object ServiceRecoveryNotifier {
         )
     }
 
+    fun cancelMonitorActionRequired(context: Context) {
+        notificationManager(context).cancel(MONITOR_NOTIFICATION_ID)
+    }
+
+    fun cancelListenActionRequired(context: Context) {
+        notificationManager(context).cancel(LISTEN_NOTIFICATION_ID)
+    }
+
     private fun notify(
         context: Context,
         id: Int,
@@ -51,7 +59,7 @@ internal object ServiceRecoveryNotifier {
         text: String,
         intent: Intent
     ) {
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val manager = notificationManager(context)
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
@@ -77,4 +85,7 @@ internal object ServiceRecoveryNotifier {
                 .build()
         )
     }
+
+    private fun notificationManager(context: Context): NotificationManager =
+        context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 }

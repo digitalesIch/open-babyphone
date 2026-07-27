@@ -26,12 +26,6 @@ fun MonitorSessionState.isAuthoritativelyActive(): Boolean = when (this) {
     MonitorSessionState.Stopped -> false
 }
 
-fun MonitorSessionState.allowsHeartbeatRecovery(): Boolean = when (this) {
-    is MonitorSessionState.Error -> type == MonitorSessionError.Advertising
-    MonitorSessionState.Stopped -> false
-    else -> true
-}
-
 fun ListenSessionState.isAuthoritativelyActive(): Boolean = when (this) {
     ListenSessionState.Connecting,
     ListenSessionState.Listening,
@@ -41,11 +35,4 @@ fun ListenSessionState.isAuthoritativelyActive(): Boolean = when (this) {
     ListenSessionState.Lost,
     is ListenSessionState.Error,
     ListenSessionState.Stopped -> false
-}
-
-fun ListenSessionState.allowsHeartbeatRecovery(): Boolean = when (this) {
-    ListenSessionState.Lost,
-    is ListenSessionState.Error,
-    ListenSessionState.Stopped -> false
-    else -> true
 }

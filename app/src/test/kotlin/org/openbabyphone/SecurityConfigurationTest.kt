@@ -62,6 +62,9 @@ class SecurityConfigurationTest {
         assertFalse(manifest.contains("quiet-engine"))
         assertTrue(manifest.contains("android:name=\".ListenResumeActivity\""))
         assertTrue(manifest.contains("android:exported=\"false\""))
+        assertFalse(manifest.contains("ServiceHeartbeatReceiver"))
+        assertTrue(manifest.contains("android:foregroundServiceType=\"microphone\""))
+        assertTrue(manifest.contains("android:foregroundServiceType=\"mediaPlayback\""))
     }
 
     @Test
