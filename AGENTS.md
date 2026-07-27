@@ -69,7 +69,7 @@
 
 ## Documentation Synchronization
 
-**Rule:** Whenever `README.md`, `CONTRIBUTING.md`, `NEWS`, or `ROADMAP.md` are modified, review this file for consistency.
+**Rule:** Whenever `README.md`, `docs/user-guide.md`, `CONTRIBUTING.md`, `NEWS`, or `ROADMAP.md` are modified, review this file for consistency.
 
 Specifically verify:
 - Version numbers (Gradle, AGP, Kotlin, JDK) match `build.gradle` and `gradle/wrapper/gradle-wrapper.properties`.
@@ -77,5 +77,6 @@ Specifically verify:
 - Claims about "stale" or "legacy" files match the current repository state.
 - Translation policy references the actual remaining `values-*/` directories.
 - Roadmap references point to the GitHub Project as the active roadmap, with `ROADMAP.md` treated as an archive.
+- User-facing setup and connection claims stay consistent between `README.md`, `docs/user-guide.md`, `privacy-policy.md`, and the app.
 
 This file describes the project shape for AI agents; it must not contradict user-facing documentation.
