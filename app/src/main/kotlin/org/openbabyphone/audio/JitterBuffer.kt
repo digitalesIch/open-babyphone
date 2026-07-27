@@ -225,3 +225,11 @@ internal class JitterBuffer {
         private const val MAX_FORWARD_DELTA = 0x7fff_ffffL
     }
 }
+
+internal fun JitterBuffer.AddResult.indicatesOverflow(): Boolean = when (this) {
+    JitterBuffer.AddResult.AcceptedAfterDroppingOldest,
+    JitterBuffer.AddResult.DroppedOverflow -> true
+    JitterBuffer.AddResult.Accepted,
+    JitterBuffer.AddResult.DroppedDuplicate,
+    JitterBuffer.AddResult.DroppedLate -> false
+}

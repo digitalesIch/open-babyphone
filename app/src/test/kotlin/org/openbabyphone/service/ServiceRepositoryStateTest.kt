@@ -30,12 +30,12 @@ class ServiceRepositoryStateTest {
     }
 
     @Test
-    fun `active disruption can advance to reconnecting`() {
+    fun `reconnect status cannot hide an active delivery disruption`() {
         ListenServiceRepository.updateDisrupted()
 
         ListenServiceRepository.updateReconnecting(2, 5)
 
-        assertEquals(ListenSessionState.Reconnecting(2, 5), ListenServiceRepository.sessionState.value)
+        assertEquals(ListenSessionState.Disrupted, ListenServiceRepository.sessionState.value)
     }
 
     @Test

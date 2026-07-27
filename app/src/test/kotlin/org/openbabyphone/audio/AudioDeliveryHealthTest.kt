@@ -94,6 +94,39 @@ class AudioDeliveryHealthTest {
     }
 
     @Test
+    fun `reconnect setup cannot postpone an armed delivery deadline`() {
+        var now = 1_000L
+        val health = AudioDeliveryHealth({ now })
+        assertEquals(true, health.armIfDisarmed())
+
+        now = 4_000L
+        assertEquals(false, health.armIfDisarmed())
+        now = 6_000L
+        assertEquals(AudioDeliveryStatus.Disrupted, health.status())
+
+        now = 9_000L
+        assertEquals(false, health.armIfDisarmed())
+        now = 11_000L
+        assertEquals(AudioDeliveryStatus.Lost, health.status())
+    }
+
+    @Test
+    fun `new session can arm again after explicit disarm`() {
+        var now = 1_000L
+        val health = AudioDeliveryHealth({ now })
+        health.armIfDisarmed()
+        now = 6_000L
+        assertEquals(AudioDeliveryStatus.Disrupted, health.status())
+
+        health.disarm()
+        assertEquals(true, health.armIfDisarmed())
+
+        assertEquals(AudioDeliveryStatus.AwaitingAudio, health.status())
+        now = 11_000L
+        assertEquals(AudioDeliveryStatus.Disrupted, health.status())
+    }
+
+    @Test
     fun `delivery while disarmed cannot publish healthy status`() {
         val health = AudioDeliveryHealth({ 1_000L })
 

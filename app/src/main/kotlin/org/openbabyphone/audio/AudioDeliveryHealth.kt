@@ -41,6 +41,15 @@ internal class AudioDeliveryHealth(
     }
 
     @Synchronized
+    fun armIfDisarmed(): Boolean {
+        if (armed) return false
+        lastDeliveryAt = elapsedRealtime()
+        hasDeliveredAudio = false
+        armed = true
+        return true
+    }
+
+    @Synchronized
     fun disarm() {
         armed = false
         hasDeliveredAudio = false
