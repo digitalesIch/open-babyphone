@@ -73,7 +73,6 @@ object ActiveListenSessionRegistry {
     }
 
     private fun stop(context: Context) {
-        ServiceHeartbeatScheduler.cancelListen(context)
         context.stopService(Intent(context, ListenService::class.java))
     }
 }

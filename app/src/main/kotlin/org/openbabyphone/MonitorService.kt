@@ -43,7 +43,6 @@ import org.openbabyphone.audio.FrameCodec
 import org.openbabyphone.service.MonitorServiceRepository
 import org.openbabyphone.service.MonitorSessionError
 import org.openbabyphone.service.MonitorSessionState
-import org.openbabyphone.service.allowsHeartbeatRecovery
 import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.ServerSocket
@@ -91,6 +90,7 @@ class MonitorService : Service() {
     private val sessionStateLock = Any()
     private val workerGeneration = WorkerGeneration()
     @Volatile private var activeWorkerClaim: WorkerClaim? = null
+    private val redeliveryTracker = ServiceRedeliveryTracker()
     @Volatile private var currentAudioRecord: AudioRecord? = null
 
     private var pairingCodeSnapshot: String = ""
@@ -306,6 +306,9 @@ class MonitorService : Service() {
                     }
                     if (failureType != null) break
                     if (capturedSamples != AudioFrameTiming.FRAME_SAMPLES) continue
+                    synchronized(sessionStateLock) {
+                        if (isWorkerActive(claim)) redeliveryTracker.markRecovered(claim)
+                    }
                     if (clientManager.getClientCount() == 0) continue
                     val gain = microphoneGain
                     if (gain > 1.0f) {
@@ -397,7 +400,7 @@ class MonitorService : Service() {
     }
 
     private fun handleAudioProducerFailure(type: MonitorSessionError, claim: WorkerClaim) {
-        synchronized(sessionStateLock) {
+        val recoveryRequired = synchronized(sessionStateLock) {
             if (!workerGeneration.isCurrent(claim)) return
             connectionToken = null
             MonitorServiceRepository.updateError(type, getString(R.string.microphone_unavailable))
@@ -406,12 +409,15 @@ class MonitorService : Service() {
             closeAuthenticatingSockets()
             unregisterService()
             currentSocket?.let(::closeServerSocket)
-            ServiceHeartbeatScheduler.cancelMonitor(this)
             try {
                 ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
             } finally {
                 stopSelfResult(claim.startId)
             }
+            redeliveryTracker.consumeFailure(claim)
+        }
+        if (recoveryRequired) {
+            ServiceRecoveryNotifier.notifyMonitorActionRequired(this)
         }
     }
 
@@ -429,23 +435,11 @@ class MonitorService : Service() {
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
         Log.i(TAG, "Received start id $startId")
-        val heartbeatRecovery = intent.getBooleanExtra(ServiceHeartbeatScheduler.EXTRA_HEARTBEAT, false)
-        if (heartbeatRecovery &&
-            !MonitorServiceRepository.sessionState.value.allowsHeartbeatRecovery()
-        ) {
-            ServiceHeartbeatScheduler.cancelMonitor(this)
-            stopSelfResult(startId)
-            return START_NOT_STICKY
-        }
-        if (heartbeatRecovery &&
-            monitorThread?.isAlive == true && activeWorkerClaim?.let(workerGeneration::isCurrent) == true
-        ) {
-            ServiceHeartbeatScheduler.scheduleMonitor(this)
-            return START_REDELIVER_INTENT
-        }
+        val redelivered = flags and START_FLAG_REDELIVERY != 0
         val claim = synchronized(sessionStateLock) {
             workerGeneration.claim(startId).also {
                 activeWorkerClaim = it
+                redeliveryTracker.record(it, redelivered)
                 connectionToken = null
                 isStreaming = false
             }
@@ -455,8 +449,7 @@ class MonitorService : Service() {
             startMonitoringCommand(claim)
         } catch (exception: RuntimeException) {
             handleStartupFailure(exception, claim)
-            if (heartbeatRecovery) {
-                ServiceHeartbeatScheduler.scheduleMonitor(this)
+            if (redelivered) {
                 ServiceRecoveryNotifier.notifyMonitorActionRequired(this)
             }
             START_NOT_STICKY
@@ -469,7 +462,7 @@ class MonitorService : Service() {
         createNotificationChannel()
         val n = buildNotification()
         ServiceCompat.startForeground(this, ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
-        ServiceHeartbeatScheduler.scheduleMonitor(this)
+        ServiceRecoveryNotifier.cancelMonitorActionRequired(this)
         clientManager.setClientCountListener { count ->
             val sessionActive = synchronized(sessionStateLock) {
                 if (!isWorkerActive(claim)) {
@@ -504,11 +497,11 @@ class MonitorService : Service() {
         synchronized(sessionStateLock) {
             if (!workerGeneration.isCurrent(claim)) return
             connectionToken = null
+            redeliveryTracker.clear()
             MonitorServiceRepository.updateError(
                 MonitorSessionError.Startup,
                 getString(R.string.monitoring_start_failed)
             )
-            ServiceHeartbeatScheduler.cancelMonitor(this)
             try {
                 ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
             } catch (stopException: RuntimeException) {
@@ -677,11 +670,14 @@ class MonitorService : Service() {
             }
         }
         if (!active) return
-        synchronized(sessionStateLock) {
+        val recoveryRequired = synchronized(sessionStateLock) {
             if (!workerGeneration.isCurrent(claim)) return
-            ServiceHeartbeatScheduler.cancelMonitor(this)
             ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
             stopSelfResult(claim.startId)
+            redeliveryTracker.consumeFailure(claim)
+        }
+        if (recoveryRequired) {
+            ServiceRecoveryNotifier.notifyMonitorActionRequired(this)
         }
     }
 
@@ -912,6 +908,7 @@ class MonitorService : Service() {
         synchronized(sessionStateLock) {
             workerGeneration.invalidate()
             activeWorkerClaim = null
+            redeliveryTracker.clear()
             connectionToken = null
         }
         retireSessionWorkers()

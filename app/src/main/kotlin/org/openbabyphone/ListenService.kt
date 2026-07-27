@@ -59,7 +59,6 @@ import org.openbabyphone.service.ListenSessionState
 import org.openbabyphone.service.TerminalConnectionFailure
 import org.openbabyphone.service.classifyTerminalConnectionFailure
 import org.openbabyphone.service.shouldConsumePendingConnection
-import org.openbabyphone.service.allowsHeartbeatRecovery
 import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.Socket
@@ -93,6 +92,7 @@ class ListenService : Service() {
     private val sessionStateLock = Any()
     private var terminalFailure = false
     private val workerGeneration = WorkerGeneration()
+    private val redeliveryTracker = ServiceRedeliveryTracker()
 
     private val monitoringAudioAttributes = AudioAttributes.Builder()
         .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -119,20 +119,11 @@ class ListenService : Service() {
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
         Log.i(TAG, "Received start id $startId")
-        if (intent.getBooleanExtra(ServiceHeartbeatScheduler.EXTRA_HEARTBEAT, false) && isRunning) {
-            ServiceHeartbeatScheduler.scheduleListen(this, intent, registeredSessionToken)
-            return START_REDELIVER_INTENT
-        }
-        if (intent.getBooleanExtra(ServiceHeartbeatScheduler.EXTRA_HEARTBEAT, false) &&
-            !ListenServiceRepository.sessionState.value.allowsHeartbeatRecovery()
-        ) {
-            ServiceHeartbeatScheduler.cancelListen(this)
-            stopSelfResult(startId)
-            return START_NOT_STICKY
-        }
+        val redelivered = flags and START_FLAG_REDELIVERY != 0
 
         val claim = synchronized(sessionStateLock) {
             workerGeneration.claim(startId).also {
+                redeliveryTracker.record(it, redelivered)
                 terminalFailure = false
                 isRunning = true
                 deliveryHealth.disarm()
@@ -144,52 +135,71 @@ class ListenService : Service() {
         stopListenThread()
         stopDeliveryHealthWatchdog()
 
-        createNotificationChannel()
-        notificationManager.cancel(ALERT_NOTIFICATION_ID)
-        val requestId = intent.getStringExtra("requestId").orEmpty()
-        val expectedChildId = intent.getStringExtra("expectedChildId").orEmpty()
-        val expectedPairingId = intent.getStringExtra("expectedPairingId").orEmpty()
-        val resolution = resolveConnection(requestId, expectedChildId, expectedPairingId)
-        val connection = (resolution as? ConnectionResolution.Available)?.connection
-        val name = connection?.name
-        childDeviceName = name
-        ListenServiceRepository.updateChildDeviceName(name ?: "")
-        activeRequestId = requestId.takeIf { it.isNotBlank() }
-        val resumableIdentity = when {
-            connection != null -> connection.expectedIdentity
-            expectedChildId.isNotBlank() && expectedPairingId.isNotBlank() ->
-                ExpectedChildIdentity(expectedChildId, expectedPairingId)
-            else -> null
-        }
-        registeredSessionToken = ActiveListenSessionRegistry.register(
-            resumableIdentity,
-            activeRequestId
-        )
-        if (BuildConfig.DEBUG) {
-            connection?.let { Log.d(TAG, "Connecting to ${it.address}:${it.port}") }
-        }
-        ListenServiceRepository.startConnecting(name ?: "")
-        val n = buildForegroundNotification(name)
-        ServiceCompat.startForeground(this, ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
-        ServiceHeartbeatScheduler.scheduleListen(this, intent, registeredSessionToken)
-        registerNetworkCallback()
-        if (connection == null) {
-            val error = if (resolution == ConnectionResolution.CredentialUnavailable) {
-                ListenSessionError.CredentialStorage
-            } else {
-                ListenSessionError.Unreachable
+        var connection: ListenConnection? = null
+        return try {
+            createNotificationChannel()
+            notificationManager.cancel(ALERT_NOTIFICATION_ID)
+            val requestId = intent.getStringExtra("requestId").orEmpty()
+            val expectedChildId = intent.getStringExtra("expectedChildId").orEmpty()
+            val expectedPairingId = intent.getStringExtra("expectedPairingId").orEmpty()
+            val resolution = resolveConnection(requestId, expectedChildId, expectedPairingId)
+            connection = (resolution as? ConnectionResolution.Available)?.connection
+            val name = connection?.name
+            childDeviceName = name
+            ListenServiceRepository.updateChildDeviceName(name ?: "")
+            activeRequestId = requestId.takeIf { it.isNotBlank() }
+            val resumableIdentity = when {
+                connection != null -> connection.expectedIdentity
+                expectedChildId.isNotBlank() && expectedPairingId.isNotBlank() ->
+                    ExpectedChildIdentity(expectedChildId, expectedPairingId)
+                else -> null
             }
-            handleTerminalFailure(error, claim)
-        } else {
-            doListen(connection, claim)
+            registeredSessionToken = ActiveListenSessionRegistry.register(
+                resumableIdentity,
+                activeRequestId
+            )
+            if (BuildConfig.DEBUG) {
+                connection?.let { Log.d(TAG, "Connecting to ${it.address}:${it.port}") }
+            }
+            ListenServiceRepository.startConnecting(name ?: "")
+            val notification = buildForegroundNotification(name)
+            ServiceCompat.startForeground(
+                this,
+                ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+            )
+            ServiceRecoveryNotifier.cancelListenActionRequired(this)
+            registerNetworkCallback()
+            if (connection == null) {
+                val error = if (resolution == ConnectionResolution.CredentialUnavailable) {
+                    ListenSessionError.CredentialStorage
+                } else {
+                    ListenSessionError.Unreachable
+                }
+                handleTerminalFailure(error, claim)
+                if (redelivered) {
+                    START_NOT_STICKY
+                } else {
+                    START_REDELIVER_INTENT
+                }
+            } else {
+                doListen(connection, claim)
+                START_REDELIVER_INTENT
+            }
+        } catch (exception: RuntimeException) {
+            connection?.pairingCode?.fill('\u0000')
+            Log.e(TAG, "Failed to start listening service", exception)
+            handleTerminalFailure(ListenSessionError.Unreachable, claim)
+            START_NOT_STICKY
         }
-        return START_REDELIVER_INTENT
     }
 
     override fun onDestroy() {
         isRunning = false
         synchronized(sessionStateLock) {
             workerGeneration.invalidate()
+            redeliveryTracker.clear()
             deliveryHealth.disarm()
         }
         unregisterNetworkCallback()
@@ -771,16 +781,22 @@ class ListenService : Service() {
                 isRunning = false
                 deliveryHealth.disarm()
                 publishState()
-                TerminalOwnership(registeredSessionToken, wifiDirectOwnershipToken)
+                TerminalOwnership(
+                    registeredSessionToken,
+                    wifiDirectOwnershipToken,
+                    redeliveryTracker.consumeFailure(claim)
+                )
             }
         }
         if (terminalOwnership == null) return
 
         ActiveListenSessionRegistry.markInactive(terminalOwnership.sessionToken)
+        if (terminalOwnership.recoveryRequired) {
+            ServiceRecoveryNotifier.notifyListenActionRequired(this, terminalOwnership.sessionToken)
+        }
         terminalOwnership.wifiDirectToken?.let(wifiDirectCleanupCoordinator()::cleanup)
         closeCurrentSocket(claim)
         if (!workerGeneration.isCurrent(claim)) return
-        ServiceHeartbeatScheduler.cancelListen(this)
         if (raiseConnectionAlert && workerGeneration.isCurrent(claim) &&
             lossAlertSent.compareAndSet(false, true)
         ) {
@@ -816,7 +832,8 @@ class ListenService : Service() {
 
     private data class TerminalOwnership(
         val sessionToken: Long?,
-        val wifiDirectToken: Long?
+        val wifiDirectToken: Long?,
+        val recoveryRequired: Boolean
     )
 
     private fun performHandshake(
@@ -1057,6 +1074,7 @@ class ListenService : Service() {
                                     hasVerifiedAudio.set(true)
                                     verifiedAudioThisConnection.set(true)
                                     lossAlertSent.set(false)
+                                    redeliveryTracker.markRecovered(claim)
                                     ListenServiceRepository.updateListening()
                                     notificationManager.cancel(ALERT_NOTIFICATION_ID)
                                     true

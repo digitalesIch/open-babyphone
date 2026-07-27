@@ -180,4 +180,48 @@ class ServiceConnectionManagerCallbacksTest {
         assertTrue(binding.bound)
         assertEquals(0, bindFlags)
     }
+
+    @Test
+    fun `listen foreground start runtime failure publishes retryable error`() {
+        ListenServiceRepository.reset()
+        val failingContext = object : ContextWrapper(context) {
+            override fun startForegroundService(service: Intent): ComponentName? {
+                throw IllegalStateException("Foreground start denied")
+            }
+        }
+
+        val binding = ServiceConnectionManager.bindListenService(
+            context = failingContext,
+            viewModel = org.openbabyphone.viewmodel.ListenViewModel(context),
+            requestId = "pending-request"
+        )
+
+        assertFalse(binding.bound)
+        val state = ListenServiceRepository.sessionState.value
+        assertTrue(state is ListenSessionState.Error)
+        assertEquals(ListenSessionError.Unreachable, (state as ListenSessionState.Error).type)
+    }
+
+    @Test
+    fun `listen bind failure stops newly started service`() {
+        ListenServiceRepository.reset()
+        val failingContext = object : ContextWrapper(context) {
+            override fun startForegroundService(service: Intent): ComponentName? = service.component
+
+            override fun bindService(service: Intent, conn: ServiceConnection, flags: Int): Boolean = false
+        }
+
+        val binding = ServiceConnectionManager.bindListenService(
+            context = failingContext,
+            viewModel = org.openbabyphone.viewmodel.ListenViewModel(context),
+            requestId = "pending-request"
+        )
+
+        assertFalse(binding.bound)
+        assertEquals(
+            ListenService::class.java.name,
+            shadowOf(context).nextStoppedService.component?.className
+        )
+        assertTrue(ListenServiceRepository.sessionState.value is ListenSessionState.Error)
+    }
 }
