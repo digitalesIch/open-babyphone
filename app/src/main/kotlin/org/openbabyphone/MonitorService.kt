@@ -26,8 +26,6 @@ import android.content.pm.ServiceInfo
 import android.content.SharedPreferences
 import android.media.AudioRecord
 import android.media.MediaRecorder
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdManager.RegistrationListener
 import android.net.nsd.NsdServiceInfo
@@ -71,7 +69,6 @@ internal class MonitorFrameSequence {
 class MonitorService : Service() {
     private val binder: IBinder = MonitorBinder()
     private lateinit var nsdManager: NsdManager
-    private lateinit var connectivityManager: ConnectivityManager
     private lateinit var childIdentityStore: ChildDeviceIdentityStore
     private var registrationListener: RegistrationListener? = null
     private var currentSocket: ServerSocket? = null
@@ -108,26 +105,12 @@ class MonitorService : Service() {
 
     private val listenAddresses: List<String>
         get() {
-            val addresses: MutableList<String> = ArrayList()
-            try {
-                val networks = connectivityManager.allNetworks
-                for (network in networks) {
-                    val caps = connectivityManager.getNetworkCapabilities(network)
-                    if (caps != null && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
-                        val linkProperties = connectivityManager.getLinkProperties(network)
-                        linkProperties?.linkAddresses?.forEach { linkAddress ->
-                            val address = linkAddress.address
-                            val hostAddress = address.hostAddress
-                            if (!address.isLinkLocalAddress && !address.isLoopbackAddress && hostAddress != null) {
-                                addresses.add(hostAddress)
-                            }
-                        }
-                    }
-                }
+            return try {
+                currentListenAddresses()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to get network addresses", e)
+                emptyList()
             }
-            return addresses
         }
 
     private data class PendingParentAuthentication(
@@ -427,7 +410,6 @@ class MonitorService : Service() {
         super.onCreate()
         this.notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         this.nsdManager = this.getSystemService(NSD_SERVICE) as NsdManager
-        this.connectivityManager = this.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
         this.childIdentityStore = ChildDeviceIdentityStore(this)
         this.currentPort = ConnectionConstants.DEFAULT_PORT
         this.currentSocket = null
