@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Open Babyphone</title>
-  <meta name="description" content="Open Babyphone connects two Android devices on your home Wi-Fi: one listens near the child, the other plays live audio with the parent.">
+  <title>Open Babyphone - Local Android baby monitor</title>
+  <meta name="description" content="Turn two Android phones into a local audio baby monitor. No account, cloud service, or hosted relay required.">
   <meta name="author" content="Open Babyphone">
   <link rel="canonical" href="https://openbabyphone.org/">
   <meta property="og:title" content="Open Babyphone">
-  <meta property="og:description" content="Open Babyphone connects two Android devices on your home Wi-Fi: one listens near the child, the other plays live audio with the parent.">
+  <meta property="og:description" content="Turn two Android phones into a local audio baby monitor. No account, cloud service, or hosted relay required.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://openbabyphone.org/">
   <meta property="og:site_name" content="Open Babyphone">
@@ -16,814 +16,200 @@
   <meta property="og:image:type" content="image/png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Open Babyphone local audio monitoring preview.">
+  <meta property="og:image:alt" content="Open Babyphone running on two Android phones over a local network.">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Open Babyphone">
-  <meta name="twitter:description" content="Open Babyphone connects two Android devices on your home Wi-Fi: one listens near the child, the other plays live audio with the parent.">
+  <meta name="twitter:description" content="Turn two Android phones into a local audio baby monitor. No account, cloud service, or hosted relay required.">
   <meta name="twitter:image" content="https://openbabyphone.org/og-image.png">
-  <meta name="twitter:image:alt" content="Open Babyphone local audio monitoring preview.">
+  <meta name="twitter:image:alt" content="Open Babyphone running on two Android phones over a local network.">
   <link rel="icon" href="/logo.svg" type="image/svg+xml">
-  <style>
-    :root {
-      color-scheme: dark;
-      --bg: #080b12;
-      --bg-2: #101827;
-      --fg: #f6f7fb;
-      --muted: #a5b2c8;
-      --line: rgba(255, 255, 255, 0.12);
-      --panel: rgba(14, 20, 33, 0.76);
-      --panel-strong: rgba(22, 32, 52, 0.9);
-      --blue: #5da8ff;
-      --cyan: #5ff2d2;
-      --peach: #ffb076;
-      --pink: #ff6fae;
-      --shadow: rgba(0, 0, 0, 0.45);
-    }
-
-    @media (prefers-color-scheme: light) {
-      :root {
-        color-scheme: light;
-        --bg: #f5f8ff;
-        --bg-2: #ffffff;
-        --fg: #101827;
-        --muted: #566176;
-        --line: rgba(16, 24, 39, 0.12);
-        --panel: rgba(255, 255, 255, 0.78);
-        --panel-strong: rgba(255, 255, 255, 0.94);
-        --shadow: rgba(31, 50, 82, 0.18);
-      }
-    }
-
-    * { box-sizing: border-box; }
-
-    html,
-    body {
-      margin: 0;
-      min-height: 100%;
-    }
-
-    body {
-      background:
-        radial-gradient(circle at 16% 18%, rgba(95, 242, 210, 0.18), transparent 30rem),
-        radial-gradient(circle at 88% 12%, rgba(255, 111, 174, 0.22), transparent 28rem),
-        linear-gradient(140deg, var(--bg), var(--bg-2) 55%, var(--bg));
-      color: var(--fg);
-      font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      overflow-x: hidden;
-    }
-
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      background-image:
-        linear-gradient(var(--line) 1px, transparent 1px),
-        linear-gradient(90deg, var(--line) 1px, transparent 1px);
-      background-size: 52px 52px;
-      mask-image: radial-gradient(circle at center, black, transparent 72%);
-      opacity: 0.34;
-    }
-
-    a { color: inherit; }
-
-    .shell {
-      width: min(1120px, calc(100% - 32px));
-      margin: 0 auto;
-      padding: 28px 0 34px;
-      position: relative;
-    }
-
-    .nav {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      margin-bottom: clamp(46px, 8vw, 96px);
-    }
-
-    .brand {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      color: var(--fg);
-      font-weight: 800;
-      letter-spacing: -0.03em;
-      text-decoration: none;
-    }
-
-    .mark {
-      width: 34px;
-      height: 34px;
-      display: grid;
-      place-items: center;
-      border-radius: 12px;
-      background: #080b12;
-      box-shadow: 0 18px 44px rgba(93, 168, 255, 0.34);
-      overflow: hidden;
-    }
-
-    .mark-logo {
-      width: 26px;
-      height: 26px;
-      display: block;
-    }
-
-    .nav-links {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      color: var(--muted);
-      font-size: 0.92rem;
-    }
-
-    .nav-links a {
-      text-decoration: none;
-    }
-
-    .nav-links a:hover { color: var(--fg); }
-
-    .hero {
-      display: grid;
-      grid-template-columns: minmax(0, 1.04fr) minmax(320px, 0.96fr);
-      gap: clamp(28px, 6vw, 72px);
-      align-items: center;
-    }
-
-    .eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 12px;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      background: var(--panel);
-      box-shadow: 0 12px 40px var(--shadow);
-      color: var(--muted);
-      font-size: 0.9rem;
-      font-weight: 700;
-      letter-spacing: 0.02em;
-    }
-
-    .pulse-dot {
-      width: 9px;
-      height: 9px;
-      border-radius: 999px;
-      background: var(--cyan);
-      box-shadow: 0 0 0 8px rgba(95, 242, 210, 0.12);
-    }
-
-    h1 {
-      max-width: 720px;
-      margin: 22px 0 18px;
-      font-size: clamp(3.2rem, 9vw, 7rem);
-      line-height: 0.9;
-      letter-spacing: -0.075em;
-      text-wrap: balance;
-    }
-
-    .gradient-text {
-      background: linear-gradient(90deg, var(--fg), var(--cyan) 42%, var(--peach));
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-    }
-
-    .lead {
-      max-width: 630px;
-      color: var(--muted);
-      font-size: clamp(1.12rem, 2.2vw, 1.45rem);
-      line-height: 1.45;
-      margin: 0 0 28px;
-      text-wrap: pretty;
-    }
-
-    .actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 13px;
-      align-items: center;
-      margin-bottom: 28px;
-    }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 48px;
-      border-radius: 999px;
-      padding: 0 20px;
-      font-weight: 850;
-      text-decoration: none;
-      letter-spacing: -0.02em;
-      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-    }
-
-    .btn.primary {
-      background: linear-gradient(135deg, var(--cyan), var(--blue) 62%, var(--pink));
-      color: #07101f;
-      box-shadow: 0 18px 54px rgba(93, 168, 255, 0.32);
-    }
-
-    .btn.secondary {
-      border: 1px solid var(--line);
-      background: var(--panel);
-      color: var(--fg);
-    }
-
-    .btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 18px 48px var(--shadow);
-    }
-
-    .visual {
-      position: relative;
-      min-height: 520px;
-    }
-
-    .visual::before,
-    .visual::after {
-      content: "";
-      position: absolute;
-      border-radius: 999px;
-      filter: blur(24px);
-      opacity: 0.75;
-      z-index: -1;
-    }
-
-    .visual::before {
-      width: 220px;
-      height: 220px;
-      right: 32px;
-      top: 32px;
-      background: rgba(95, 242, 210, 0.28);
-    }
-
-    .visual::after {
-      width: 260px;
-      height: 260px;
-      left: 20px;
-      bottom: 24px;
-      background: rgba(255, 111, 174, 0.25);
-    }
-
-    .phone {
-      position: absolute;
-      width: min(238px, 48vw);
-      border: 1px solid var(--line);
-      border-radius: 36px;
-      padding: 13px;
-      background:
-        linear-gradient(145deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.03)),
-        var(--panel-strong);
-      box-shadow: 0 32px 70px var(--shadow);
-      backdrop-filter: blur(18px);
-    }
-
-    .phone.child {
-      left: 0;
-      top: 28px;
-      transform: rotate(-8deg);
-    }
-
-    .phone.parent {
-      right: 0;
-      bottom: 20px;
-      transform: rotate(7deg);
-    }
-
-    .screen {
-      min-height: 355px;
-      border-radius: 25px;
-      padding: 18px;
-      background:
-        radial-gradient(circle at 30% 20%, rgba(95, 242, 210, 0.22), transparent 8rem),
-        linear-gradient(180deg, rgba(9, 14, 24, 0.88), rgba(18, 26, 43, 0.95));
-      overflow: hidden;
-      position: relative;
-    }
-
-    .speaker {
-      width: 54px;
-      height: 5px;
-      border-radius: 999px;
-      margin: 0 auto 22px;
-      background: rgba(255, 255, 255, 0.2);
-    }
-
-    .screen-label {
-      color: #eff8ff;
-      font-size: 0.78rem;
-      font-weight: 850;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      opacity: 0.7;
-    }
-
-    .screen-title {
-      margin: 7px 0 18px;
-      color: #ffffff;
-      font-size: 1.6rem;
-      line-height: 1.05;
-      letter-spacing: -0.05em;
-      font-weight: 950;
-    }
-
-    .waves {
-      display: flex;
-      align-items: end;
-      gap: 7px;
-      height: 120px;
-      margin: 28px 0;
-    }
-
-    .waves span {
-      flex: 1;
-      min-width: 8px;
-      border-radius: 999px;
-      background: linear-gradient(180deg, var(--cyan), var(--blue));
-      box-shadow: 0 0 22px rgba(95, 242, 210, 0.35);
-      animation: wave 1.9s ease-in-out infinite;
-    }
-
-    .waves span:nth-child(1) { height: 36%; animation-delay: -0.4s; }
-    .waves span:nth-child(2) { height: 72%; animation-delay: -1.1s; }
-    .waves span:nth-child(3) { height: 44%; animation-delay: -0.7s; }
-    .waves span:nth-child(4) { height: 92%; animation-delay: -1.4s; }
-    .waves span:nth-child(5) { height: 54%; animation-delay: -0.2s; }
-    .waves span:nth-child(6) { height: 76%; animation-delay: -1.7s; }
-    .waves span:nth-child(7) { height: 38%; animation-delay: -0.9s; }
-
-    .status-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      color: rgba(255, 255, 255, 0.72);
-      font-size: 0.82rem;
-      font-weight: 750;
-    }
-
-    .signal {
-      display: inline-flex;
-      gap: 4px;
-      align-items: end;
-      height: 18px;
-    }
-
-    .signal span {
-      display: block;
-      width: 5px;
-      border-radius: 999px;
-      background: var(--cyan);
-    }
-
-    .signal span:nth-child(1) { height: 7px; }
-    .signal span:nth-child(2) { height: 11px; }
-    .signal span:nth-child(3) { height: 16px; }
-
-    .link-beam {
-      position: absolute;
-      inset: 0;
-      display: grid;
-      place-items: center;
-      pointer-events: none;
-    }
-
-    .link-beam span {
-      width: min(330px, 60vw);
-      height: 92px;
-      border-top: 2px solid rgba(95, 242, 210, 0.38);
-      border-bottom: 2px solid rgba(93, 168, 255, 0.32);
-      border-radius: 50%;
-      transform: rotate(-14deg);
-      filter: drop-shadow(0 0 22px rgba(95, 242, 210, 0.25));
-      animation: beam 3.2s ease-in-out infinite;
-    }
-
-    .feature-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-      margin: clamp(50px, 8vw, 96px) 0 34px;
-    }
-
-    .feature {
-      border: 1px solid var(--line);
-      border-radius: 28px;
-      padding: 24px;
-      background: var(--panel);
-      box-shadow: 0 20px 70px rgba(0, 0, 0, 0.12);
-      backdrop-filter: blur(18px);
-    }
-
-    .feature strong {
-      display: block;
-      color: var(--fg);
-      font-size: 1.06rem;
-      margin-bottom: 8px;
-      letter-spacing: -0.03em;
-    }
-
-    .feature p {
-      margin: 0;
-      color: var(--muted);
-      font-size: 0.96rem;
-    }
-
-    .release {
-      display: grid;
-      grid-template-columns: minmax(0, 0.92fr) minmax(280px, 1.08fr);
-      gap: 18px;
-      align-items: stretch;
-      margin: clamp(46px, 7vw, 86px) 0 0;
-    }
-
-    .release-copy,
-    .release-card {
-      border: 1px solid var(--line);
-      border-radius: 30px;
-      background: var(--panel);
-      box-shadow: 0 22px 70px rgba(0, 0, 0, 0.14);
-      backdrop-filter: blur(18px);
-    }
-
-    .release-copy {
-      padding: clamp(24px, 4vw, 34px);
-    }
-
-    .section-kicker {
-      margin: 0 0 10px;
-      color: var(--cyan);
-      font-size: 0.82rem;
-      font-weight: 850;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-    }
-
-    .release-copy h2 {
-      margin: 0 0 14px;
-      font-size: clamp(2rem, 4vw, 3.3rem);
-      line-height: 0.98;
-      letter-spacing: -0.06em;
-      text-wrap: balance;
-    }
-
-    .release-copy p {
-      margin: 0;
-      color: var(--muted);
-      font-size: 1.04rem;
-      text-wrap: pretty;
-    }
-
-    .release-card {
-      position: relative;
-      overflow: hidden;
-      padding: clamp(22px, 4vw, 32px);
-    }
-
-    .release-card::before {
-      content: "";
-      position: absolute;
-      inset: -30% 34% 30% -20%;
-      background: radial-gradient(circle, rgba(95, 242, 210, 0.24), transparent 68%);
-      pointer-events: none;
-    }
-
-    .release-top {
-      position: relative;
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 16px;
-    }
-
-    .release-badge {
-      display: inline-flex;
-      align-items: center;
-      min-height: 30px;
-      border-radius: 999px;
-      padding: 0 10px;
-      background: linear-gradient(135deg, var(--peach), var(--pink));
-      color: #170611;
-      font-size: 0.78rem;
-      font-weight: 950;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .release-date {
-      color: var(--muted);
-      font-size: 0.92rem;
-      font-weight: 700;
-    }
-
-    .release-title {
-      position: relative;
-      margin: 0 0 8px;
-      font-size: clamp(1.55rem, 3vw, 2.35rem);
-      line-height: 1.05;
-      letter-spacing: -0.055em;
-    }
-
-    .release-tag {
-      position: relative;
-      display: inline-flex;
-      margin-bottom: 24px;
-      color: var(--muted);
-      font-size: 0.95rem;
-      font-weight: 750;
-    }
-
-    .release-actions {
-      position: relative;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      align-items: center;
-    }
-
-    .release-note {
-      position: relative;
-      margin: 18px 0 0;
-      color: var(--muted);
-      font-size: 0.88rem;
-    }
-
-    footer {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      gap: 14px;
-      border-top: 1px solid var(--line);
-      padding-top: 20px;
-      color: var(--muted);
-      font-size: 0.9rem;
-    }
-
-    footer p { margin: 0; }
-
-    footer a {
-      color: inherit;
-      text-decoration: none;
-    }
-
-    footer a:hover { color: var(--fg); }
-
-    @keyframes wave {
-      0%, 100% { transform: scaleY(0.72); opacity: 0.68; }
-      50% { transform: scaleY(1); opacity: 1; }
-    }
-
-    @keyframes beam {
-      0%, 100% { opacity: 0.52; transform: rotate(-14deg) scale(0.96); }
-      50% { opacity: 1; transform: rotate(-14deg) scale(1.04); }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after {
-        animation-duration: 0.001ms !important;
-        animation-iteration-count: 1 !important;
-        scroll-behavior: auto !important;
-        transition: none !important;
-      }
-    }
-
-    @media (max-width: 860px) {
-      .nav {
-        margin-bottom: 42px;
-      }
-
-      .hero {
-        grid-template-columns: 1fr;
-      }
-
-      .visual {
-        min-height: 470px;
-        margin-top: 8px;
-      }
-
-      .feature-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .release {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    @media (max-width: 560px) {
-      .shell {
-        width: min(100% - 22px, 1120px);
-        padding-top: 18px;
-      }
-
-      .nav {
-        align-items: flex-start;
-      }
-
-      .nav-links {
-        flex-direction: column;
-        align-items: flex-end;
-        gap: 4px;
-      }
-
-      h1 {
-        font-size: clamp(3.1rem, 18vw, 4.6rem);
-      }
-
-      .actions {
-        align-items: stretch;
-        flex-direction: column;
-      }
-
-      .btn {
-        width: 100%;
-      }
-
-      .visual {
-        min-height: 420px;
-      }
-
-      .phone {
-        width: 196px;
-      }
-
-      .screen {
-        min-height: 300px;
-        padding: 15px;
-      }
-
-      .phone.parent {
-        bottom: 0;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="stylesheets/site.css">
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Open Babyphone",
+      "applicationCategory": "UtilitiesApplication",
+      "operatingSystem": "Android 11 or newer",
+      "url": "https://openbabyphone.org/",
+      "downloadUrl": "https://github.com/digitalesIch/open-babyphone/releases",
+      "softwareHelp": "https://openbabyphone.org/user-guide/",
+      "license": "https://www.gnu.org/licenses/gpl-3.0.html",
+      "isAccessibleForFree": true
+    }
+  </script>
 </head>
 <body>
-  <div class="shell">
-    <nav class="nav" aria-label="Primary">
-      <a class="brand" href="index.html" aria-label="Open Babyphone home">
-        <span class="mark" aria-hidden="true"><img class="mark-logo" src="logo.svg" alt=""></span>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <header class="site-header">
+    <nav class="site-nav shell" aria-label="Primary navigation">
+      <a class="brand" href="/" aria-label="Open Babyphone home">
+        <img src="logo.svg" width="40" height="40" alt="">
         <span>Open Babyphone</span>
       </a>
       <div class="nav-links">
-        <a href="#latest-release">Download</a>
+        <a href="#download">Download</a>
         <a href="user-guide/">User guide</a>
         <a href="https://github.com/digitalesIch/open-babyphone">GitHub</a>
-        <a href="impressum.html">Impressum</a>
-        <a href="datenschutz.html">Datenschutz</a>
+        <a href="impressum.html">Legal notice</a>
+        <a href="datenschutz.html">Website privacy</a>
       </div>
     </nav>
+  </header>
 
-    <main>
-      <section class="hero" aria-labelledby="hero-title">
+  <main id="main-content">
+    <section class="hero shell" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow">Local Android audio monitor</p>
+        <h1 id="hero-title">Turn two phones into your new babyphone.</h1>
+        <p class="hero-lead">One phone listens nearby. The other plays audio directly over your home Wi-Fi.</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#download">Download APK</a>
+          <a class="button button-secondary" href="user-guide/">User guide</a>
+        </div>
+      </div>
+
+      <div class="hero-visual">
+        <figure class="device-frame device-frame-primary">
+          <img
+            src="assets/app/role-chooser-dark.webp"
+            width="600"
+            height="1200"
+            alt="Open Babyphone role chooser in dark mode with Child Device and Parent Device options"
+            fetchpriority="high">
+        </figure>
+        <figure class="device-frame device-frame-secondary">
+          <img
+            src="assets/app/listening-loud-dark.webp"
+            width="600"
+            height="1200"
+            alt="Open Babyphone listening screen showing a loud audio signal"
+            fetchpriority="high">
+        </figure>
+      </div>
+    </section>
+
+    <section class="trust-strip" aria-label="Product principles">
+      <div class="shell trust-items">
+        <span>No account</span>
+        <span>No hosted relay</span>
+        <span>Open source</span>
+        <span>Android 11+</span>
+      </div>
+    </section>
+
+    <section class="download-section shell" id="download" aria-labelledby="download-title">
+      <div class="section-copy">
+        <p class="eyebrow">For Android 11 and newer</p>
+        <h2 id="download-title">Install the latest release.</h2>
+        <p>Download the APK from GitHub and review the release notes before installing.</p>
+        <p class="safety-note">Open Babyphone is not a medical or safety-certified device and does not replace responsible supervision.</p>
+      </div>
+
+      <article class="release-card" id="release-card" aria-live="polite" aria-busy="true">
+        <div class="release-meta">
+          <span class="release-badge" id="release-badge">Release</span>
+          <span class="release-date" id="release-date">Loading release information</span>
+        </div>
+        <h3 id="release-title">Open Babyphone releases</h3>
+        <p class="release-tag" id="release-tag">GitHub releases</p>
+        <div class="release-actions">
+          <a class="button button-primary" id="release-download" href="https://github.com/digitalesIch/open-babyphone/releases">View downloads</a>
+          <a class="button button-secondary" id="release-link" href="https://github.com/digitalesIch/open-babyphone/releases">All releases</a>
+        </div>
+        <p class="release-status" id="release-status">Checking GitHub for the latest published build.</p>
+      </article>
+    </section>
+
+    <section class="roles-section shell" aria-labelledby="roles-title">
+      <div class="roles-copy">
+        <h2 id="roles-title">One app. Two clear roles.</h2>
+        <p>Choose the role for each phone. The child device captures audio, while the parent device plays the authenticated stream.</p>
+        <a class="text-link" href="user-guide/#first-time-setup">Read the setup guide</a>
+      </div>
+
+      <div class="role-list">
+        <article class="role-card">
+          <h3>Child Device</h3>
+          <p>Place this phone near the child to send audio to paired parent devices.</p>
+        </article>
+        <article class="role-card">
+          <h3>Parent Device</h3>
+          <p>Keep this phone with you to hear audio from the child device.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="signal-section shell" aria-labelledby="signal-title">
+      <div class="signal-images">
+        <figure class="signal-phone signal-phone-light">
+          <img
+            src="assets/app/listening-quiet-light.webp"
+            width="600"
+            height="1200"
+            loading="lazy"
+            alt="Listening screen in light mode showing a quiet audio signal">
+        </figure>
+        <figure class="signal-phone signal-phone-dark">
+          <img
+            src="assets/app/listening-loud-dark.webp"
+            width="600"
+            height="1200"
+            loading="lazy"
+            alt="Listening screen in dark mode showing all six audio signal bars filled">
+        </figure>
+      </div>
+
+      <div class="signal-copy">
+        <h2 id="signal-title">See what the parent phone hears.</h2>
+        <p>The six-step signal meter gives a calm, glanceable view of recent audio activity.</p>
+        <div class="mini-signal" role="img" aria-label="Six ascending bars showing a detected audio signal">
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <p class="signal-caption">Quiet uses cyan. Loud sound uses blue. Text and bar count always reinforce the color.</p>
+      </div>
+    </section>
+
+    <section class="facts-section shell" aria-labelledby="facts-title">
+      <div class="facts-heading">
+        <h2 id="facts-title">Local by design.</h2>
+        <p>Open Babyphone keeps its supported connection model simple and inspectable.</p>
+      </div>
+      <dl class="fact-list">
         <div>
-          <div class="eyebrow"><span class="pulse-dot" aria-hidden="true"></span>Open source Android baby monitor</div>
-          <h1 id="hero-title">Turn two phones into your new <span class="gradient-text">babyphone.</span></h1>
-          <p class="lead">Open Babyphone connects two Android devices on your home Wi-Fi: one listens near the child, the other plays the live audio with the parent.</p>
-
-          <div class="actions">
-            <a class="btn primary" href="#latest-release">Download APK</a>
-            <a class="btn secondary" href="user-guide/">Read the user guide</a>
-          </div>
+          <dt>Network</dt>
+          <dd>Audio travels directly between paired phones on the same Wi-Fi or trusted local network.</dd>
         </div>
-
-        <div class="visual" aria-label="Two Android phones connected by live audio">
-          <div class="link-beam" aria-hidden="true"><span></span></div>
-
-          <div class="phone child" aria-hidden="true">
-            <div class="screen">
-              <div class="speaker"></div>
-              <div class="screen-label">Child device</div>
-              <div class="screen-title">Listening nearby</div>
-              <div class="waves">
-                <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-              </div>
-              <div class="status-row">
-                <span>Mic active</span>
-                <span class="signal"><span></span><span></span><span></span></span>
-              </div>
-            </div>
-          </div>
-
-          <div class="phone parent" aria-hidden="true">
-            <div class="screen">
-              <div class="speaker"></div>
-              <div class="screen-label">Parent device</div>
-              <div class="screen-title">Live audio</div>
-              <div class="waves">
-                <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-              </div>
-              <div class="status-row">
-                <span>Connected</span>
-                <span class="signal"><span></span><span></span><span></span></span>
-              </div>
-            </div>
-          </div>
+        <div>
+          <dt>Pairing</dt>
+          <dd>A pairing code provides mutual authentication before encrypted audio starts.</dd>
         </div>
-      </section>
-
-      <section class="release" id="latest-release" aria-labelledby="release-title">
-        <div class="release-copy">
-          <p class="section-kicker">App Download</p>
-          <h2>Get Open Babyphone for Android.</h2>
-          <p>Download the APK for your Android phone and learn what's new from the release notes.</p>
+        <div>
+          <dt>Infrastructure</dt>
+          <dd>No project-operated account service, cloud storage, analytics, or internet relay.</dd>
         </div>
+        <div>
+          <dt>Source</dt>
+          <dd>GPLv3 source code, protocol details, releases, and development history are public on GitHub.</dd>
+        </div>
+      </dl>
+    </section>
+  </main>
 
-        <article class="release-card" aria-live="polite">
-          <div class="release-top">
-            <span class="release-badge" id="release-badge">Release</span>
-            <span class="release-date" id="release-date">Loading release details</span>
-          </div>
-          <h2 class="release-title" id="release-title">Open Babyphone releases</h2>
-          <span class="release-tag" id="release-tag">GitHub releases</span>
-          <div class="release-actions">
-            <a class="btn primary" id="release-download" href="https://github.com/digitalesIch/open-babyphone/releases">View downloads</a>
-            <a class="btn secondary" id="release-link" href="https://github.com/digitalesIch/open-babyphone/releases">All releases</a>
-          </div>
-          <p class="release-note">Android may ask you to allow installing apps from your browser or file manager. Check the release notes before installing.</p>
-        </article>
-      </section>
+  <footer class="site-footer">
+    <div class="shell footer-content">
+      <p><a href="https://github.com/digitalesIch/open-babyphone">digitalesIch/open-babyphone</a> <span aria-hidden="true">·</span> GPLv3</p>
+      <nav aria-label="Footer navigation">
+        <a href="user-guide/">User guide</a>
+        <a href="privacy/">App privacy</a>
+        <a href="security/">Security</a>
+        <a href="impressum.html">Legal notice</a>
+        <a href="datenschutz.html">Website privacy</a>
+      </nav>
+    </div>
+  </footer>
 
-      <section class="feature-grid" aria-label="Highlights">
-        <article class="feature">
-          <strong>Built for home Wi-Fi</strong>
-          <p>Discover the child device on the same network, or enter an address manually for trusted setups.</p>
-        </article>
-        <article class="feature">
-          <strong>Simple audio monitor</strong>
-          <p>One Android phone stays in the room; another phone plays the stream where the parent is.</p>
-        </article>
-        <article class="feature">
-          <strong>Auditable by design</strong>
-          <p>The project is open source, GPLv3 licensed, and developed in public on GitHub.</p>
-        </article>
-      </section>
-    </main>
-
-    <footer>
-      <p><a href="https://github.com/digitalesIch/open-babyphone">digitalesIch/open-babyphone</a> &middot; GPLv3</p>
-      <p><a href="user-guide/">User guide</a> &middot; <a href="impressum.html">Impressum</a> &middot; <a href="datenschutz.html">Datenschutzerkl&auml;rung</a></p>
-    </footer>
-  </div>
-  <script>
-    (() => {
-      const fallbackRelease = {
-        name: "Open Babyphone releases",
-        tag_name: "GitHub releases",
-        prerelease: null,
-        published_at: null,
-        html_url: "https://github.com/digitalesIch/open-babyphone/releases",
-        assets: []
-      };
-
-      const releaseApiUrl = "https://api.github.com/repos/digitalesIch/open-babyphone/releases?per_page=10";
-      const githubUrlPattern = /^https:\/\/github\.com\/digitalesIch\/open-babyphone\/releases(?:\/|$)/;
-
-      const setText = (id, value) => {
-        const element = document.getElementById(id);
-        if (element) element.textContent = value;
-      };
-
-      const setHref = (id, value) => {
-        const element = document.getElementById(id);
-        if (element && githubUrlPattern.test(value)) element.href = value;
-      };
-
-      const formatDate = (value) => {
-        try {
-          return new Intl.DateTimeFormat("en", {
-            year: "numeric",
-            month: "short",
-            day: "numeric"
-          }).format(new Date(value));
-        } catch (_) {
-          return "Latest release";
-        }
-      };
-
-      const renderRelease = (release) => {
-        const apkAsset = release.assets?.find((asset) => asset.name.toLowerCase().endsWith(".apk"));
-        const releaseUrl = release.html_url || fallbackRelease.html_url;
-        const downloadUrl = apkAsset?.browser_download_url || releaseUrl;
-        setText("release-badge", release.prerelease == null ? "Release" : release.prerelease ? "Preview" : "Stable");
-        setText("release-date", release.published_at ? `Published ${formatDate(release.published_at)}` : "Loading release details");
-        setText("release-title", release.name || release.tag_name || fallbackRelease.name);
-        setText("release-tag", release.tag_name || fallbackRelease.tag_name);
-        setText("release-download", apkAsset ? "Download APK" : "View downloads");
-        setText("release-link", release.published_at ? "Release notes" : "All releases");
-        setHref("release-download", downloadUrl);
-        setHref("release-link", releaseUrl);
-      };
-
-      fetch(releaseApiUrl, { headers: { Accept: "application/vnd.github+json" } })
-        .then((response) => (response.ok ? response.json() : Promise.reject()))
-        .then((releases) => releases.find((release) => !release.draft) || fallbackRelease)
-        .then(renderRelease)
-        .catch(() => renderRelease(fallbackRelease));
-    })();
-  </script>
+  <script src="javascripts/releases.js" defer></script>
 </body>
 </html>
