@@ -33,8 +33,8 @@ Android app. It is a design handoff snapshot; the rendered mockups live in
 | Quiet blue-grey muted | `ColorScheme.onSurfaceVariant` |
 | Live audio cyan | `ColorScheme.primary` |
 | Network blue | `ColorScheme.secondary` |
-| Status pill + pulse dot | `ListenScreen` status row, `MonitorScreen` monitoring card |
-| Waveform hero | `ListenScreen` `VolumeCanvas` |
+| Monitoring and listening state cards | `MonitorScreen`, `ListenScreen` |
+| Six-step audio signal meter | `ListenScreen` `AudioSignalIndicator` |
 | QR code card | `MonitorScreen` setup section |
 | Paired CTA cards | `StartScreen` |
 
@@ -42,14 +42,19 @@ Android app. It is a design handoff snapshot; the rendered mockups live in
 
 1. Start — brand logo tile, tagline, two CTA cards
 2. Child Setup — device name, pairing code + QR, Start Monitoring
-3. Child Monitoring — service/port/addresses, status pill, Stop Monitoring
-4. Parent Discover — discovery list, signal bars, advanced manual section
-5. Parent Listen — status pill, waveform hero, Disconnect
+3. Child Monitoring — monitoring state, parent count, pairing access, Stop Monitoring
+4. Parent Discover — trusted child states, discovery, and advanced connection options
+5. Parent Listen — verified playback state, six-step audio meter, Disconnect
 
 ## Note
 
 Android 12+ dynamic color is disabled by default so the brand palette is stable.
 A future "Use system colors" setting is tracked in issue #137.
+
+The current Compose implementation and screenshot-test references are the source
+of truth when this handoff differs from shipped UI details. Primary buttons are
+solid theme colors, the launcher mark uses overlapping filled phones, and the
+listening screen uses the six-step audio meter instead of a waveform.
 
 ## Preview
 

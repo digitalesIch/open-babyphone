@@ -1,139 +1,115 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Datenschutzerkl&auml;rung &ndash; Open Babyphone</title>
-  <meta name="description" content="Datenschutzerkl&auml;rung f&uuml;r Open Babyphone.">
+  <title>Website privacy notice - Open Babyphone</title>
+  <meta name="description" content="Privacy information for the Open Babyphone project website.">
   <link rel="canonical" href="https://openbabyphone.org/datenschutz.html">
   <link rel="icon" href="/logo.svg" type="image/svg+xml">
-  <style>
-    :root {
-      --bg: #0f1115;
-      --fg: #e6e8ee;
-      --muted: #9aa3b2;
-      --accent: #4f8cff;
-      --card: #171a21;
-      --border: #232836;
-    }
-    @media (prefers-color-scheme: light) {
-      :root {
-        --bg: #ffffff;
-        --fg: #1b1f27;
-        --muted: #5b6472;
-        --accent: #2f6bff;
-        --card: #f6f8fb;
-        --border: #e3e8f0;
-      }
-    }
-    * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; }
-    body {
-      background: var(--bg);
-      color: var(--fg);
-      font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      min-height: 100vh;
-      padding: 2rem 1rem;
-    }
-    main {
-      max-width: 640px;
-      width: 100%;
-      margin: 0 auto;
-    }
-    h1 {
-      font-size: clamp(1.5rem, 4vw, 2rem);
-      margin: 0 0 1.5rem;
-    }
-    h2 {
-      font-size: 1.125rem;
-      margin: 1.5rem 0 0.5rem;
-      color: var(--muted);
-    }
-    p { margin: 0 0 1rem; }
-    a { color: var(--accent); }
-    .back {
-      display: inline-block;
-      margin-top: 2rem;
-      color: var(--muted);
-      text-decoration: none;
-      font-size: 0.875rem;
-    }
-    .back:hover { color: var(--accent); }
-  </style>
+  <link rel="stylesheet" href="stylesheets/site.css">
 </head>
 <body>
-  <main>
-    <h1>Datenschutzerkl&auml;rung</h1>
+  <a class="skip-link" href="#main-content">Skip to content</a>
 
-    <h2>Verantwortlicher</h2>
+  <header class="site-header">
+    <nav class="site-nav shell" aria-label="Primary navigation">
+      <a class="brand" href="/" aria-label="Open Babyphone home">
+        <img src="logo.svg" width="40" height="40" alt="">
+        <span>Open Babyphone</span>
+      </a>
+      <div class="nav-links">
+        <a href="/#download">Download</a>
+        <a href="user-guide/">User guide</a>
+        <a href="https://github.com/digitalesIch/open-babyphone">GitHub</a>
+        <a href="impressum.html">Legal notice</a>
+        <a href="datenschutz.html" aria-current="page">Website privacy</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="legal-main" id="main-content">
+    <h1>Website privacy notice</h1>
+
+    <h2>Controller</h2>
     <p>
       Alexander Br&#259;teanu<br>
       Gro&szlig;mannstra&szlig;e 10<br>
       04177 Leipzig<br>
-      E-Mail: <a href="mailto:openbabyphone@brateanu.eu">openbabyphone@brateanu.eu</a>
+      Email: <a href="mailto:openbabyphone@brateanu.eu">openbabyphone@brateanu.eu</a>
     </p>
 
-    <h2>&Uuml;berblick</h2>
+    <h2>Overview</h2>
     <p>
-      Diese Website (openbabyphone.org) ist eine statische Projektseite ohne Anmeldung,
-      ohne Cookies, ohne Tracking-Tools und ohne Werbeanalytics. Es werden keine
-      personenbezogenen Daten &uuml;ber diese Website selbst erhoben, gespeichert oder
-      an Dritte weitergegeben.
+      This website (openbabyphone.org) is a static project website without
+      registration, cookies, tracking tools, or advertising analytics. The website
+      itself does not collect, store, or disclose personal data.
     </p>
 
-    <h2>Hosting bei GitHub Pages</h2>
+    <h2>Hosting with GitHub Pages</h2>
     <p>
-      Diese Website wird &uuml;ber GitHub Pages gehostet. Anbieterin ist GitHub, Inc.,
-      88 Colin P Kelly Jr St, San Francisco, CA 94107, USA. Beim Aufruf der Website
-      verarbeitet GitHub automatisch technische Daten (IP-Adresse, Datum und Uhrzeit
-      des Zugriffs, übertragene Datenmenge, Referrer-URL, Browser- und
-      Betriebssysteminformation) in Server-Logfiles.
+      This website is hosted through GitHub Pages. The provider is GitHub, Inc.,
+      88 Colin P Kelly Jr St, San Francisco, CA 94107, USA. When the website is
+      accessed, GitHub automatically processes technical data such as the IP address,
+      date and time of access, transferred data volume, referrer URL, browser, and
+      operating system information in server log files.
     </p>
     <p>
-      Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an der
-      Bereitstellung und Sicherheit des Hosting-Dienstes). Weitere Informationen
-      finden Sie in der <a href="https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement">Datenschutzerkl&auml;rung von GitHub</a>.
+      The legal basis is Article 6 (1) (f) GDPR, the legitimate interest in providing
+      and securing the hosting service. Further information is available in the
+      <a href="https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement">GitHub Privacy Statement</a>.
     </p>
 
     <h2>GitHub Releases API</h2>
     <p>
-      Die Startseite ruft beim Laden die &ouml;ffentliche GitHub Releases API auf, um
-      verf&uuml;gbare App-Versionen und passende Download-Links anzuzeigen. Dabei wird
-      eine Verbindung zu api.github.com
-      hergestellt. GitHub kann dabei technische Zugriffsdaten wie IP-Adresse,
-      Zeitpunkt des Aufrufs, Browser-Informationen und Referrer verarbeiten.
+      The home page calls the public GitHub Releases API when it loads to display
+      available app versions and download links. This creates a connection to
+      api.github.com. GitHub may process technical access data such as the IP address,
+      access time, browser information, and referrer.
     </p>
     <p>
-      Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an der
-      Darstellung verf&uuml;gbarer App-Versionen und Download-Links). Wenn die Anfrage
-      fehlschl&auml;gt, verlinkt die Website auf die GitHub-Releases-Seite.
-    </p>
-
-    <h2>DNS-Aufl&ouml;sung &uuml;ber OVH</h2>
-    <p>
-      Die Domain openbabyphone.org wird &uuml;ber OVH (OVH SAS, 2 rue Kellermann,
-      59100 Roubaix, Frankreich) aufgel&ouml;st. Beim Aufruf der Website kann OVH
-      technische Daten zur DNS-Aufl&ouml;sung verarbeiten. Rechtsgrundlage: Art. 6
-      Abs. 1 lit. f DSGVO. Weitere Informationen in der
-      <a href="https://www.ovhcloud.com/de/personal-data-protection/">Datenschutzerkl&auml;rung von OVH</a>.
+      The legal basis is Article 6 (1) (f) GDPR, the legitimate interest in showing
+      available app versions and download links. If the request fails, the website
+      links to the GitHub Releases page.
     </p>
 
-    <h2>Ihre Rechte</h2>
+    <h2>DNS resolution through OVH</h2>
     <p>
-      Sie haben jederzeit das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung
-      (Art. 16 DSGVO), L&ouml;schung (Art. 17 DSGVO), Einschr&auml;nkung der
-      Verarbeitung (Art. 18 DSGVO) und Daten&uuml;bertragbarkeit (Art. 20 DSGVO).
-      Wenden Sie sich dazu an die oben genannte E-Mail-Adresse.
+      The openbabyphone.org domain is resolved through OVH (OVH SAS, 2 rue Kellermann,
+      59100 Roubaix, France). OVH may process technical data for DNS resolution when
+      the website is accessed. The legal basis is Article 6 (1) (f) GDPR. Further
+      information is available in the
+      <a href="https://www.ovhcloud.com/en/personal-data-protection/">OVH data protection information</a>.
     </p>
 
-    <h2>Beschwerderecht</h2>
+    <h2>Your rights</h2>
     <p>
-      Sie haben das Recht, sich bei einer Aufsichtsbeh&ouml;rde zu beschweren. Zust&auml;ndig
-      ist der S&auml;chsische Datenschutzbeauftragte:
+      You have the right to access (Article 15 GDPR), rectification (Article 16 GDPR),
+      erasure (Article 17 GDPR), restriction of processing (Article 18 GDPR), and data
+      portability (Article 20 GDPR). Contact the email address listed above.
+    </p>
+
+    <h2>Right to lodge a complaint</h2>
+    <p>
+      You have the right to lodge a complaint with a supervisory authority. The
+      competent authority is the Saxon Data Protection and Transparency Commissioner:
       <a href="https://www.datenschutz.sachsen.de/">www.datenschutz.sachsen.de</a>.
     </p>
 
-    <a class="back" href="index.html">&larr; Zur&uuml;ck zur Startseite</a>
+    <a class="button button-secondary legal-back" href="/">Back to home</a>
   </main>
+
+  <footer class="site-footer">
+    <div class="shell footer-content">
+      <p><a href="https://github.com/digitalesIch/open-babyphone">digitalesIch/open-babyphone</a> <span aria-hidden="true">·</span> GPLv3</p>
+      <nav aria-label="Footer navigation">
+        <a href="user-guide/">User guide</a>
+        <a href="privacy/">App privacy</a>
+        <a href="security/">Security</a>
+        <a href="impressum.html">Legal notice</a>
+        <a href="datenschutz.html">Website privacy</a>
+      </nav>
+    </div>
+  </footer>
 </body>
 </html>
