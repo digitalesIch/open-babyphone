@@ -25,9 +25,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
-import android.media.AudioFormat
 import android.media.AudioManager
-import android.media.AudioTrack
 import android.media.MediaPlayer
 import android.net.ConnectivityManager
 import android.net.Network
@@ -51,7 +49,9 @@ import org.openbabyphone.audio.PacketLossConcealer
 import org.openbabyphone.audio.SenderTimestampClock
 import org.openbabyphone.audio.AudioDeliveryHealth
 import org.openbabyphone.audio.AudioDeliveryStatus
+import org.openbabyphone.audio.AudioPlaybackSink
 import org.openbabyphone.audio.AudioWriteResult
+import org.openbabyphone.audio.createAudioPlaybackSink
 import org.openbabyphone.audio.writeAllAudioSamples
 import org.openbabyphone.audio.indicatesOverflow
 import org.openbabyphone.service.ListenServiceRepository
@@ -71,7 +71,6 @@ class ListenService : Service() {
     private val frequency: Int = AudioCodecDefines.FREQUENCY
     private val channelConfiguration: Int = AudioCodecDefines.CHANNEL_CONFIGURATION_OUT
     private val audioEncoding: Int = AudioCodecDefines.ENCODING
-    private val bufferSize = AudioTrack.getMinBufferSize(frequency, channelConfiguration, audioEncoding)
     private val binder: IBinder = ListenBinder()
     private lateinit var notificationManager: NotificationManager
     private lateinit var audioManager: AudioManager
@@ -94,6 +93,17 @@ class ListenService : Service() {
     private var terminalFailure = false
     private val workerGeneration = WorkerGeneration()
     private val redeliveryTracker = ServiceRedeliveryTracker()
+    internal var audioPlaybackFactory: () -> AudioPlaybackSink? = {
+        createAudioPlaybackSink(
+            frequency,
+            channelConfiguration,
+            audioEncoding,
+            monitoringAudioAttributes,
+            MAX_AUDIO_TRACK_BUFFER_BYTES
+        )
+    }
+    internal var audioWriteElapsedRealtime: () -> Long = SystemClock::elapsedRealtime
+    internal var audioWriteRetryPause: () -> Unit = { Thread.sleep(AUDIO_WRITE_RETRY_MS) }
 
     private val monitoringAudioAttributes = AudioAttributes.Builder()
         .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -934,43 +944,23 @@ class ListenService : Service() {
         verifiedAudioThisConnection: AtomicBoolean
     ): StreamResult {
         Log.i(TAG, "Setting up stream")
-        if (bufferSize <= 0 || bufferSize > MAX_AUDIO_TRACK_BUFFER_BYTES) {
-            Log.e(TAG, "AudioTrack reported an invalid buffer size")
-            return StreamResult.Fatal(ListenSessionError.Playback)
-        }
         requestAudioFocus()
-        val audioTrack = try {
-            AudioTrack.Builder()
-                .setAudioAttributes(monitoringAudioAttributes)
-                .setAudioFormat(
-                    AudioFormat.Builder()
-                        .setSampleRate(frequency)
-                        .setChannelMask(channelConfiguration)
-                        .setEncoding(audioEncoding)
-                        .build()
-                )
-                .setBufferSizeInBytes(bufferSize)
-                .setTransferMode(AudioTrack.MODE_STREAM)
-                .build()
-        } catch (e: IllegalArgumentException) {
-            Log.e(TAG, "AudioTrack initialization failed - invalid parameters", e)
-            return StreamResult.Fatal(ListenSessionError.Playback)
-        } catch (e: IllegalStateException) {
-            Log.e(TAG, "AudioTrack initialization failed", e)
+        val audioSink = try {
+            audioPlaybackFactory()
+        } catch (e: RuntimeException) {
+            Log.e(TAG, "Audio playback initialization failed", e)
             return StreamResult.Fatal(ListenSessionError.Playback)
         }
-
-        if (audioTrack.state != AudioTrack.STATE_INITIALIZED) {
-            Log.e(TAG, "AudioTrack not initialized properly")
-            audioTrack.release()
+        if (audioSink == null) {
+            Log.e(TAG, "Audio playback sink is unavailable")
             return StreamResult.Fatal(ListenSessionError.Playback)
         }
 
         try {
-            audioTrack.play()
+            audioSink.start()
         } catch (e: IllegalStateException) {
-            Log.e(TAG, "Failed to start AudioTrack playback", e)
-            audioTrack.release()
+            Log.e(TAG, "Failed to start audio playback", e)
+            audioSink.release()
             return StreamResult.Fatal(ListenSessionError.Playback)
         }
 
@@ -979,11 +969,11 @@ class ListenService : Service() {
         } catch (e: IOException) {
             Log.e(TAG, "Failed to get input stream from socket", e)
             try {
-                audioTrack.stop()
+                audioSink.stop()
             } catch (stopError: IllegalStateException) {
                 Log.d(TAG, "AudioTrack already stopped")
             }
-            audioTrack.release()
+            audioSink.release()
             return StreamResult.Reconnect
         }
 
@@ -997,11 +987,11 @@ class ListenService : Service() {
         }
         if (!streamActive) {
             try {
-                audioTrack.stop()
+                audioSink.stop()
             } catch (e: IllegalStateException) {
                 Log.d(TAG, "AudioTrack already stopped")
             }
-            audioTrack.release()
+            audioSink.release()
             return StreamResult.Stopped
         }
 
@@ -1011,6 +1001,12 @@ class ListenService : Service() {
 
         val streamRunning = AtomicBoolean(true)
         val playbackFailure = AtomicReference<ListenSessionError?>(null)
+        val reconnectOrPlaybackFailure = {
+            playbackFailure.get()?.let(StreamResult::Fatal) ?: StreamResult.Reconnect
+        }
+        val playbackFailureOr: (ListenSessionError) -> StreamResult = { fallback ->
+            StreamResult.Fatal(playbackFailure.get() ?: fallback)
+        }
         val failPlayback: (ListenSessionError) -> Unit = { type ->
             playbackFailure.compareAndSet(null, type)
             streamRunning.set(false)
@@ -1059,10 +1055,10 @@ class ListenService : Service() {
                     val writeResult = writeAllAudioSamples(
                         sampleCount = sampleCount,
                         write = { offset, count ->
-                            audioTrack.write(playbackBuffer, offset, count, AudioTrack.WRITE_NON_BLOCKING)
+                            audioSink.write(playbackBuffer, offset, count)
                         },
-                        elapsedRealtime = SystemClock::elapsedRealtime,
-                        pauseAfterNoProgress = { Thread.sleep(AUDIO_WRITE_RETRY_MS) }
+                        elapsedRealtime = audioWriteElapsedRealtime,
+                        pauseAfterNoProgress = audioWriteRetryPause
                     )
                     when (writeResult) {
                         AudioWriteResult.Complete -> {
@@ -1106,6 +1102,11 @@ class ListenService : Service() {
             } catch (e: RuntimeException) {
                 Log.e(TAG, "Playback thread failed", e)
                 failPlayback(ListenSessionError.Playback)
+            } finally {
+                if (streamRunning.get() && isWorkerActive(claim)) {
+                    Log.e(TAG, "Playback worker stopped unexpectedly")
+                    failPlayback(ListenSessionError.Playback)
+                }
             }
         }
 
@@ -1117,7 +1118,7 @@ class ListenService : Service() {
                     FrameHeader.readFrom(inputStream)
                 } catch (e: SocketTimeoutException) {
                     Log.w(TAG, "Timed out while reading frame header; reconnecting")
-                    return StreamResult.Reconnect
+                    return reconnectOrPlaybackFailure()
                 } ?: run {
                     Log.e(TAG, "Failed to read frame header")
                     return playbackFailure.get()?.let(StreamResult::Fatal) ?: StreamResult.Reconnect
@@ -1125,14 +1126,14 @@ class ListenService : Service() {
 
                 if (!FrameCodec.isValidHeader(header)) {
                     Log.e(TAG, "Rejected frame with invalid flags or payload length")
-                    return StreamResult.Fatal(ListenSessionError.Decoding)
+                    return playbackFailureOr(ListenSessionError.Decoding)
                 }
                 val sequenceDecision = frameSequence.classify(header.seqNum)
                 if (sequenceDecision is FrameSequenceDecision.Replay ||
                     sequenceDecision is FrameSequenceDecision.InvalidFirst
                 ) {
                     Log.e(TAG, "Rejected replayed or invalid initial frame sequence")
-                    return StreamResult.Fatal(ListenSessionError.Decoding)
+                    return playbackFailureOr(ListenSessionError.Decoding)
                 }
 
                 var bytesRead = 0
@@ -1160,11 +1161,11 @@ class ListenService : Service() {
                     )
                 } catch (e: RuntimeException) {
                     Log.e(TAG, "Failed to decode frame", e)
-                    return StreamResult.Fatal(ListenSessionError.Decoding)
+                    return playbackFailureOr(ListenSessionError.Decoding)
                 }
                     ?: run {
                         Log.e(TAG, "Failed to decode frame")
-                        return StreamResult.Fatal(ListenSessionError.Decoding)
+                        return playbackFailureOr(ListenSessionError.Decoding)
                     }
 
                 val acceptedSequence = frameSequence.acceptAuthenticated(header.seqNum)
@@ -1172,7 +1173,7 @@ class ListenService : Service() {
                     acceptedSequence is FrameSequenceDecision.Replay
                 ) {
                     Log.e(TAG, "Stream sequence space exhausted")
-                    return StreamResult.Fatal(ListenSessionError.Decoding)
+                    return playbackFailureOr(ListenSessionError.Decoding)
                 }
                 if (acceptedSequence is FrameSequenceDecision.ForwardGap) {
                     Log.w(
@@ -1229,11 +1230,11 @@ class ListenService : Service() {
             }
             jitterBuffer.clear()
             try {
-                audioTrack.stop()
+                audioSink.stop()
             } catch (e: IllegalStateException) {
                 Log.d(TAG, "AudioTrack already stopped")
             }
-            audioTrack.release()
+            audioSink.release()
             try {
                 socket.close()
             } catch (e: IOException) {

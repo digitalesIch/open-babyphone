@@ -35,6 +35,18 @@ class AudioSampleWriterTest {
     }
 
     @Test
+    fun `write result larger than remaining samples fails immediately`() {
+        val result = writeAllAudioSamples(
+            sampleCount = 4,
+            write = { _, _ -> 5 },
+            elapsedRealtime = { 0L },
+            pauseAfterNoProgress = {}
+        )
+
+        assertEquals(AudioWriteResult.Failed, result)
+    }
+
+    @Test
     fun `repeated zero writes fail after monotonic stall deadline`() {
         var now = 100L
 
