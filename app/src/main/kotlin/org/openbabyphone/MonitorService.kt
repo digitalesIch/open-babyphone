@@ -24,8 +24,6 @@ import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.content.SharedPreferences
-import android.media.AudioRecord
-import android.media.MediaRecorder
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdManager.RegistrationListener
 import android.net.nsd.NsdServiceInfo
@@ -39,6 +37,8 @@ import androidx.core.app.ServiceCompat
 import org.openbabyphone.BuildConfig
 import org.openbabyphone.audio.AudioFrameTiming
 import org.openbabyphone.audio.FrameCodec
+import org.openbabyphone.audio.AudioCaptureSource
+import org.openbabyphone.audio.createAudioCaptureSource
 import org.openbabyphone.service.MonitorServiceRepository
 import org.openbabyphone.service.MonitorSessionError
 import org.openbabyphone.service.MonitorSessionState
@@ -89,7 +89,14 @@ class MonitorService : Service() {
     private val workerGeneration = WorkerGeneration()
     @Volatile private var activeWorkerClaim: WorkerClaim? = null
     private val redeliveryTracker = ServiceRedeliveryTracker()
-    @Volatile private var currentAudioRecord: AudioRecord? = null
+    @Volatile private var currentCaptureSource: AudioCaptureSource? = null
+    internal var audioCaptureFactory: () -> AudioCaptureSource? = {
+        createAudioCaptureSource(
+            AudioCodecDefines.FREQUENCY,
+            AudioCodecDefines.CHANNEL_CONFIGURATION_IN,
+            AudioCodecDefines.ENCODING
+        )
+    }
 
     private var pairingCodeSnapshot: String = ""
     private var streamSessionId: ByteArray? = null
@@ -222,40 +229,16 @@ class MonitorService : Service() {
         }
 
         val producerThread = Thread {
-            val frequency: Int = AudioCodecDefines.FREQUENCY
-            val channelConfiguration: Int = AudioCodecDefines.CHANNEL_CONFIGURATION_IN
-            val audioEncoding: Int = AudioCodecDefines.ENCODING
-            val bufferSize = AudioRecord.getMinBufferSize(frequency, channelConfiguration, audioEncoding)
-
-            if (bufferSize <= 0) {
-                Log.e(TAG, "Invalid audio buffer size: $bufferSize")
+            val audioSource = try {
+                audioCaptureFactory()
+            } catch (e: RuntimeException) {
+                Log.e(TAG, "Audio capture initialization failed", e)
                 stopStreamingIfCurrent(claim)
                 handleAudioProducerFailure(MonitorSessionError.AudioCapture, claim)
                 return@Thread
             }
-
-            val audioRecord: AudioRecord = try {
-                AudioRecord(MediaRecorder.AudioSource.MIC, frequency, channelConfiguration, audioEncoding, bufferSize)
-            } catch (e: SecurityException) {
-                Log.e(TAG, "AudioRecord permission denied", e)
-                stopStreamingIfCurrent(claim)
-                handleAudioProducerFailure(MonitorSessionError.AudioCapture, claim)
-                return@Thread
-            } catch (e: IllegalStateException) {
-                Log.e(TAG, "AudioRecord initialization failed", e)
-                stopStreamingIfCurrent(claim)
-                handleAudioProducerFailure(MonitorSessionError.AudioCapture, claim)
-                return@Thread
-            } catch (e: IllegalArgumentException) {
-                Log.e(TAG, "AudioRecord parameters were rejected", e)
-                stopStreamingIfCurrent(claim)
-                handleAudioProducerFailure(MonitorSessionError.AudioCapture, claim)
-                return@Thread
-            }
-
-            if (audioRecord.state != AudioRecord.STATE_INITIALIZED) {
-                Log.e(TAG, "AudioRecord not initialized properly")
-                audioRecord.release()
+            if (audioSource == null) {
+                Log.e(TAG, "Audio capture source is unavailable")
                 stopStreamingIfCurrent(claim)
                 handleAudioProducerFailure(MonitorSessionError.AudioCapture, claim)
                 return@Thread
@@ -269,20 +252,33 @@ class MonitorService : Service() {
             var failureType: MonitorSessionError? = null
 
             try {
-                currentAudioRecord = audioRecord
-                audioRecord.startRecording()
+                val ownsSource = synchronized(sessionStateLock) {
+                    if (!isWorkerActive(claim) || !isStreaming) {
+                        false
+                    } else {
+                        currentCaptureSource = audioSource
+                        true
+                    }
+                }
+                if (!ownsSource) return@Thread
+                audioSource.start()
                 while (isStreaming && isWorkerActive(claim) && !Thread.currentThread().isInterrupted) {
                     var capturedSamples = 0
                     while (capturedSamples < AudioFrameTiming.FRAME_SAMPLES && isStreaming &&
                         isWorkerActive(claim) && !Thread.currentThread().isInterrupted
                     ) {
-                        val read = audioRecord.read(
+                        val read = audioSource.read(
                             pcmBuffer,
                             capturedSamples,
                             AudioFrameTiming.FRAME_SAMPLES - capturedSamples
                         )
                         if (read < 0) {
                             Log.e(TAG, "AudioRecord read error: $read")
+                            failureType = MonitorSessionError.AudioCapture
+                            break
+                        }
+                        if (read > AudioFrameTiming.FRAME_SAMPLES - capturedSamples) {
+                            Log.e(TAG, "Audio capture source returned an invalid sample count: $read")
                             failureType = MonitorSessionError.AudioCapture
                             break
                         }
@@ -359,13 +355,21 @@ class MonitorService : Service() {
                 failureType = MonitorSessionError.AudioCapture
             } finally {
                 try {
-                    audioRecord.stop()
+                    audioSource.stop()
                 } catch (e: IllegalStateException) {
-                    Log.d(TAG, "AudioRecord already stopped")
+                    Log.d(TAG, "Audio capture source already stopped")
                 }
-                audioRecord.release()
-                if (currentAudioRecord === audioRecord) currentAudioRecord = null
-                val unexpectedFailure = failureType
+                audioSource.release()
+                synchronized(sessionStateLock) {
+                    if (currentCaptureSource === audioSource) currentCaptureSource = null
+                }
+                val unexpectedFailure = failureType ?: if (
+                    isStreaming && isWorkerActive(claim)
+                ) {
+                    MonitorSessionError.AudioCapture
+                } else {
+                    null
+                }
                 stopStreamingIfCurrent(claim)
                 if (unexpectedFailure != null && isWorkerActive(claim)) {
                     handleAudioProducerFailure(unexpectedFailure, claim)
@@ -710,11 +714,11 @@ class MonitorService : Service() {
         closeAuthenticatingSockets()
         unregisterService()
         clientManager.removeAllClients()
-        currentAudioRecord?.let { record ->
+        currentCaptureSource?.let { source ->
             try {
-                record.stop()
+                source.stop()
             } catch (exception: IllegalStateException) {
-                Log.d(TAG, "AudioRecord already stopped", exception)
+                Log.d(TAG, "Audio capture source already stopped", exception)
             }
         }
         currentSocket?.let { closeServerSocket(it) }
