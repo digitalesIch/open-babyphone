@@ -122,7 +122,7 @@ dependencies {
     androidTestImplementation platform('androidx.compose:compose-bom:2026.06.01')
     androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
 
-    screenshotTestImplementation 'com.android.tools.screenshot:screenshot-validation-api:0.0.1-alpha15'
+    screenshotTestImplementation 'com.android.tools.screenshot:screenshot-validation-api:0.0.1-alpha16'
     screenshotTestImplementation platform('androidx.compose:compose-bom:2026.06.01')
     screenshotTestImplementation 'androidx.compose.ui:ui-tooling'
 }
