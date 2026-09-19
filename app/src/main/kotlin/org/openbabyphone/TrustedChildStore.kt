@@ -121,6 +121,40 @@ class TrustedChildStore(
         }
     }
 
+    fun trustAuthenticatedRelay(
+        childId: String,
+        pairingId: String,
+        displayName: String,
+        pairingCode: CharArray
+    ): CredentialStorageResult {
+        if (childId.isBlank() || pairingId.isBlank()) return CredentialStorageResult.Failed
+        return synchronized(STORE_LOCK) {
+            val profiles = reconcileLocked().toMutableList()
+            val old = profiles.firstOrNull { it.childId == childId }
+            when (credentials.put(childId, pairingId, pairingCode)) {
+                CredentialWriteResult.Unavailable -> return@synchronized CredentialStorageResult.Unavailable
+                CredentialWriteResult.Failed -> return@synchronized CredentialStorageResult.Failed
+                CredentialWriteResult.Success -> Unit
+            }
+            val replacement = TrustedChild(
+                childId = childId,
+                pairingId = pairingId,
+                displayName = displayName,
+                lastKnownAddress = old?.lastKnownAddress,
+                lastKnownPort = old?.lastKnownPort,
+                lastSeenAt = System.currentTimeMillis()
+            )
+            profiles.removeAll { it.childId == childId }
+            profiles.add(replacement)
+            if (!persistMetadataLocked(profiles)) {
+                if (old?.pairingId != pairingId) credentials.remove(childId, pairingId)
+                return@synchronized CredentialStorageResult.Failed
+            }
+            if (old != null && old.pairingId != pairingId) credentials.remove(childId, old.pairingId)
+            CredentialStorageResult.Success
+        }
+    }
+
     fun updateLastKnownAuthenticated(childId: String, pairingId: String, address: String, port: Int): Boolean {
         if (address.isBlank() || port !in 1..65535) return false
         return synchronized(STORE_LOCK) {

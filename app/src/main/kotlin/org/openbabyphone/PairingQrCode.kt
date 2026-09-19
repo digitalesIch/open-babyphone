@@ -29,7 +29,7 @@ import java.net.URLDecoder
  *    versa. Scanning a legacy QR yields only the pairing code; no trusted
  *    child profile is created.
  *
- * 2. **Structured** – `openbabyphone://pair?childId=…&pairingId=…&name=…&code=…`
+ * 2. **Structured** – `openbabyphone://pair?childId=…&pairingId=…&relay=…&name=…&code=…`
  *    The parent stores the child as a known device so future connections do
  *    not require re-scanning.
  */
@@ -40,6 +40,7 @@ object PairingQrCode {
     private const val PREFIX = "$SCHEME://$AUTHORITY"
     private const val PARAM_CHILD_ID = "childId"
     private const val PARAM_PAIRING_ID = "pairingId"
+    private const val PARAM_RELAY = "relay"
     private const val PARAM_NAME = "name"
     private const val PARAM_CODE = "code"
 
@@ -59,6 +60,7 @@ object PairingQrCode {
         data class Structured(
             val childId: String,
             val pairingId: String,
+            val relaySessionId: String?,
             val name: String,
             val pairingCode: String
         ) : ParsedQrCode
@@ -71,12 +73,14 @@ object PairingQrCode {
         childId: String,
         pairingId: String,
         name: String,
-        pairingCode: String
+        pairingCode: String,
+        relaySessionId: String = RelaySessionId.derive(childId, pairingId)
     ): String {
         require(PairingCode.isValid(pairingCode)) { "Pairing code is invalid" }
         val params = mutableListOf(
             "$PARAM_CHILD_ID=${encode(childId)}",
             "$PARAM_PAIRING_ID=${encode(pairingId)}",
+            "$PARAM_RELAY=${encode(relaySessionId)}",
             "$PARAM_NAME=${encode(name)}",
             "$PARAM_CODE=${encodeCode(pairingCode)}"
         )
@@ -128,9 +132,11 @@ object PairingQrCode {
         val params = parseQueryParams(queryPart)
         val childId = params[PARAM_CHILD_ID]?.takeIf { it.isNotBlank() } ?: return null
         val pairingId = params[PARAM_PAIRING_ID]?.takeIf { it.isNotBlank() } ?: return null
+        val relay = params[PARAM_RELAY]?.takeIf { it.matches(Regex("[A-Fa-f0-9]{64}")) }
+            ?: RelaySessionId.derive(childId, pairingId)
         val name = params[PARAM_NAME].orEmpty()
         val code = params[PARAM_CODE]?.let(::decodeCode).orEmpty()
-        return ParsedQrCode.Structured(childId, pairingId, name, code)
+        return ParsedQrCode.Structured(childId, pairingId, relay, name, code)
     }
 
     private fun parseLegacy(content: String): ParsedQrCode.Legacy {

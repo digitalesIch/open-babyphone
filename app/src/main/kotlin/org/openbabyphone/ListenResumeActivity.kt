@@ -72,8 +72,9 @@ class ListenResumeActivity : Activity() {
         val child = trustedChildStore().findById(identity.childId)
             ?.takeIf { it.pairingId == identity.pairingId }
             ?: return null
-        val address = child.lastKnownAddress ?: return null
-        val port = child.lastKnownPort ?: return null
+        val relaySessionId = RelaySessionId.derive(identity.childId, identity.pairingId)
+        val address = child.lastKnownAddress.orEmpty()
+        val port = child.lastKnownPort ?: 0
         val requestId = PendingConnections.store.put(
             PendingConnection(
                 address = address,
@@ -81,7 +82,8 @@ class ListenResumeActivity : Activity() {
                 name = child.displayName,
                 pairingCode = null,
                 expectedChildId = identity.childId,
-                expectedPairingId = identity.pairingId
+                expectedPairingId = identity.pairingId,
+                relaySessionId = relaySessionId
             )
         )
         return Listen(requestId, identity.childId, identity.pairingId)

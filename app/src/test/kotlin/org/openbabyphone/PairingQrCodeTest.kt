@@ -59,6 +59,36 @@ class PairingQrCodeTest {
         assertEquals("xyz789", structured.pairingId)
         assertEquals("Nursery", structured.name)
         assertEquals("myCode42", structured.pairingCode)
+        assertEquals(
+            RelaySessionId.derive("abc123def456", "xyz789"),
+            structured.relaySessionId
+        )
+    }
+
+    @Test
+    fun parse_structuredPayload_withExplicitRelayPreservesIt() {
+        val relay = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        val payload = PairingQrCode.buildPayload(
+            childId = "abc123",
+            pairingId = "xyz789",
+            name = "Nursery",
+            pairingCode = "myCode42",
+            relaySessionId = relay
+        )
+
+        val structured = PairingQrCode.parse(payload) as PairingQrCode.ParsedQrCode.Structured
+        assertEquals(relay, structured.relaySessionId)
+    }
+
+    @Test
+    fun parse_structuredPayload_withLegacyMissingRelayDerivesIt() {
+        val payload = "openbabyphone://pair?childId=child123&pairingId=pair456&name=Nursery&code=bXlDb2RlNDI="
+        val structured = PairingQrCode.parse(payload) as PairingQrCode.ParsedQrCode.Structured
+
+        assertEquals(
+            RelaySessionId.derive("child123", "pair456"),
+            structured.relaySessionId
+        )
     }
 
     @Test
