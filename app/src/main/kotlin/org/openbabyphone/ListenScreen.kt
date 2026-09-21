@@ -59,6 +59,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -478,6 +479,10 @@ private fun AudioSignalIndicator(
     }
     val stateLabel = stringResource(signalState.labelRes)
     val signalContentDescription = stringResource(R.string.audio_signal_content_description, stateLabel)
+    val configuration = LocalConfiguration.current
+    val waveformHeight = (configuration.screenHeightDp * WAVEFORM_SCREEN_HEIGHT_FRACTION)
+        .dp
+        .coerceIn(WAVEFORM_MIN_HEIGHT, WAVEFORM_MAX_HEIGHT)
     val stateColor = when (signalState) {
         AudioSignalState.NoRecentAudio -> MaterialTheme.colorScheme.onSurfaceVariant
         AudioSignalState.Quiet -> MaterialTheme.colorScheme.primary
@@ -536,7 +541,7 @@ private fun AudioSignalIndicator(
             stale = signalState == AudioSignalState.NoRecentAudio,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(88.dp)
+                .height(waveformHeight)
                 .testTag("audio_signal_waveform")
         )
         Text(
@@ -730,3 +735,6 @@ private const val WAVEFORM_MAX_HEIGHT_FRACTION = 0.68f
 private const val WAVEFORM_SILENCE_FLOOR = 0.002f
 private const val WAVEFORM_AVERAGE_WEIGHT = 0.7f
 private const val WAVEFORM_PEAK_WEIGHT = 0.3f
+private const val WAVEFORM_SCREEN_HEIGHT_FRACTION = 0.3f
+private val WAVEFORM_MIN_HEIGHT = 96.dp
+private val WAVEFORM_MAX_HEIGHT = 320.dp
