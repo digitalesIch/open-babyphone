@@ -123,6 +123,7 @@ fun ListenScreen(
         )
     }
 ) {
+    KeepScreenOn()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val uiState by viewModel.uiState.collectAsState()

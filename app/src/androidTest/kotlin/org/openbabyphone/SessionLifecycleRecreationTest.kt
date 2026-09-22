@@ -3,6 +3,8 @@ package org.openbabyphone
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.os.SystemClock
+import android.view.WindowManager
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -10,6 +12,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -118,6 +121,53 @@ class SessionLifecycleRecreationTest {
                 assertTrue(disposals >= 1)
                 assertEquals(0, stops)
             }
+        }
+    }
+
+    @Test
+    fun listenScreenKeepsScreenOnWhileVisibleAndClearsItOnLeave() {
+        SessionLifecycleTestHost.content = {
+            ListenScreen(
+                requestId = "request",
+                expectedChildId = "child",
+                expectedPairingId = "pairing",
+                resumeOnly = false,
+                onNavigateBack = {},
+                bindListenService = { context, _, _, _, _, _ ->
+                    fakeBinding(context, ListenService::class.java)
+                },
+                disposeServiceBinding = { _, _ -> },
+                unbindAndStopService = { _, _ -> },
+                stopListenService = {},
+                permissionChecker = { _, _ -> true },
+                readinessStatus = { readyStatus() },
+                openNotificationSettings = {}
+            )
+        }
+
+        ActivityScenario.launch(SessionLifecycleTestActivity::class.java).use { scenario ->
+            awaitScreenOn(scenario, expected = true)
+
+            SessionLifecycleTestHost.content = {}
+            awaitScreenOn(scenario, expected = false)
+        }
+    }
+
+    private fun awaitScreenOn(scenario: ActivityScenario<SessionLifecycleTestActivity>, expected: Boolean) {
+        val deadline = System.currentTimeMillis() + 10_000
+        var matched = false
+        while (System.currentTimeMillis() < deadline) {
+            scenario.onActivity { activity ->
+                matched = (activity.window.attributes.flags and
+                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON != 0) == expected
+            }
+            if (matched) return
+            SystemClock.sleep(200)
+        }
+        if (expected) {
+            assertTrue("ListenScreen must keep the screen on while visible", matched)
+        } else {
+            assertFalse("Screen-on flag must be cleared when the listen screen leaves", matched)
         }
     }
 
