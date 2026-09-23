@@ -23,16 +23,28 @@ class VolumeHistory internal constructor(maxHistory: Int) {
     private val stats = VolumeStatistics(maxHistory)
     private val uiHandler: Handler = Handler(Looper.getMainLooper())
 
+    // Single-producer (playback thread) / single-consumer (main thread) handoff
+    // of volume samples without per-frame allocation.
+    private val pendingVolumes = DoubleArray(PENDING_CAPACITY)
+    private var pendingCount = 0
+    private val pendingLock = Any()
+
+    private val drainPendingVolumes = Runnable {
+        synchronized(pendingLock) {
+            val count = pendingCount
+            for (index in 0 until count) {
+                stats.addLast(pendingVolumes[index])
+            }
+            pendingCount = 0
+        }
+    }
+
     val volumeNorm: Double
-        get() = stats.volumeNorm
+        get() = synchronized(stats) { stats.volumeNorm }
 
-    operator fun get(i: Int): Double {
-        return stats[i]
-    }
+    operator fun get(i: Int): Double = synchronized(stats) { stats[i] }
 
-    fun size(): Int {
-        return stats.size()
-    }
+    fun size(): Int = synchronized(stats) { stats.size() }
 
     fun onAudioData(data: ShortArray) {
         onAudioData(data, 0, data.size)
@@ -52,6 +64,23 @@ class VolumeHistory internal constructor(maxHistory: Int) {
             sum += rel * rel
         }
         val volume = sum / length
-        uiHandler.post { stats.addLast(volume) }
+
+        val posted = synchronized(pendingLock) {
+            val index = pendingCount
+            if (index < PENDING_CAPACITY) {
+                pendingVolumes[index] = volume
+                pendingCount = index + 1
+                true
+            } else {
+                false
+            }
+        }
+        if (posted) {
+            uiHandler.post(drainPendingVolumes)
+        }
+    }
+
+    private companion object {
+        private const val PENDING_CAPACITY = 64
     }
 }

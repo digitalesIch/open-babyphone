@@ -196,6 +196,42 @@ object CryptoHelper {
         }
     }
 
+    /**
+     * Decrypts a chunk into [output] at [outputOffset] without allocating.
+     * Returns the number of plaintext bytes written, or null on failure.
+     * [output] must hold [ciphertextLength] minus [AUTH_TAG_SIZE] plaintext bytes.
+     */
+    fun decryptChunkInto(
+        ciphertext: ByteArray,
+        ciphertextOffset: Int,
+        ciphertextLength: Int,
+        key: ByteArray,
+        sessionId: ByteArray,
+        counter: Long,
+        associatedData: ByteArray,
+        output: ByteArray,
+        outputOffset: Int
+    ): Int? {
+        requireRange(ciphertext.size, ciphertextOffset, ciphertextLength, "ciphertext")
+        requireRange(output.size, outputOffset, ciphertextLength - AUTH_TAG_SIZE, "output")
+        require(sessionId.size == SESSION_ID_SIZE) { "sessionId must be $SESSION_ID_SIZE bytes, got ${sessionId.size}" }
+        if (counter !in 0..Int.MAX_VALUE.toLong()) return null
+        if (ciphertextLength < AUTH_TAG_SIZE) return null
+        val nonce = buildStreamNonce(sessionId, counter)
+        return try {
+            val cipher = createAeadCipher()
+            cipher.init(Cipher.DECRYPT_MODE, SecretKeySpec(key, "ChaCha20"), IvParameterSpec(nonce))
+            if (associatedData.isNotEmpty()) cipher.updateAAD(associatedData)
+            try {
+                cipher.doFinal(ciphertext, ciphertextOffset, ciphertextLength, output, outputOffset)
+            } catch (_: GeneralSecurityException) {
+                null
+            }
+        } finally {
+            nonce.fill(0)
+        }
+    }
+
     fun createProof(challenge: ByteArray, authKey: ByteArray, nonce: ByteArray, transcript: ByteArray): ByteArray {
         require(challenge.size == CHALLENGE_SIZE)
         return encryptAead(challenge, authKey, nonce, transcript)

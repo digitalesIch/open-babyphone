@@ -61,6 +61,20 @@ internal class MonitorFrameSequence {
         return nextSequence++
     }
 
+    /**
+     * Allocation-free variant of [take] for the audio producer thread. Writes
+     * the taken sequence into [sequence] and returns whether one was taken;
+     * boxing a nullable Int on every frame would otherwise allocate.
+     */
+    fun takeInto(clientCount: Int, sequence: IntArray): Boolean {
+        require(sequence.isNotEmpty())
+        if (clientCount == 0) return false
+        check(nextSequence < Int.MAX_VALUE) { "Stream sequence space exhausted" }
+        sequence[0] = nextSequence
+        nextSequence++
+        return true
+    }
+
     fun reset() {
         nextSequence = 0
     }
@@ -247,6 +261,7 @@ class MonitorService : Service() {
             val pcmBuffer = ShortArray(AudioFrameTiming.FRAME_SAMPLES)
             val ulawBuffer = ByteArray(AudioFrameTiming.FRAME_SAMPLES)
             val frameBuffer = ByteArray(FrameCodec.MAX_FRAME_SIZE)
+            val sequenceBuffer = IntArray(1)
             val sessionStartTime = SystemClock.elapsedRealtime()
             var lastHeartbeatTime = 0L
             var failureType: MonitorSessionError? = null
@@ -313,12 +328,12 @@ class MonitorService : Service() {
                         val sessionId = streamSessionId ?: throw IllegalStateException("Missing stream session")
                         val key = streamKey
                         if (key != null) {
-                            val sequence = frameSequence.take(clientManager.getClientCount()) ?: continue
+                            if (!frameSequence.takeInto(clientManager.getClientCount(), sequenceBuffer)) continue
                             val frameLength = FrameCodec.encodeFrameInto(
                                 ulawBuffer,
                                 0,
                                 encoded,
-                                sequence,
+                                sequenceBuffer[0],
                                 timestampMs,
                                 key,
                                 sessionId,
@@ -328,10 +343,9 @@ class MonitorService : Service() {
 
                             val currentTime = SystemClock.elapsedRealtime()
                             if (currentTime - lastHeartbeatTime >= AudioCodecDefines.HEARTBEAT_INTERVAL_MS) {
-                                val heartbeatSequence = frameSequence.take(clientManager.getClientCount())
-                                if (heartbeatSequence != null) {
+                                if (frameSequence.takeInto(clientManager.getClientCount(), sequenceBuffer)) {
                                     val heartbeatLength = FrameCodec.encodeHeartbeatInto(
-                                        heartbeatSequence,
+                                        sequenceBuffer[0],
                                         timestampMs,
                                         key,
                                         sessionId,
