@@ -27,6 +27,7 @@ import java.net.Socket
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
@@ -146,6 +147,38 @@ class ListenServiceAudioWorkerTest {
             sink.releaseWrite.countDown()
             controller.destroy()
         }
+    }
+
+    @Test
+    fun `ui updates are throttled while every delivered frame refreshes health`() {
+        val controller = Robolectric.buildService(ListenService::class.java).create()
+        val service = controller.get()
+        val sink = RecordingSink(maximumWrite = AudioFrameTiming.FRAME_SAMPLES)
+        val uiUpdates = AtomicInteger(0)
+        service.audioPlaybackFactory = { sink }
+        service.onUpdate = { uiUpdates.incrementAndGet() }
+
+        val result = runStream(frameCount = THROTTLE_FRAME_COUNT, service = service) {
+            awaitWrittenSamples(sink, THROTTLE_FRAME_COUNT * AudioFrameTiming.FRAME_SAMPLES.toLong())
+        }
+
+        try {
+            assertStreamResult(result, "Reconnect")
+            // Robolectric freezes elapsedRealtime, so after the immediate first
+            // notification every further per-frame UI update is throttled away.
+            assertEquals(1, uiUpdates.get())
+            assertEquals(ListenSessionState.Listening, ListenServiceRepository.sessionState.value)
+        } finally {
+            controller.destroy()
+        }
+    }
+
+    private fun awaitWrittenSamples(sink: RecordingSink, expected: Long): Boolean {
+        repeat(400) {
+            if (sink.writtenSamples.get() >= expected) return true
+            Thread.sleep(20)
+        }
+        return sink.writtenSamples.get() >= expected
     }
 
     private fun runStream(
@@ -319,6 +352,7 @@ class ListenServiceAudioWorkerTest {
     private companion object {
         const val JITTER_PRE_ROLL_FRAMES = 3
         const val OVERFLOW_FRAME_COUNT = 10
+        const val THROTTLE_FRAME_COUNT = 10
         const val BLOCKED_WRITE_TIMEOUT_SECONDS = 7L
         const val STREAM_FINISH_TIMEOUT_SECONDS = 8L
     }

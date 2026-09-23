@@ -8,6 +8,7 @@
  */
 package org.openbabyphone.audio
 
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -178,6 +179,126 @@ class JitterBufferTest {
         assertEquals(JitterBuffer.BASE_TARGET_FRAMES, buffer.getTargetFrames())
         assertFalse(buffer.hasPlaybackStarted())
         assertEquals(0, buffer.getStats().totalFrames)
+    }
+
+    @Test
+    fun `addFrameFromScratch copies into pooled slots and drains in order`() {
+        val buffer = JitterBuffer()
+        val scratch = ByteArray(256) { 0x55 }
+
+        assertEquals(JitterBuffer.AddResult.Accepted, buffer.addFrameFromScratch(scratch, 0, 128, 10, 200, 1_000L))
+        assertEquals(JitterBuffer.AddResult.Accepted, buffer.addFrameFromScratch(scratch, 128, 128, 11, 220, 1_020L))
+        assertEquals(JitterBuffer.AddResult.Accepted, buffer.addFrameFromScratch(scratch, 128, 128, 12, 240, 1_040L))
+
+        val first = buffer.getFrame(0)!!
+        val second = buffer.getFrame(0)!!
+        assertEquals(10, first.seqNum)
+        assertEquals(11, second.seqNum)
+        assertEquals(128, first.ulawLength)
+        assertEquals(128, second.ulawLength)
+        assertArrayEquals(scratch.copyOfRange(0, 128), first.ulawData.copyOfRange(first.ulawOffset, first.ulawOffset + 128))
+        assertArrayEquals(scratch.copyOfRange(128, 256), second.ulawData.copyOfRange(second.ulawOffset, second.ulawOffset + 128))
+        buffer.releaseFrame(first)
+        buffer.releaseFrame(second)
+        buffer.releaseFrame(buffer.getFrame(0)!!)
+
+        // All slots are free again and can serve a full capacity round trip.
+        repeat(JitterBuffer.CAPACITY_FRAMES) { sequence ->
+            assertEquals(JitterBuffer.AddResult.Accepted, buffer.addFrameFromScratch(scratch, 0, 128, 20 + sequence, 0, 1_000L))
+        }
+        repeat(JitterBuffer.CAPACITY_FRAMES) { sequence ->
+            val frame = buffer.getFrame(0)!!
+            assertEquals(20 + sequence, frame.seqNum)
+            buffer.releaseFrame(frame)
+        }
+    }
+
+    @Test
+    fun `slot pool survives full buffer with borrowed frame without dropping or crashing`() {
+        val buffer = JitterBuffer()
+        val scratch = ByteArray(64)
+
+        // Fill the buffer to capacity while one frame stays borrowed.
+        repeat(JitterBuffer.CAPACITY_FRAMES) { sequence ->
+            assertEquals(JitterBuffer.AddResult.Accepted, buffer.addFrameFromScratch(scratch, 0, 64, sequence, 0, 1_000L))
+        }
+        val borrowed = buffer.getFrame(0)!!
+        assertEquals(0, borrowed.seqNum)
+
+        // The borrowed frame freed one buffer slot, so one more frame is accepted.
+        assertEquals(
+            JitterBuffer.AddResult.Accepted,
+            buffer.addFrameFromScratch(scratch, 0, 64, JitterBuffer.CAPACITY_FRAMES, 0, 1_100L)
+        )
+        // The buffer is full again; the oldest queued frame is dropped to make room.
+        assertEquals(
+            JitterBuffer.AddResult.AcceptedAfterDroppingOldest,
+            buffer.addFrameFromScratch(scratch, 0, 64, JitterBuffer.CAPACITY_FRAMES + 1, 0, 1_120L)
+        )
+
+        buffer.releaseFrame(borrowed)
+        val next = buffer.getFrame(0)!!
+        assertEquals(2, next.seqNum)
+        buffer.releaseFrame(next)
+    }
+
+    @Test
+    fun `clear releases pooled slots borrowed and queued`() {
+        val buffer = JitterBuffer()
+        val scratch = ByteArray(64)
+        repeat(JitterBuffer.CAPACITY_FRAMES) { sequence ->
+            buffer.addFrameFromScratch(scratch, 0, 64, sequence, 0, 1_000L)
+        }
+        val borrowed = buffer.getFrame(0)!!
+        buffer.addFrameFromScratch(scratch, 0, 64, 90, 0, 1_050L)
+
+        buffer.clear()
+        buffer.releaseFrame(borrowed)
+
+        // After clear plus release the pool serves a full round trip again.
+        repeat(JitterBuffer.CAPACITY_FRAMES) { sequence ->
+            assertEquals(JitterBuffer.AddResult.Accepted, buffer.addFrameFromScratch(scratch, 0, 64, sequence, 0, 2_000L))
+        }
+        repeat(JitterBuffer.CAPACITY_FRAMES) { sequence ->
+            val frame = buffer.getFrame(0)!!
+            assertEquals(sequence, frame.seqNum)
+            buffer.releaseFrame(frame)
+        }
+    }
+
+    @Test
+    fun `addFrameFromScratch never blocks or throws under receiver and playback contention`() {
+        val buffer = JitterBuffer()
+        val scratch = ByteArray(64)
+
+        // Simulate the receiver outpacing playback: fill to capacity, borrow one
+        // frame for playback, then keep inserting. Slots must recycle through
+        // drops without the pool starving the receiver.
+        var sequence = 0
+        val borrowed = mutableListOf<JitterBuffer.DecodedFrame>()
+        repeat(10) {
+            val addResult = buffer.addFrameFromScratch(scratch, 0, 64, sequence, 0, 1_000L + sequence)
+            sequence++
+            assertTrue(
+                addResult == JitterBuffer.AddResult.Accepted ||
+                    addResult == JitterBuffer.AddResult.AcceptedAfterDroppingOldest ||
+                    addResult == JitterBuffer.AddResult.DroppedOverflow
+            )
+            if (borrowed.size < 2 && buffer.getStats().levelFrames > 0) {
+                buffer.getFrame(0)?.let { frame ->
+                    borrowed += frame
+                    if (borrowed.size == 2) buffer.releaseFrame(frame)
+                }
+            }
+        }
+        assertTrue(borrowed.isNotEmpty())
+
+        // Everything borrowed and queued is reclaimable.
+        buffer.clear()
+        borrowed.forEach(buffer::releaseFrame)
+        repeat(JitterBuffer.CAPACITY_FRAMES) { offset ->
+            assertEquals(JitterBuffer.AddResult.Accepted, buffer.addFrameFromScratch(scratch, 0, 64, 100 + offset, 0, 2_000L))
+        }
     }
 
     private fun frame(

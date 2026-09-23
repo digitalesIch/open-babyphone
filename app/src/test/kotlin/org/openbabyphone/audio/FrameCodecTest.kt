@@ -192,4 +192,84 @@ class FrameCodecTest {
             )
         }
     }
+
+    @Test
+    fun `decodeFrameInto matches decodeFrame and supports output offsets`() {
+        val audio = ByteArray(300) { (it * 7).toByte() }
+        val encoded = FrameCodec.encodeFrame(audio, 12, 3400, key, sessionId)
+        val input = encoded.inputStream()
+        val headerBuffer = ByteArray(FrameHeader.SIZE)
+        val header = FrameHeader.readInto(input, headerBuffer)!!
+        val payload = ByteArray(header.payloadLength).also { input.read(it) }
+
+        val plaintext = ByteArray(FrameCodec.MAX_G711_AUDIO_SIZE)
+        val decoded = FrameCodec.decodeFrameInto(
+            header,
+            payload,
+            0,
+            payload.size,
+            key,
+            sessionId,
+            headerBuffer,
+            plaintext,
+            16
+        )!!
+
+        assertEquals(12, decoded.seqNum)
+        assertEquals(3400, decoded.timestampMs)
+        assertEquals(audio.size, decoded.plaintextLength)
+        assertArrayEquals(
+            audio,
+            plaintext.copyOfRange(16, 16 + decoded.plaintextLength)
+        )
+
+        val legacy = FrameCodec.decodeFrame(header, payload, key, sessionId)!!
+        assertArrayEquals(legacy.ulawData, plaintext.copyOfRange(16, 16 + decoded.plaintextLength))
+
+        val tamperedSeq = header.copy(seqNum = header.seqNum + 1)
+        assertNull(
+            FrameCodec.decodeFrameInto(tamperedSeq, payload, 0, payload.size, key, sessionId, headerBuffer, plaintext, 16)
+        )
+    }
+
+    @Test
+    fun `decodeFrameInto rejects tampered associated data`() {
+        val audio = byteArrayOf(3, 1, 4, 1, 5)
+        val encoded = FrameCodec.encodeFrame(audio, 2, 60, key, sessionId)
+        val input = encoded.inputStream()
+        val headerBuffer = ByteArray(FrameHeader.SIZE)
+        val header = FrameHeader.readInto(input, headerBuffer)!!
+        val payload = ByteArray(header.payloadLength).also { input.read(it) }
+
+        val tamperedAssociatedData = headerBuffer.copyOf().also { it[3] = (it[3] + 1).toByte() }
+        assertNull(
+            FrameCodec.decodeFrameInto(
+                header,
+                payload,
+                0,
+                payload.size,
+                key,
+                sessionId,
+                tamperedAssociatedData,
+                ByteArray(FrameCodec.MAX_G711_AUDIO_SIZE)
+            )
+        )
+    }
+
+    @Test
+    fun `readInto reuses caller buffers without allocating per header`() {
+        val header = FrameHeader(FrameCodec.FLAG_AUDIO, 90, 4_500, 90)
+        val output = java.io.ByteArrayOutputStream()
+        FrameHeader.writeTo(header, output)
+        val stream = output.toByteArray().inputStream()
+
+        val buffer = ByteArray(FrameHeader.SIZE + 5)
+        val readHeader = FrameHeader.readInto(stream, buffer)!!
+        assertEquals(header, readHeader)
+
+        val undersized = java.io.ByteArrayOutputStream()
+        FrameHeader.writeTo(header, undersized)
+        val shortStream = undersized.toByteArray().inputStream()
+        assertNull(FrameHeader.readInto(shortStream, ByteArray(FrameHeader.SIZE - 1)))
+    }
 }

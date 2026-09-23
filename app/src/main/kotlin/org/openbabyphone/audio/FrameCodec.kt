@@ -185,27 +185,80 @@ object FrameCodec {
         key: ByteArray,
         sessionId: ByteArray
     ): DecodedFrame? {
+        val plaintextBuffer = try {
+            ByteArray(MAX_G711_AUDIO_SIZE)
+        } catch (_: OutOfMemoryError) {
+            return null
+        }
+        return try {
+            val plaintext = decodeFrameInto(
+                header,
+                payload,
+                payloadOffset,
+                payloadLength,
+                key,
+                sessionId,
+                header.toByteArray(),
+                plaintextBuffer
+            ) ?: return null
+            DecodedFrame(
+                plaintext.seqNum,
+                plaintext.timestampMs,
+                plaintextBuffer.copyOf(plaintext.plaintextLength),
+                plaintext.isHeartbeat
+            )
+        } finally {
+            plaintextBuffer.fill(0)
+        }
+    }
+
+    /**
+     * Decodes a frame into [plaintextOutput] at [plaintextOffset] without
+     * allocating. Returns null on authentication failure or when the frame is
+     * malformed; otherwise returns the frame metadata with the number of
+     * plaintext bytes written.
+     */
+    fun decodeFrameInto(
+        header: FrameHeader,
+        payload: ByteArray,
+        payloadOffset: Int,
+        payloadLength: Int,
+        key: ByteArray,
+        sessionId: ByteArray,
+        associatedData: ByteArray,
+        plaintextOutput: ByteArray,
+        plaintextOffset: Int = 0
+    ): PlaintextFrame? {
         if (payloadOffset < 0 || payloadLength < 0 || payloadOffset > payload.size - payloadLength) return null
         if (!isValidHeader(header) || payloadLength != header.payloadLength) return null
-        val plaintext = CryptoHelper.decryptChunk(
+        val plaintextLength = CryptoHelper.decryptChunkInto(
             payload,
             payloadOffset,
             payloadLength,
             key,
             sessionId,
             header.seqNum.toLong(),
-            header.toByteArray()
+            associatedData,
+            plaintextOutput,
+            plaintextOffset
         ) ?: return null
         return when (header.flags) {
-            FLAG_HEARTBEAT -> plaintext.takeIf { it.isEmpty() }?.let {
-                DecodedFrame(header.seqNum, header.timestampMs, it, true)
+            FLAG_HEARTBEAT -> plaintextLength.takeIf { it == 0 }?.let {
+                PlaintextFrame(header.seqNum, header.timestampMs, it, true)
             }
-            FLAG_AUDIO -> plaintext.takeIf { it.size in 1..MAX_G711_AUDIO_SIZE }?.let {
-                DecodedFrame(header.seqNum, header.timestampMs, it, false)
+            FLAG_AUDIO -> plaintextLength.takeIf { it in 1..MAX_G711_AUDIO_SIZE }?.let {
+                PlaintextFrame(header.seqNum, header.timestampMs, it, false)
             }
             else -> null
         }
     }
+
+    data class PlaintextFrame(
+        val seqNum: Int,
+        val timestampMs: Int,
+        val plaintextLength: Int,
+        val isHeartbeat: Boolean
+    )
 
     private fun encodeInto(
         flags: Byte,

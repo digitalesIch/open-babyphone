@@ -28,12 +28,21 @@ internal class JitterBuffer {
         DroppedOverflow
     }
 
-    data class DecodedFrame(
+    class DecodedFrame(
         val seqNum: Int,
         val timestampMs: Int,
         val ulawData: ByteArray,
+        val ulawOffset: Int,
+        val ulawLength: Int,
         val receiveTime: Long
-    )
+    ) {
+        constructor(
+            seqNum: Int,
+            timestampMs: Int,
+            ulawData: ByteArray,
+            receiveTime: Long
+        ) : this(seqNum, timestampMs, ulawData, 0, ulawData.size, receiveTime)
+    }
 
     data class Stats(
         val totalFrames: Int,
@@ -44,6 +53,27 @@ internal class JitterBuffer {
         val targetFrames: Int,
         val arrivalJitterMs: Double
     )
+
+    /**
+     * A window into this buffer's pooled frame storage. One window holds one
+     * audio frame; the receiver thread copies decoded frames into windows and
+     * the playback thread borrows them in sequence order.
+     */
+    private class SlotWindow(
+        val offset: Int,
+        val inUse: java.util.concurrent.atomic.AtomicBoolean = java.util.concurrent.atomic.AtomicBoolean(true)
+    )
+
+    private val slotStorage = ByteArray(SLOT_COUNT * MAX_FRAME_BYTES)
+    private val slotWindows = Array(SLOT_COUNT) { index -> SlotWindow(index * MAX_FRAME_BYTES) }
+    private val freeSlots = java.util.concurrent.ArrayBlockingQueue<SlotWindow>(SLOT_COUNT)
+
+    init {
+        repeat(SLOT_COUNT) { index ->
+            slotWindows[index].inUse.set(false)
+            check(freeSlots.offer(slotWindows[index]))
+        }
+    }
 
     private val lock = ReentrantLock()
     private val changed = lock.newCondition()
@@ -68,6 +98,7 @@ internal class JitterBuffer {
         if (frame.seqNum <= lastPlayedSequence) {
             lateFrames++
             droppedFrames++
+            releaseFrame(frame)
             return AddResult.DroppedLate
         }
 
@@ -78,16 +109,20 @@ internal class JitterBuffer {
         if (insertionIndex < size && frames[insertionIndex]!!.seqNum == frame.seqNum) {
             duplicateFrames++
             droppedFrames++
+            releaseFrame(frame)
             return AddResult.DroppedDuplicate
         }
 
         observeArrival(frame.receiveTime, frame.timestampMs)
         if (size == CAPACITY_FRAMES) {
             droppedFrames++
-            if (insertionIndex == 0) return AddResult.DroppedOverflow
+            if (insertionIndex == 0) {
+                releaseFrame(frame)
+                return AddResult.DroppedOverflow
+            }
 
             for (index in 1 until size) frames[index - 1] = frames[index]
-            size--
+            releaseFrame(frames[--size]!!)
             insertionIndex--
             insertAt(insertionIndex, frame)
             changed.signalAll()
@@ -97,6 +132,43 @@ internal class JitterBuffer {
         insertAt(insertionIndex, frame)
         changed.signalAll()
         AddResult.Accepted
+    }
+
+    /**
+     * Reserves the next slot window, copies [ulawLength] bytes from the scratch
+     * buffer into it, and inserts the result in sequence order. The scratch
+     * buffer can be reused immediately after this call returns; the slot
+     * window is reclaimed automatically in every non-accepted path. Returns
+     * [AddResult.DroppedOverflow] when no slot window is available.
+     */
+    fun addFrameFromScratch(
+        scratch: ByteArray,
+        ulawOffset: Int,
+        ulawLength: Int,
+        seqNum: Int,
+        timestampMs: Int,
+        receiveTime: Long
+    ): AddResult {
+        require(ulawOffset >= 0 && ulawLength >= 0 && ulawOffset <= scratch.size - ulawLength)
+        val window = freeSlots.poll() ?: return AddResult.DroppedOverflow
+        window.inUse.set(true)
+        scratch.copyInto(slotStorage, window.offset, ulawOffset, ulawOffset + ulawLength)
+        return addFrame(
+            DecodedFrame(seqNum, timestampMs, slotStorage, window.offset, ulawLength, receiveTime)
+        )
+    }
+
+    /**
+     * Returns a borrowed window after the consumer finished reading it. Must
+     * be called once for every frame returned by [getFrame].
+     */
+    fun releaseFrame(frame: DecodedFrame) {
+        if (frame.ulawData !== slotStorage) return
+        if (frame.ulawOffset % MAX_FRAME_BYTES != 0) return
+        val window = slotWindows[frame.ulawOffset / MAX_FRAME_BYTES]
+        if (window.inUse.compareAndSet(true, false)) {
+            check(freeSlots.offer(window))
+        }
     }
 
     /**
@@ -149,23 +221,28 @@ internal class JitterBuffer {
         )
     }
 
-    fun clear() = lock.withLock {
-        frames.fill(null)
-        size = 0
-        lastPlayedSequence = -1
-        playbackStarted = false
-        preRollRequired = true
-        totalFrames = 0
-        droppedFrames = 0
-        duplicateFrames = 0
-        lateFrames = 0
-        targetFrames = BASE_TARGET_FRAMES
-        targetDecayObservations = 0
-        jitterInitialized = false
-        previousReceiveTime = 0L
-        previousTimestamp = 0L
-        arrivalJitterMs = 0.0
-        changed.signalAll()
+    fun clear() {
+        val borrowed = lock.withLock {
+            val borrowed = frames.filterNotNull().filter { it.ulawData === slotStorage }
+            frames.fill(null)
+            size = 0
+            lastPlayedSequence = -1
+            playbackStarted = false
+            preRollRequired = true
+            totalFrames = 0
+            droppedFrames = 0
+            duplicateFrames = 0
+            lateFrames = 0
+            targetFrames = BASE_TARGET_FRAMES
+            targetDecayObservations = 0
+            jitterInitialized = false
+            previousReceiveTime = 0L
+            previousTimestamp = 0L
+            arrivalJitterMs = 0.0
+            changed.signalAll()
+            borrowed
+        }
+        borrowed.forEach(::releaseFrame)
     }
 
     private fun insertAt(index: Int, frame: DecodedFrame) {
@@ -218,6 +295,15 @@ internal class JitterBuffer {
         const val BASE_TARGET_FRAMES = 3
         const val MAX_TARGET_FRAMES = 6
         const val CAPACITY_FRAMES = 6
+
+        /**
+         * One spare window beyond the buffer capacity serves a frame that is
+         * borrowed for playback while the buffer is completely full; a second
+         * spare keeps the receiver from starving when a borrowed frame is
+         * still being decoded and written.
+         */
+        const val SLOT_COUNT = CAPACITY_FRAMES + 2
+        const val MAX_FRAME_BYTES = FrameCodec.MAX_G711_AUDIO_SIZE
         private const val JITTER_SMOOTHING_DIVISOR = 16.0
         private const val JITTER_MARGIN = 4.0
         private const val TARGET_DECAY_OBSERVATIONS = 24

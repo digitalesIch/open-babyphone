@@ -70,4 +70,24 @@ class VolumeHistoryTest {
 
         assertEquals(0.25, history[0], 0.001)
     }
+
+    @Test
+    fun `pending samples from multiple frames drain in order without loss`() {
+        val history = VolumeHistory(100)
+        val loud = ShortArray(160) { 128 }
+        val silent = ShortArray(160) { 0 }
+
+        // Post several frames from the playback thread before the main
+        // looper runs; each frame must still become one history sample.
+        history.onAudioData(loud)
+        history.onAudioData(loud)
+        history.onAudioData(silent)
+
+        ShadowLooper.idleMainLooper()
+
+        assertEquals(3, history.size())
+        assertEquals(1.0, history[0], 0.001)
+        assertEquals(1.0, history[1], 0.001)
+        assertEquals(0.0, history[2], 0.001)
+    }
 }

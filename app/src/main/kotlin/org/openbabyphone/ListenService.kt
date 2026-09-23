@@ -89,6 +89,8 @@ class ListenService : Service() {
     private var wifiDirectOwnershipToken: Long? = null
     private val deliveryHealth = AudioDeliveryHealth(SystemClock::elapsedRealtime)
     private val lossAlertSent = AtomicBoolean(false)
+    @Volatile private var alertNotificationVisible = false
+    @Volatile private var lastUiUpdateAt = 0L
     private val sessionStateLock = Any()
     private var terminalFailure = false
     private val workerGeneration = WorkerGeneration()
@@ -149,7 +151,7 @@ class ListenService : Service() {
         var connection: ListenConnection? = null
         return try {
             createNotificationChannel()
-            notificationManager.cancel(ALERT_NOTIFICATION_ID)
+            cancelAlertNotification()
             val requestId = intent.getStringExtra("requestId").orEmpty()
             val expectedChildId = intent.getStringExtra("expectedChildId").orEmpty()
             val expectedPairingId = intent.getStringExtra("expectedPairingId").orEmpty()
@@ -350,6 +352,26 @@ class ListenService : Service() {
     private fun sendConnectionLostAlert() {
         val notification = buildConnectionLostAlertNotification()
         notificationManager.notify(ALERT_NOTIFICATION_ID, notification)
+        alertNotificationVisible = true
+    }
+
+    /** Cancels the alert notification only when one is known to be visible. */
+    private fun cancelAlertNotification() {
+        if (!alertNotificationVisible) return
+        alertNotificationVisible = false
+        notificationManager.cancel(ALERT_NOTIFICATION_ID)
+    }
+
+    /**
+     * Notifies the UI at most once per [UI_UPDATE_INTERVAL_MS]. Audio arrives
+     * around 50 times per second; a per-frame UI notification would allocate a
+     * full volume-history snapshot on every delivered frame.
+     */
+    private fun notifyUiThrottled() {
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastUiUpdateAt < UI_UPDATE_INTERVAL_MS) return
+        lastUiUpdateAt = now
+        onUpdate?.invoke()
     }
 
     private fun sendAudioInterruptedAlert() {
@@ -358,6 +380,7 @@ class ListenService : Service() {
             R.string.audio_interrupted_alert_text
         )
         notificationManager.notify(ALERT_NOTIFICATION_ID, notification)
+        alertNotificationVisible = true
     }
 
     private fun buildConnectionLostAlertNotification(): Notification = buildAlertNotification(
@@ -987,6 +1010,8 @@ class ListenService : Service() {
                 false
             } else {
                 deliveryHealth.armIfDisarmed()
+                // Guarantee the first delivered frame notifies the UI immediately.
+                lastUiUpdateAt = SystemClock.elapsedRealtime() - UI_UPDATE_INTERVAL_MS - 1
                 true
             }
         }
@@ -1003,6 +1028,9 @@ class ListenService : Service() {
         val frameSequence = FrameSequence(sessionInfo.firstSequence)
         val jitterBuffer = JitterBuffer()
         val encryptedPayloadBuffer = ByteArray(FrameCodec.MAX_ENCRYPTED_AUDIO_SIZE)
+        val headerBuffer = ByteArray(FrameHeader.SIZE)
+        val associatedDataBuffer = ByteArray(FrameHeader.SIZE)
+        val plaintextBuffer = ByteArray(FrameCodec.MAX_G711_AUDIO_SIZE)
 
         val streamRunning = AtomicBoolean(true)
         val playbackFailure = AtomicReference<ListenSessionError?>(null)
@@ -1033,21 +1061,23 @@ class ListenService : Service() {
                     val playbackBuffer: ShortArray
                     val sampleCount: Int
                     if (jitterFrame != null) {
-                        playbackBuffer = decodedBuffer
-                        sampleCount = try {
-                            AudioCodecDefines.CODEC.decode(
+                        try {
+                            playbackBuffer = decodedBuffer
+                            sampleCount = AudioCodecDefines.CODEC.decode(
                                 decodedBuffer,
                                 jitterFrame.ulawData,
-                                jitterFrame.ulawData.size,
-                                0
+                                jitterFrame.ulawLength,
+                                jitterFrame.ulawOffset
                             )
                         } catch (e: RuntimeException) {
                             Log.e(TAG, "Audio frame decoding failed", e)
+                            jitterBuffer.releaseFrame(jitterFrame)
                             failPlayback(ListenSessionError.Decoding)
                             break
                         }
                         if (sampleCount <= 0) {
                             Log.e(TAG, "Audio decoder produced no samples")
+                            jitterBuffer.releaseFrame(jitterFrame)
                             failPlayback(ListenSessionError.Decoding)
                             break
                         }
@@ -1065,6 +1095,9 @@ class ListenService : Service() {
                         elapsedRealtime = audioWriteElapsedRealtime,
                         pauseAfterNoProgress = audioWriteRetryPause
                     )
+                    if (realFrame) {
+                        jitterBuffer.releaseFrame(jitterFrame!!)
+                    }
                     when (writeResult) {
                         AudioWriteResult.Complete -> {
                             if (!realFrame) continue
@@ -1084,13 +1117,15 @@ class ListenService : Service() {
                                     lossAlertSent.set(false)
                                     redeliveryTracker.markRecovered(claim)
                                     ListenServiceRepository.updateListening()
-                                    notificationManager.cancel(ALERT_NOTIFICATION_ID)
+                                    cancelAlertNotification()
                                     true
                                 } else {
                                     false
                                 }
                             }
-                            if (delivered && isWorkerActive(claim)) onUpdate?.invoke()
+                            if (delivered && isWorkerActive(claim)) {
+                                notifyUiThrottled()
+                            }
                         }
                         AudioWriteResult.Failed,
                         AudioWriteResult.Stalled -> {
@@ -1120,7 +1155,7 @@ class ListenService : Service() {
             val senderClock = SenderTimestampClock()
             while (streamRunning.get() && isWorkerActive(claim) && !Thread.currentThread().isInterrupted) {
                 val header = try {
-                    FrameHeader.readFrom(inputStream)
+                    FrameHeader.readInto(inputStream, headerBuffer)
                 } catch (e: SocketTimeoutException) {
                     Log.w(TAG, "Timed out while reading frame header; reconnecting")
                     return reconnectOrPlaybackFailure()
@@ -1155,14 +1190,17 @@ class ListenService : Service() {
                     bytesRead += chunk
                 }
 
-                val frame = try {
-                    FrameCodec.decodeFrame(
+                header.writeTo(associatedDataBuffer, 0)
+                val plaintext = try {
+                    FrameCodec.decodeFrameInto(
                         header,
                         encryptedPayloadBuffer,
                         0,
                         header.payloadLength,
                         sessionInfo.streamKey,
-                        sessionInfo.sessionId
+                        sessionInfo.sessionId,
+                        associatedDataBuffer,
+                        plaintextBuffer
                     )
                 } catch (e: RuntimeException) {
                     Log.e(TAG, "Failed to decode frame", e)
@@ -1187,21 +1225,26 @@ class ListenService : Service() {
                     )
                 }
 
-                if (frame.isHeartbeat) {
+                if (plaintext.isHeartbeat) {
                     Log.d(TAG, "Received authenticated heartbeat frame")
                     continue
                 }
 
                 val receiveTime = SystemClock.elapsedRealtime()
-                val frameAge = senderClock.frameAgeMillis(receiveTime, frame.timestampMs)
+                val frameAge = senderClock.frameAgeMillis(receiveTime, plaintext.timestampMs)
                 if (frameAge > AudioCodecDefines.MAX_FRAME_AGE_MS) {
                     Log.d(TAG, "Dropping stale frame: ${frameAge}ms old")
                     continue
                 }
 
                 val addResult = synchronized(sessionStateLock) {
-                    jitterBuffer.addFrame(
-                        JitterBuffer.DecodedFrame(frame.seqNum, frame.timestampMs, frame.ulawData, receiveTime)
+                    jitterBuffer.addFrameFromScratch(
+                        plaintextBuffer,
+                        0,
+                        plaintext.plaintextLength,
+                        header.seqNum,
+                        plaintext.timestampMs,
+                        receiveTime
                     ).also { result ->
                         if (result.indicatesOverflow() && isWorkerActive(claim) && !terminalFailure) {
                             ListenServiceRepository.updateDisrupted()
@@ -1290,6 +1333,7 @@ class ListenService : Service() {
         private const val AUTH_TIMEOUT_MS = 10_000L
         private const val CONNECT_TIMEOUT_MS = 10_000
         private const val DELIVERY_HEALTH_POLL_MS = 250L
+        private const val UI_UPDATE_INTERVAL_MS = 250L
         private const val AUDIO_WRITE_RETRY_MS = 5L
         private const val JITTER_OVERFLOW_LOG_INTERVAL = 50
         private const val MAX_AUDIO_TRACK_BUFFER_BYTES = 128_000
