@@ -1,7 +1,26 @@
 Open Babyphone (fork of Child Monitor)
 ======================================
 
-July 2026: 1.1.0-alpha.11 (current development version, versionCode 26)
+September 2026: 1.1.0-alpha.15 (current development version, versionCode 30)
+
+  * Keep the screen on while the listen screen is visible, including failure states (#290)
+  * Scale the listen waveform to fill more of the screen height (#289)
+  * Eliminate remaining per-frame allocations on the audio threads (#291, #163)
+  * Conceal explicit audio sequence gaps with faded previous audio instead of a hard jump (#294, #164)
+  * Give corrupt or unavailable stored credentials a distinct pair-again recovery (#293, #227)
+  * Fix listen resume losing callbacks, session identity, and retry state (#285)
+  * Replace the legacy libsodium JNI dependency with pure-Java crypto (audited under #223)
+  * Harden the slow-client grace period against a disconnect race (#294)
+  * Trim duplicated tests and run key UI journeys in CI (#292)
+  * Refresh Gradle (9.7.1), AGP (9.3.1), Kotlin (2.4.20), Compose BOM (2026.09.00),
+    navigation-compose (2.10.1), Robolectric (4.17), and Bouncy Castle (1.86)
+    with strict dependency verification checksums
+
+This entry describes the current alpha candidate work. It does not claim a
+stable release, F-Droid acceptance, signed publication, scanner pass, or
+physical-device reliability beyond the devices explicitly recorded by the maintainer.
+
+July 2026: 1.1.0-alpha.11 (versionCode 26)
 
   * Require OBP4 mutual authentication and ChaCha20-Poly1305 transport encryption
   * Replace native libsodium crypto with pure-Java Bouncy Castle Argon2id and JCA primitives

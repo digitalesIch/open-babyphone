@@ -7,10 +7,10 @@ claims F-Droid acceptance, scanner success, or publication.
 ## Build Facts
 
 - Application ID: `org.openbabyphone`
-- Version: `1.1.0-alpha.11`, `versionCode 26`
+- Version: `1.1.0-alpha.15`, `versionCode 30`
 - Minimum Android: API 30; target SDK remains 34; compile SDK is 37
 - Required JDK: 21; generated JVM bytecode targets Java 17
-- Checked-in Gradle wrapper: 9.4.1; Android Gradle Plugin: 9.2.1
+- Checked-in Gradle wrapper: 9.7.1; Android Gradle Plugin: 9.3.1
 - Source command: `./gradlew --dependency-verification strict assembleRelease`
 - Unsigned output: `app/build/outputs/apk/release/app-release-unsigned.apk`
 - The app has no NDK build and no native cryptography dependency. Cryptography
@@ -21,7 +21,7 @@ claims F-Droid acceptance, scanner success, or publication.
   `x86_64`. It is not a cryptography library. Review it explicitly in scanner
   output and verify every ELF `LOAD` alignment rather than claiming a
   native-library-free APK.
-- R8 remains disabled for versionCode 26. Enabling shrinking this late could
+- R8 remains disabled for versionCode 30. Enabling shrinking this late could
   change reflection, serialization, and security-sensitive behavior; the
   Bouncy Castle size cost is accepted until dedicated rules and focused checks
   are reviewed.
@@ -33,7 +33,7 @@ claims F-Droid acceptance, scanner success, or publication.
 - [ ] Work in a clean clone of `fdroid/fdroiddata`, not this repository.
 - [ ] Replace the template commit marker with an immutable reviewed tag or SHA.
 - [ ] Confirm source version fields exactly match `app/build.gradle`.
-- [ ] Confirm JDK 21, Gradle wrapper 9.4.1, AGP 9.2.1, and Android SDK 37 are available.
+- [ ] Confirm JDK 21, Gradle wrapper 9.7.1, AGP 9.3.1, and Android SDK 37 are available.
 - [ ] Do not add prebuilt libraries, opaque binaries, signing material, or network downloads in build steps.
 - [ ] Review `gradle/verification-metadata.xml` changes against declared dependency updates.
 - [ ] Confirm `zipalign -c -P 16 4` and per-ELF `LOAD` alignment checks pass on the resulting APK.
@@ -47,8 +47,8 @@ do not pre-fill results in this repository:
 fdroid readmeta
 fdroid lint org.openbabyphone
 fdroid scanner org.openbabyphone
-fdroid build --verbose --test org.openbabyphone:26
-fdroid build --verbose --on-server org.openbabyphone:26
+fdroid build --verbose --test org.openbabyphone:30
+fdroid build --verbose --on-server org.openbabyphone:30
 ```
 
 Verify Gradle can repeat the source build without network access after the

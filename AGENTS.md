@@ -19,7 +19,7 @@
 ## Build And Checks
 - Use the checked-in wrapper: `./gradlew ...`.
 - Before any write operation (commit, push, branch creation), always sync the local repository first: `git fetch origin` then `git pull --ff-only origin main` (or the current base branch). This prevents stale local branches when multiple agent sessions work on the same repository. If the pull fails, stop and inform the user.
-- Gradle wrapper is 9.7.0; Android Gradle Plugin is 9.3.1; Kotlin is 2.4.10; Compose BOM is 2026.08.00; Compose Compiler is configured through the Kotlin Compose compiler Gradle plugin; navigation-compose is 2.9.8.
+- Gradle wrapper is 9.7.1; Android Gradle Plugin is 9.3.1; Kotlin is 2.4.20; Compose BOM is 2026.09.00; Compose Compiler is configured through the Kotlin Compose compiler Gradle plugin; navigation-compose is 2.10.1.
 - Use JDK 21; Gradle emits Java 17 bytecode (`sourceCompatibility`, `targetCompatibility`, Kotlin `jvmTarget`) and sets `jvmToolchain(21)`.
 - CI uses `host-checks` for strict dependency verification, release/debug assembly, JVM tests, lint, screenshot validation, JaCoCo, and static 16 KB APK/ELF checks. KVM emulator jobs run instrumentation on API 30 and API 36; API 35 `google_apis_ps16k` asserts the page size and runs crypto/credential/handshake plus app-launch smoke tests. The API 30 job additionally runs `AppNavigationTest` and three named `CoreJourneyAndConfigurationTest` journey methods via a method-level `class#method1+method2` filter defined in the `instrumentation` matrix of `.github/workflows/ci.yml`. Renaming, moving, or deleting any of those journey methods requires updating that filter in the same patch, otherwise the API 30 job fails. The final required job is named exactly `build` and gates all three dependencies.
 - Useful focused checks are `./gradlew test`, `./gradlew assembleDebugAndroidTest`, `./gradlew lintRelease`, `./gradlew assembleRelease`, `./gradlew validateDebugScreenshotTest`, and `./gradlew jacocoDebugUnitTestReport`.
@@ -33,7 +33,7 @@
 ## Android Config Gotchas
 - `compileSdk` is 37, `targetSdk` is 34; `minSdkVersion` is 30 and README promises Android 11+.
 - Raising `targetSdk` to 36 is blocked on successful API 36 behavior checks on the maintainer's available devices; the API 36 emulator job alone is not sufficient, but broader device-lab coverage is not required.
-- Gradle `defaultConfig` has the effective release version (`versionCode 26`, `versionName "1.1.0-alpha.11"`); the manifest does not define version fields.
+- Gradle `defaultConfig` has the effective release version (`versionCode 30`, `versionName "1.1.0-alpha.15"`); the manifest does not define version fields.
 - `project.properties` is a generated legacy Android Tools file targeting `android-25`; do not edit it for Gradle behavior.
 - `gradle.properties` enables AndroidX, disables Jetifier, enables configuration cache, and uses non-transitive R classes.
 
