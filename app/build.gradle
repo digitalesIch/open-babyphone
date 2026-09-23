@@ -79,7 +79,7 @@ android {
 }
 
 dependencies {
-    implementation 'org.bouncycastle:bcprov-jdk15to18:1.85.2'
+    implementation 'org.bouncycastle:bcprov-jdk15to18:1.86'
     implementation 'androidx.core:core:1.19.0'
     implementation 'androidx.core:core-ktx:1.19.0'
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.11.0'
