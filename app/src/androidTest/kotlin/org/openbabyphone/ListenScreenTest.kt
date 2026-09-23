@@ -124,6 +124,14 @@ class ListenScreenTest {
         composeTestRule.onNodeWithText("Could not save pairing").assertIsDisplayed()
         composeTestRule.onNodeWithText("Retry").assertIsDisplayed()
 
+        composeTestRule.runOnIdle { state = errorState(ListenSessionError.CredentialUnavailable) }
+        composeTestRule.onNodeWithText("Saved pairing unavailable").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Pair again").assertIsDisplayed()
+
+        composeTestRule.runOnIdle { state = errorState(ListenSessionError.CredentialCorrupt) }
+        composeTestRule.onNodeWithText("Saved pairing is damaged").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Pair again").assertIsDisplayed()
+
         composeTestRule.runOnIdle { state = errorState(ListenSessionError.Playback) }
         composeTestRule.onNodeWithText("Could not play audio").assertIsDisplayed()
         composeTestRule.onNodeWithText("Retry").assertIsDisplayed()

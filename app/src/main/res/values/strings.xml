@@ -253,6 +253,10 @@
     <string name="authentication_failed_detail">The child identity or pairing code could not be verified. Return to Parent Home and scan the child QR code again.</string>
     <string name="could_not_save_pairing">Could not save pairing</string>
     <string name="could_not_save_pairing_detail">Secure credential storage is temporarily unavailable. The pending pairing is retained for retry.</string>
+    <string name="saved_pairing_unavailable">Saved pairing unavailable</string>
+    <string name="saved_pairing_unavailable_detail">The saved pairing could not be read from secure storage. Pair the child phone again.</string>
+    <string name="saved_pairing_damaged">Saved pairing is damaged</string>
+    <string name="saved_pairing_damaged_detail">The stored credential was unreadable and has been removed. Pair the child phone again.</string>
     <string name="playback_failed">Could not play audio</string>
     <string name="playback_failed_detail">The phone’s audio output could not play the verified stream.</string>
     <string name="audio_stream_failed">Audio stream problem</string>

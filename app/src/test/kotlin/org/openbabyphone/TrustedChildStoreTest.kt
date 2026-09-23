@@ -75,13 +75,20 @@ class TrustedChildStoreTest {
     }
 
     @Test
-    fun `corrupt credential removes exact profile`() {
+    fun `corrupt credential stays visible then resolves as corrupt and cleans up`() {
         val store = newStore()
         trust(store, "child1", "pair1", "code1234")
         credentialsPrefs().edit().putString(credentialsPrefs().all.keys.single(), "not-json").commit()
 
-        assertEquals(TrustedConnectionResult.Missing, store.resolveConnection("child1", "pair1"))
+        // The damaged profile stays visible so the parent can attempt the
+        // connection and learn the specific reason.
+        assertEquals(1, store.getAll().size)
+        assertEquals(TrustedConnectionResult.Corrupt, store.resolveConnection("child1", "pair1"))
+
+        // Resolving removed the unusable profile and its credential material.
         assertTrue(store.getAll().isEmpty())
+        assertTrue(credentialsPrefs().all.isEmpty())
+        assertEquals(TrustedConnectionResult.Missing, store.resolveConnection("child1", "pair1"))
     }
 
     @Test

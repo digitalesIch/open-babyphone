@@ -33,6 +33,8 @@ enum class ListenSessionError {
     Unreachable,
     Authentication,
     CredentialStorage,
+    CredentialUnavailable,
+    CredentialCorrupt,
     Playback,
     Decoding
 }
