@@ -170,10 +170,12 @@ class Client(
 
     private fun recordDroppedFrame() {
         totalDroppedFrames.incrementAndGet()
-        val consecutiveDrops = consecutiveDroppedFrames.incrementAndGet()
-        if (consecutiveDrops == 1) {
+        // Stamp the first-drop time before publishing the count so a racing
+        // shouldDisconnect call can never observe MAX drops with timestamp 0.
+        if (consecutiveDroppedFrames.get() == 0) {
             firstConsecutiveDropAtMs.set(clock())
         }
+        val consecutiveDrops = consecutiveDroppedFrames.incrementAndGet()
         Log.w(TAG, "Queue full for client $id, consecutive dropped frame $consecutiveDrops/$MAX_DROPPED_FRAMES")
     }
 

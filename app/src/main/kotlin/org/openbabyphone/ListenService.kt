@@ -1057,8 +1057,38 @@ class ListenService : Service() {
             val concealer = PacketLossConcealer()
             Log.i(TAG, "Starting playback from jitter buffer")
             try {
-                while (streamRunning.get() && isWorkerActive(claim) && !Thread.currentThread().isInterrupted) {
+                playbackLoop@ while (streamRunning.get() && isWorkerActive(claim) && !Thread.currentThread().isInterrupted) {
                     val jitterFrame = jitterBuffer.getFrame(AudioFrameTiming.FRAME_DURATION_MS.toLong())
+                    if (jitterFrame != null && jitterFrame.gapBefore > 0) {
+                        // The sender skipped sequence numbers: conceal the gap by
+                        // fading in the previous audio instead of jumping ahead.
+                        val gapToConceal = jitterFrame.gapBefore.coerceAtMost(MAX_SEQUENCE_GAP_CONCEAL_FRAMES)
+                        for (concealed in 0 until gapToConceal) {
+                            val concealedSamples = concealer.concealInto(concealmentBuffer)
+                            val concealWrite = writeAllAudioSamples(
+                                sampleCount = concealedSamples,
+                                write = { offset, count ->
+                                    audioSink.write(concealmentBuffer, offset, count)
+                                },
+                                elapsedRealtime = audioWriteElapsedRealtime,
+                                pauseAfterNoProgress = audioWriteRetryPause
+                            )
+                            if (concealWrite != AudioWriteResult.Complete) {
+                                jitterBuffer.releaseFrame(jitterFrame)
+                                if (concealWrite == AudioWriteResult.Interrupted) break@playbackLoop
+                                failPlayback(ListenSessionError.Playback)
+                                break@playbackLoop
+                            }
+                        }
+                        if (jitterFrame.gapBefore > gapToConceal) {
+                            Log.i(
+                                TAG,
+                                "Skipped ${jitterFrame.gapBefore - gapToConceal} frame(s) after a large sequence gap at ${jitterFrame.seqNum}"
+                            )
+                        } else {
+                            Log.d(TAG, "Concealed ${jitterFrame.gapBefore} missing frame(s) before sequence ${jitterFrame.seqNum}")
+                        }
+                    }
                     val realFrame = jitterFrame != null
                     val playbackBuffer: ShortArray
                     val sampleCount: Int
@@ -1075,13 +1105,13 @@ class ListenService : Service() {
                             Log.e(TAG, "Audio frame decoding failed", e)
                             jitterBuffer.releaseFrame(jitterFrame)
                             failPlayback(ListenSessionError.Decoding)
-                            break
+                            break@playbackLoop
                         }
                         if (sampleCount <= 0) {
                             Log.e(TAG, "Audio decoder produced no samples")
                             jitterBuffer.releaseFrame(jitterFrame)
                             failPlayback(ListenSessionError.Decoding)
-                            break
+                            break@playbackLoop
                         }
                     } else {
                         if (!jitterBuffer.hasPlaybackStarted()) continue
@@ -1133,9 +1163,9 @@ class ListenService : Service() {
                         AudioWriteResult.Stalled -> {
                             Log.e(TAG, "AudioTrack failed to write a complete decoded frame: $writeResult")
                             failPlayback(ListenSessionError.Playback)
-                            break
+                            break@playbackLoop
                         }
-                        AudioWriteResult.Interrupted -> break
+                        AudioWriteResult.Interrupted -> break@playbackLoop
                     }
                 }
             } catch (e: InterruptedException) {
@@ -1338,6 +1368,7 @@ class ListenService : Service() {
         private const val UI_UPDATE_INTERVAL_MS = 250L
         private const val AUDIO_WRITE_RETRY_MS = 5L
         private const val JITTER_OVERFLOW_LOG_INTERVAL = 50
+        private const val MAX_SEQUENCE_GAP_CONCEAL_FRAMES = 10
         private const val MAX_AUDIO_TRACK_BUFFER_BYTES = 128_000
         private val VALID_PORT_RANGE = 1..65535
     }

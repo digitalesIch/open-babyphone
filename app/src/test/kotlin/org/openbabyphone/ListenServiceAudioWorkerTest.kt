@@ -9,6 +9,7 @@
 package org.openbabyphone
 
 import org.junit.After
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -17,6 +18,7 @@ import org.junit.runner.RunWith
 import org.openbabyphone.audio.AudioFrameTiming
 import org.openbabyphone.audio.AudioPlaybackSink
 import org.openbabyphone.audio.FrameCodec
+import org.openbabyphone.audio.PacketLossConcealer
 import org.openbabyphone.service.ListenServiceRepository
 import org.openbabyphone.service.ListenSessionError
 import org.openbabyphone.service.ListenSessionState
@@ -162,6 +164,7 @@ class ListenServiceAudioWorkerTest {
 
     private fun runStream(
         frameCount: Int = JITTER_PRE_ROLL_FRAMES,
+        sequences: List<Int>? = null,
         waitForServiceClose: Boolean = false,
         service: ListenService,
         awaitWrite: () -> Boolean
@@ -173,13 +176,14 @@ class ListenServiceAudioWorkerTest {
         val result = AtomicReference<Any?>()
         val failure = AtomicReference<Throwable?>()
         val finished = CountDownLatch(1)
+        val sequenceList = sequences ?: List(frameCount) { it }
 
         ServerSocket(0).use { server ->
             val child = Thread {
                 try {
                     server.accept().use { socket ->
                         socket.getOutputStream().use { output ->
-                            repeat(frameCount) { sequence ->
+                            sequenceList.forEach { sequence ->
                                 output.write(
                                     FrameCodec.encodeFrame(
                                         ByteArray(AudioFrameTiming.FRAME_SAMPLES) { 0x7f },
@@ -215,6 +219,57 @@ class ListenServiceAudioWorkerTest {
         }
         failure.get()?.let { throw it }
         return requireNotNull(result.get())
+    }
+
+    @Test
+    fun `explicit sequence gaps are concealed with faded previous audio`() {
+        val controller = Robolectric.buildService(ListenService::class.java).create()
+        val service = controller.get()
+        val sink = RecordingSink(maximumWrite = AudioFrameTiming.FRAME_SAMPLES)
+        val recovered = CountDownLatch(1)
+        service.audioPlaybackFactory = { sink }
+        service.onUpdate = { recovered.countDown() }
+
+        // Sequences 2 and 3 never arrive; playback must conceal two frames
+        // between the real frames 1 and 4 instead of jumping ahead.
+        val sequences = listOf(0, 1, 4, 5, 6, 7)
+        val expectedWrites = (sequences.size + 2) * AudioFrameTiming.FRAME_SAMPLES
+        val result = runStream(
+            sequences = sequences,
+            service = service
+        ) {
+            awaitWrittenSamples(sink, expectedWrites.toLong())
+        }
+
+        try {
+            assertStreamResult(result, "Reconnect")
+            val history = sink.writeHistory()
+            assertTrue(history.size >= 6)
+
+            // The first writes are real frames 0 and 1, then two faded
+            // concealment frames for the missing sequences 2 and 3, then
+            // the real frame 4.
+            val expected = ShortArray(AudioFrameTiming.FRAME_SAMPLES)
+            AudioCodecDefines.CODEC.decode(expected, ByteArray(AudioFrameTiming.FRAME_SAMPLES) { 0x7f }, AudioFrameTiming.FRAME_SAMPLES, 0)
+            assertArrayEquals("first real frame", expected, history[0])
+            assertArrayEquals("second real frame", expected, history[1])
+
+            val firstFade = ShortArray(AudioFrameTiming.FRAME_SAMPLES) { index ->
+                (expected[index].toInt() * PacketLossConcealer.FADE_FRAMES /
+                    (PacketLossConcealer.FADE_FRAMES + 1)).toShort()
+            }
+            val secondFade = ShortArray(AudioFrameTiming.FRAME_SAMPLES) { index ->
+                (expected[index].toInt() * (PacketLossConcealer.FADE_FRAMES - 1) /
+                    (PacketLossConcealer.FADE_FRAMES + 1)).toShort()
+            }
+            assertArrayEquals("first concealment", firstFade, history[2])
+            assertArrayEquals("second concealment", secondFade, history[3])
+            assertArrayEquals("real frame after gap", expected, history[4])
+
+            assertEquals(ListenSessionState.Listening, ListenServiceRepository.sessionState.value)
+        } finally {
+            controller.destroy()
+        }
     }
 
     private fun awaitState(expected: ListenSessionState): Boolean {
@@ -277,6 +332,8 @@ class ListenServiceAudioWorkerTest {
     private class RecordingSink(private val maximumWrite: Int) : AudioPlaybackSink {
         val firstWrite = CountDownLatch(1)
         val writtenSamples = AtomicLong()
+        private val writes = mutableListOf<ShortArray>()
+        private val writesLock = Any()
 
         override fun start() = Unit
 
@@ -284,8 +341,13 @@ class ListenServiceAudioWorkerTest {
             firstWrite.countDown()
             val written = minOf(maximumWrite, count)
             writtenSamples.addAndGet(written.toLong())
+            synchronized(writesLock) {
+                writes += samples.copyOfRange(offset, offset + written)
+            }
             return written
         }
+
+        fun writeHistory(): List<ShortArray> = synchronized(writesLock) { writes.toList() }
 
         override fun stop() = Unit
 
