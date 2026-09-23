@@ -37,7 +37,6 @@ use that library for cryptography.
 | Android Gradle Plugin | 9.3.1 | Apache-2.0 | https://developer.android.com/build |
 | Kotlin Gradle, Compose, and Serialization plugins | 2.4.20 | Apache-2.0 | https://kotlinlang.org/ |
 | Compose Screenshot plugin/API | 0.0.1-alpha16 | Apache-2.0 | https://developer.android.com/studio/preview/compose-screenshot-testing |
-| Foojay toolchain resolver convention | 1.0.0 | Apache-2.0 | https://github.com/gradle/foojay-toolchains |
 | JaCoCo | 0.8.14 | EPL-2.0 | https://www.jacoco.org/jacoco/ |
 | JUnit 4 | 4.13.2 | EPL-1.0 | https://junit.org/junit4/ |
 | Robolectric | 4.17 | MIT | https://robolectric.org/ |
