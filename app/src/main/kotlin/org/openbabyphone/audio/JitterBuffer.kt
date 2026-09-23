@@ -36,6 +36,13 @@ internal class JitterBuffer {
         val ulawLength: Int,
         val receiveTime: Long
     ) {
+        /**
+         * Number of missing sequence numbers directly before this frame.
+         * Set by the buffer when the frame is handed to playback; owned by
+         * the consumer thread until [releaseFrame] returns it to the pool.
+         */
+        var gapBefore: Int = 0
+
         constructor(
             seqNum: Int,
             timestampMs: Int,
@@ -190,6 +197,10 @@ internal class JitterBuffer {
             val frame = frames[0]!!
             for (index in 1 until size) frames[index - 1] = frames[index]
             frames[--size] = null
+            // Report how many sequence numbers were skipped directly before this
+            // frame so playback can conceal an explicit gap instead of jumping.
+            val expected = if (lastPlayedSequence >= 0) lastPlayedSequence + 1 else frame.seqNum
+            frame.gapBefore = (frame.seqNum - expected).coerceAtLeast(0)
             lastPlayedSequence = frame.seqNum
             playbackStarted = true
             preRollRequired = false

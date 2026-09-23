@@ -73,6 +73,23 @@ class JitterBufferTest {
     }
 
     @Test
+    fun `explicit sequence gaps are reported to the consumer`() {
+        val buffer = JitterBuffer()
+        buffer.addFrame(frame(0))
+        buffer.addFrame(frame(1))
+        buffer.addFrame(frame(4))
+
+        assertEquals(0, buffer.getFrame(0)!!.gapBefore)
+        assertEquals(0, buffer.getFrame(0)!!.gapBefore)
+        val afterGap = buffer.getFrame(0)!!
+        assertEquals(4, afterGap.seqNum)
+        assertEquals(2, afterGap.gapBefore)
+
+        // The gap does not change ordering or statistics.
+        assertEquals(0, buffer.getStats().droppedFrames)
+    }
+
+    @Test
     fun `underrun reapplies adaptive pre-roll before playback resumes`() {
         val buffer = JitterBuffer()
         repeat(JitterBuffer.BASE_TARGET_FRAMES) { buffer.addFrame(frame(it)) }
