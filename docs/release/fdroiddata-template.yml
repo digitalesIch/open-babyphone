@@ -15,13 +15,13 @@ RepoType: git
 Repo: https://github.com/digitalesIch/open-babyphone.git
 
 Builds:
-  - versionName: 1.1.0-alpha.11
-    versionCode: 26
+  - versionName: 1.1.0-alpha.15
+    versionCode: 30
     commit: <release-tag-or-immutable-commit>
     gradle:
       - yes
 
 AutoUpdateMode: None
 UpdateCheckMode: None
-CurrentVersion: 1.1.0-alpha.11
-CurrentVersionCode: 26
+CurrentVersion: 1.1.0-alpha.15
+CurrentVersionCode: 30
