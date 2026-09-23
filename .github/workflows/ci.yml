@@ -130,6 +130,11 @@ jobs:
       fail-fast: false
       matrix:
         api-level: [30, 36]
+        include:
+          - api-level: 30
+            test-filter: 'org.openbabyphone.AppLaunchSmokeInstrumentedTest,org.openbabyphone.HandshakeInstrumentedTest,org.openbabyphone.CryptoHelperInstrumentedTest,org.openbabyphone.TrustedCredentialCryptoInstrumentedTest,org.openbabyphone.audio.FrameCodecCryptoInstrumentedTest,org.openbabyphone.AppNavigationTest,org.openbabyphone.CoreJourneyAndConfigurationTest#firstChild_roleToMonitoringTakesTwoInteractionsWithoutPermissionUi+firstParent_roleQrReadyListenTakesThreeInteractionsWithoutCamera+returningParent_roleToQuickListenTakesTwoInteractions'
+          - api-level: 36
+            test-filter: 'org.openbabyphone.AppLaunchSmokeInstrumentedTest,org.openbabyphone.HandshakeInstrumentedTest,org.openbabyphone.CryptoHelperInstrumentedTest,org.openbabyphone.TrustedCredentialCryptoInstrumentedTest,org.openbabyphone.audio.FrameCodecCryptoInstrumentedTest'
 
     steps:
       - name: Checkout repository
@@ -161,7 +166,7 @@ jobs:
           disable-animations: true
           emulator-boot-timeout: 900
           script: >-
-            ./gradlew --dependency-verification strict connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=org.openbabyphone.AppLaunchSmokeInstrumentedTest,org.openbabyphone.HandshakeInstrumentedTest,org.openbabyphone.CryptoHelperInstrumentedTest,org.openbabyphone.TrustedCredentialCryptoInstrumentedTest,org.openbabyphone.audio.FrameCodecCryptoInstrumentedTest
+            ./gradlew --dependency-verification strict connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class="${{ matrix.test-filter }}"
 
       - name: Capture emulator diagnostics
         if: always()

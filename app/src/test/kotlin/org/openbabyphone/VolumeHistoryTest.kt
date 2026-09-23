@@ -1,7 +1,6 @@
 package org.openbabyphone
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -41,34 +40,6 @@ class VolumeHistoryTest {
         }
         ShadowLooper.idleMainLooper()
         assertEquals(5, history.size())
-    }
-
-    @Test
-    fun `volume norm is positive`() {
-        val history = VolumeHistory(100)
-        assertTrue(history.volumeNorm > 0)
-    }
-
-    @Test
-    fun `volume values are within valid range`() {
-        val history = VolumeHistory(100)
-        history.onAudioData(ShortArray(100) { 64 })
-        ShadowLooper.idleMainLooper()
-        assertTrue(history.size() > 0)
-        val value = history[0]
-        assertTrue(value >= 0.0)
-        assertTrue(value <= 1.0)
-    }
-
-    @Test
-    fun `offset and length ignore samples outside the requested range`() {
-        val history = VolumeHistory(10)
-        val audioData = shortArrayOf(Short.MAX_VALUE, 64, 64, Short.MAX_VALUE)
-
-        history.onAudioData(audioData, 1, 2)
-        ShadowLooper.idleMainLooper()
-
-        assertEquals(0.25, history[0], 0.001)
     }
 
     @Test

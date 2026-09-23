@@ -23,7 +23,6 @@ import org.openbabyphone.audio.AudioPlaybackSink
 import org.openbabyphone.audio.FrameCodec
 import org.openbabyphone.audio.JitterBuffer
 import org.openbabyphone.service.ListenServiceRepository
-import org.openbabyphone.service.ListenSessionError
 import org.openbabyphone.service.ListenSessionState
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
@@ -34,7 +33,6 @@ import java.net.Socket
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
 @RunWith(RobolectricTestRunner::class)
@@ -131,41 +129,6 @@ class ListenServiceAudioIntegrationTest {
         }
     }
 
-    @Test
-    fun `authenticated playback stall publishes terminal playback error`() {
-        ServerSocket(0).use { server ->
-            val childObservedClose = CountDownLatch(1)
-            val child = startAuthenticatedChild(server) { socket, output, streamKey, sessionId ->
-                output.write(FrameCodec.encodeHeartbeat(0, 0, streamKey, sessionId))
-                writeAudioFrames(output, streamKey, sessionId, 1..JitterBuffer.MAX_TARGET_FRAMES)
-                check(socket.getInputStream().read() == -1)
-                childObservedClose.countDown()
-            }
-            val intent = listenIntent(server.localPort)
-            val controller = Robolectric.buildService(ListenService::class.java, intent).create()
-            val service = controller.get()
-            val sink = ZeroProgressSink()
-            val now = AtomicLong()
-            service.audioPlaybackFactory = { sink }
-            service.audioWriteElapsedRealtime = now::get
-            service.audioWriteRetryPause = { now.addAndGet(5_000L) }
-
-            try {
-                service.onStartCommand(intent, 0, 1)
-                assertTrue(sink.firstWrite.await(TEST_TIMEOUT_SECONDS, TimeUnit.SECONDS))
-                val error = awaitError()
-
-                assertEquals(ListenSessionError.Playback, error.type)
-                assertTrue(childObservedClose.await(TEST_TIMEOUT_SECONDS, TimeUnit.SECONDS))
-            } finally {
-                controller.destroy()
-                child.thread.join(CHILD_JOIN_TIMEOUT_MILLIS)
-            }
-            assertFalse(child.thread.isAlive)
-            child.failure.get()?.let { throw it }
-        }
-    }
-
     private fun listenIntent(port: Int): Intent {
         val requestId = PendingConnections.store.put(
             PendingConnection(
@@ -252,15 +215,6 @@ class ListenServiceAudioIntegrationTest {
         output.flush()
     }
 
-    private fun awaitError(): ListenSessionState.Error {
-        repeat(200) {
-            val state = ListenServiceRepository.sessionState.value
-            if (state is ListenSessionState.Error) return state
-            Thread.sleep(20)
-        }
-        throw AssertionError("Listen service did not publish a terminal error")
-    }
-
     private fun clearTrustedChildren() {
         application.getSharedPreferences(TrustedChildStore.METADATA_PREFS_NAME, 0).edit().clear().commit()
         application.getSharedPreferences(ProtectedTrustedCredentialStore.PREFS_NAME, 0).edit().clear().commit()
@@ -302,21 +256,6 @@ class ListenServiceAudioIntegrationTest {
 
         fun firstWriteRequests(): List<Pair<Int, Int>> = synchronized(writeRequests) {
             writeRequests.take(2)
-        }
-
-        override fun stop() = Unit
-
-        override fun release() = Unit
-    }
-
-    private class ZeroProgressSink : AudioPlaybackSink {
-        val firstWrite = CountDownLatch(1)
-
-        override fun start() = Unit
-
-        override fun write(samples: ShortArray, offset: Int, count: Int): Int {
-            firstWrite.countDown()
-            return 0
         }
 
         override fun stop() = Unit

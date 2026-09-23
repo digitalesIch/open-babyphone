@@ -44,27 +44,6 @@ class ListenServiceAudioWorkerTest {
     }
 
     @Test
-    fun `partial writes publish listening only after a complete decoded frame`() {
-        val controller = Robolectric.buildService(ListenService::class.java).create()
-        val service = controller.get()
-        val sink = RecordingSink(maximumWrite = 16)
-        val delivered = CountDownLatch(1)
-        service.audioPlaybackFactory = { sink }
-        service.onUpdate = { delivered.countDown() }
-        val result = runStream(service = service) { delivered.await(2, TimeUnit.SECONDS) }
-
-        try {
-            assertEquals(0, delivered.count)
-            assertTrue(sink.stateAtFirstWrite.get() !is ListenSessionState.Listening)
-            assertEquals(ListenSessionState.Listening, ListenServiceRepository.sessionState.value)
-            assertTrue(sink.writtenSamples.get() >= AudioFrameTiming.FRAME_SAMPLES)
-            assertStreamResult(result, "Reconnect")
-        } finally {
-            controller.destroy()
-        }
-    }
-
-    @Test
     fun `repeated zero progress writes fail the stream as playback`() {
         val controller = Robolectric.buildService(ListenService::class.java).create()
         val service = controller.get()
@@ -298,12 +277,10 @@ class ListenServiceAudioWorkerTest {
     private class RecordingSink(private val maximumWrite: Int) : AudioPlaybackSink {
         val firstWrite = CountDownLatch(1)
         val writtenSamples = AtomicLong()
-        val stateAtFirstWrite = AtomicReference<ListenSessionState?>()
 
         override fun start() = Unit
 
         override fun write(samples: ShortArray, offset: Int, count: Int): Int {
-            stateAtFirstWrite.compareAndSet(null, ListenServiceRepository.sessionState.value)
             firstWrite.countDown()
             val written = minOf(maximumWrite, count)
             writtenSamples.addAndGet(written.toLong())

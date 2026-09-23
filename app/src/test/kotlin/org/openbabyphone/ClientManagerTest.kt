@@ -633,4 +633,97 @@ class ClientManagerTest {
         assertEquals(Client.FRAME_SLOT_COUNT, client.getAllocatedFrameSlotCount())
         client.stop()
     }
+
+    @Test
+    fun multiParent_TwoParentsConnect_BothReceiveAudio() {
+        val manager = ClientManager()
+        val writeCounts = mutableListOf<java.util.concurrent.atomic.AtomicInteger>()
+
+        for (i in 0 until 2) {
+            val socket = mock(Socket::class.java)
+            val writeCount = java.util.concurrent.atomic.AtomicInteger(0)
+            `when`(socket.getOutputStream()).thenReturn(object : OutputStream() {
+                override fun write(b: Int) = Unit
+                override fun write(b: ByteArray, off: Int, len: Int) {
+                    writeCount.incrementAndGet()
+                }
+            })
+            writeCounts.add(writeCount)
+            val client = manager.addClient(socket, "test")
+            assertNotNull(client)
+        }
+
+        assertEquals(2, manager.getClientCount())
+
+        for (i in 0 until 5) {
+            manager.broadcastFrame(ByteArray(100))
+        }
+
+        val deadline = System.currentTimeMillis() + 2_000
+        while (writeCounts.any { it.get() == 0 } && System.currentTimeMillis() < deadline) {
+            Thread.sleep(10)
+        }
+
+        for (writeCount in writeCounts) {
+            assertTrue("Each parent should receive frames", writeCount.get() > 0)
+        }
+    }
+
+    @Test
+    fun multiParent_OneParentDisconnects_OtherParentContinues() {
+        val manager = ClientManager()
+        val socket1 = mock(Socket::class.java)
+        `when`(socket1.getOutputStream()).thenReturn(object : OutputStream() {
+            override fun write(b: Int) = Unit
+            override fun write(b: ByteArray, off: Int, len: Int) = Unit
+        })
+        val socket2 = mock(Socket::class.java)
+        `when`(socket2.getOutputStream()).thenReturn(object : OutputStream() {
+            override fun write(b: Int) = Unit
+            override fun write(b: ByteArray, off: Int, len: Int) = Unit
+        })
+
+        val client1 = manager.addClient(socket1, "test")
+        val client2 = manager.addClient(socket2, "test")
+        assertNotNull(client1)
+        assertNotNull(client2)
+        assertEquals(2, manager.getClientCount())
+
+        manager.removeClient(client1!!)
+        verify(socket1).close()
+        assertEquals(1, manager.getClientCount())
+
+        manager.broadcastFrame(ByteArray(100))
+        assertEquals(1, manager.getClientCount())
+
+        client2!!.stop()
+    }
+
+    @Test
+    fun multiParent_ParentReconnectsAfterDisconnect() {
+        val manager = ClientManager()
+        val socket1 = mock(Socket::class.java)
+        `when`(socket1.getOutputStream()).thenReturn(object : OutputStream() {
+            override fun write(b: Int) = Unit
+            override fun write(b: ByteArray, off: Int, len: Int) = Unit
+        })
+
+        val client1 = manager.addClient(socket1, "test")
+        assertNotNull(client1)
+        assertEquals(1, manager.getClientCount())
+
+        manager.removeClient(client1!!)
+        assertEquals(0, manager.getClientCount())
+
+        val socket2 = mock(Socket::class.java)
+        `when`(socket2.getOutputStream()).thenReturn(object : OutputStream() {
+            override fun write(b: Int) = Unit
+            override fun write(b: ByteArray, off: Int, len: Int) = Unit
+        })
+        val client2 = manager.addClient(socket2, "test")
+        assertNotNull(client2)
+        assertEquals(1, manager.getClientCount())
+
+        client2!!.stop()
+    }
 }
