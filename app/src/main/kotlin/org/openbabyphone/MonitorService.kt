@@ -86,6 +86,8 @@ class MonitorService : Service() {
     private lateinit var childIdentityStore: ChildDeviceIdentityStore
     private var registrationListener: RegistrationListener? = null
     private var currentSocket: ServerSocket? = null
+    @Volatile private var relaySocket: WebSocketByteStreamSocket? = null
+    private var relayThread: Thread? = null
     @Volatile private var currentAuthenticatingSocket: Socket? = null
     private val authenticatingSockets = ConcurrentHashMap.newKeySet<Socket>()
     private val handshakeExecutor = BoundedHandshakeExecutor()
@@ -147,7 +149,10 @@ class MonitorService : Service() {
         val baseKey = streamBaseKey ?: return null
         val kdfSalt = streamKdfSalt ?: return null
         return try {
-            val deadline = HandshakeDeadline(AUTH_TIMEOUT_MS, SystemClock::elapsedRealtime)
+            val deadline = HandshakeDeadline(
+                if (socket is WebSocketByteStreamSocket) RelayConfig.RELAY_HANDSHAKE_WAIT_MS else AUTH_TIMEOUT_MS,
+                SystemClock::elapsedRealtime
+            )
             val input = deadline.input(socket.getInputStream()) { socket.soTimeout = it }
             val hello = Handshake.createChildHello(childIdentityStore.identity, sessionId, kdfSalt)
             Handshake.writeChildHello(socket.getOutputStream(), hello)
@@ -202,6 +207,16 @@ class MonitorService : Service() {
             Log.w(TAG, "Rejected client - max clients reached")
             socket.close()
             return false
+        }
+
+        if (socket is WebSocketByteStreamSocket) {
+            Thread {
+                socket.awaitClosed(Long.MAX_VALUE)
+                clientManager.removeClient(client)
+            }.apply {
+                name = "BabyphoneRelayClientWatch"
+                isDaemon = true
+            }.start()
         }
 
         val clientCount = clientManager.getClientCount()
@@ -573,6 +588,8 @@ class MonitorService : Service() {
                 return@Thread
             }
 
+            startRelayLoop(claim)
+
             while (isWorkerActive(claim) && this.connectionToken == currentToken) {
                 val portToBind = currentPort
                 val serverSocket = try {
@@ -657,6 +674,46 @@ class MonitorService : Service() {
         }
     }
 
+    private fun startRelayLoop(claim: WorkerClaim) {
+        val identity = childIdentityStore.identity
+        val relaySession = RelaySessionId.derive(identity.childId, identity.pairingId)
+        val thread = Thread {
+            while (isWorkerActive(claim) && !Thread.currentThread().isInterrupted) {
+                val socket = WebSocketByteStreamSocket(
+                    relaySession,
+                    WebSocketByteStreamSocket.Role.CHILD
+                )
+                relaySocket = socket
+                try {
+                    socket.connect(null, RelayConfig.CONNECT_TIMEOUT_MS)
+                    socket.soTimeout = 0
+                    Log.i(TAG, "Internet relay connected")
+                    dispatchParentHandshake(socket, claim)
+                    socket.awaitClosed(Long.MAX_VALUE)
+                } catch (e: IOException) {
+                    if (isWorkerActive(claim)) {
+                        Log.w(TAG, "Internet relay connection failed", e)
+                    }
+                } finally {
+                    if (relaySocket === socket) relaySocket = null
+                    closeSocket(socket, "relay connection")
+                }
+                if (isWorkerActive(claim)) {
+                    try {
+                        Thread.sleep(2_000L)
+                    } catch (_: InterruptedException) {
+                        Thread.currentThread().interrupt()
+                    }
+                }
+            }
+        }.apply { name = "BabyphoneRelay" }
+        synchronized(sessionStateLock) {
+            if (!isWorkerActive(claim)) return
+            relayThread = thread
+            thread.start()
+        }
+    }
+
     private fun handleSessionSetupFailure(token: Any, claim: WorkerClaim) {
         val active = synchronized(sessionStateLock) {
             if (!workerGeneration.isCurrent(claim) || connectionToken !== token) {
@@ -737,6 +794,8 @@ class MonitorService : Service() {
         }
         currentSocket?.let { closeServerSocket(it) }
         currentSocket = null
+        relaySocket?.let { closeSocket(it, "relay socket") }
+        relaySocket = null
         capacityLock.lock()
         try {
             capacityCondition.signalAll()
@@ -754,6 +813,18 @@ class MonitorService : Service() {
             }
         }
         monitorThread = null
+        relayThread?.let { thread ->
+            thread.interrupt()
+            relaySocket?.let { closeSocket(it, "relay socket") }
+            if (thread !== Thread.currentThread()) {
+                try {
+                    thread.join(1000)
+                } catch (_: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                }
+            }
+        }
+        relayThread = null
         audioProducerThread?.let { thread ->
             thread.interrupt()
             if (thread !== Thread.currentThread()) {

@@ -22,6 +22,7 @@ import org.openbabyphone.CredentialStorageResult
 import org.openbabyphone.PairingQrCode
 import org.openbabyphone.PendingConnectionStore
 import org.openbabyphone.ProtectedTrustedCredentialStore
+import org.openbabyphone.RelaySessionId
 import org.openbabyphone.TrustedChildStore
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
@@ -63,15 +64,16 @@ class DiscoverViewModelTest {
     }
 
     @Test
-    fun `valid structured qr creates pending material but not trust`() {
+    fun `valid structured qr creates relay-ready pending material but not trust`() {
         val result = viewModel.handleQrScan(payload())
-        val looking = viewModel.uiState.value.pairingFlow as PairingFlowState.LookingForChild
-        val pending = pendingStore.lease(looking.requestId)
+        val ready = viewModel.uiState.value.pairingFlow as PairingFlowState.Ready
+        val pending = pendingStore.lease(ready.request.requestId)
 
         assertTrue(result is QrScanResult.Structured)
         assertEquals("code1234", pending?.pairingCode?.concatToString())
         assertEquals("child-1", pending?.expectedChildId)
         assertEquals("pair-1", pending?.expectedPairingId)
+        assertEquals(RelaySessionId.derive("child-1", "pair-1"), pending?.relaySessionId)
         assertTrue(pending?.rememberAfterAuthentication == true)
         assertTrue(trustedStore.getAll().isEmpty())
     }
@@ -96,63 +98,36 @@ class DiscoverViewModelTest {
     }
 
     @Test
-    fun `delayed exact identity match becomes ready`() {
+    fun `structured qr stays ready after local discovery updates`() {
         viewModel.handleQrScan(payload())
+        val requestId = (viewModel.uiState.value.pairingFlow as PairingFlowState.Ready).request.requestId
 
+        viewModel.recordResolvedDevice(device(pairingId = "pair-new"))
+        viewModel.recordResolvedDevice(device(childId = "child-other"))
         viewModel.recordResolvedDevice(device())
 
         val ready = viewModel.uiState.value.pairingFlow as PairingFlowState.Ready
-        assertEquals("Nursery", ready.childName)
+        assertEquals(requestId, ready.request.requestId)
         assertEquals("child-1", ready.request.childId)
         assertEquals("pair-1", ready.request.pairingId)
-        assertEquals("host", pendingStore.lease(ready.request.requestId)?.address)
     }
 
     @Test
-    fun `matching requires both child and pairing generation`() {
+    fun `relay-ready qr does not time out`() = runTest(dispatcher) {
         viewModel.handleQrScan(payload())
 
-        viewModel.recordResolvedDevice(device(pairingId = "pair-new"))
-        assertTrue(viewModel.uiState.value.pairingFlow is PairingFlowState.LookingForChild)
-        viewModel.recordResolvedDevice(device(childId = "child-other"))
-        assertTrue(viewModel.uiState.value.pairingFlow is PairingFlowState.LookingForChild)
-        viewModel.recordResolvedDevice(device())
+        advanceTimeBy(DiscoverViewModel.PAIRING_TIMEOUT_MS)
+        runCurrent()
 
         assertTrue(viewModel.uiState.value.pairingFlow is PairingFlowState.Ready)
     }
 
     @Test
-    fun `search times out after twelve seconds`() = runTest(dispatcher) {
+    fun `cancel wipes pending relay-ready scan`() {
         viewModel.handleQrScan(payload())
-
-        advanceTimeBy(DiscoverViewModel.PAIRING_TIMEOUT_MS)
-        runCurrent()
-
-        assertTrue(viewModel.uiState.value.pairingFlow is PairingFlowState.ChildNotFound)
-    }
-
-    @Test
-    fun `retry reuses pending request and accepts delayed match`() = runTest(dispatcher) {
-        viewModel.handleQrScan(payload())
-        advanceTimeBy(DiscoverViewModel.PAIRING_TIMEOUT_MS)
-        runCurrent()
-        val oldRequest = (viewModel.uiState.value.pairingFlow as PairingFlowState.ChildNotFound).requestId
-
-        viewModel.retryPairingSearch()
-        viewModel.recordResolvedDevice(device())
-
-        val ready = viewModel.uiState.value.pairingFlow as PairingFlowState.Ready
-        assertEquals(oldRequest, ready.request.requestId)
-    }
-
-    @Test
-    fun `cancel wipes pending scan and prevents timeout transition`() = runTest(dispatcher) {
-        viewModel.handleQrScan(payload())
-        val requestId = (viewModel.uiState.value.pairingFlow as PairingFlowState.LookingForChild).requestId
+        val requestId = (viewModel.uiState.value.pairingFlow as PairingFlowState.Ready).request.requestId
 
         viewModel.cancelPairingSearch()
-        advanceTimeBy(DiscoverViewModel.PAIRING_TIMEOUT_MS)
-        runCurrent()
 
         assertFalse(pendingStore.contains(requestId))
         assertEquals(PairingFlowState.Idle, viewModel.uiState.value.pairingFlow)
@@ -161,7 +136,7 @@ class DiscoverViewModelTest {
     @Test
     fun `new scan cancels previous pending request`() {
         viewModel.handleQrScan(payload())
-        val oldRequest = (viewModel.uiState.value.pairingFlow as PairingFlowState.LookingForChild).requestId
+        val oldRequest = (viewModel.uiState.value.pairingFlow as PairingFlowState.Ready).request.requestId
 
         viewModel.handleQrScan(
             PairingQrCode.buildPayload("child-2", "pair-2", "Bedroom", "code5678")
@@ -170,7 +145,7 @@ class DiscoverViewModelTest {
         assertFalse(pendingStore.contains(oldRequest))
         assertEquals(
             "child-2",
-            (viewModel.uiState.value.pairingFlow as PairingFlowState.LookingForChild).childId
+            (viewModel.uiState.value.pairingFlow as PairingFlowState.Ready).request.childId
         )
     }
 
@@ -179,7 +154,7 @@ class DiscoverViewModelTest {
         trust("child-1", "pair-old", "Nursery", "code1234")
         viewModel.refreshTrustedChildren()
 
-        assertEquals(KnownChildStatus.NotFound, viewModel.uiState.value.knownChildren.single().status)
+        assertEquals(KnownChildStatus.Available, viewModel.uiState.value.knownChildren.single().status)
         viewModel.recordResolvedDevice(device(pairingId = "pair-new"))
 
         assertEquals(KnownChildStatus.PairAgain, viewModel.uiState.value.knownChildren.single().status)
@@ -198,6 +173,7 @@ class DiscoverViewModelTest {
         assertNull(pending?.pairingCode)
         assertEquals("child-1", pending?.expectedChildId)
         assertEquals("pair-1", pending?.expectedPairingId)
+        assertEquals(RelaySessionId.derive("child-1", "pair-1"), pending?.relaySessionId)
         assertEquals("host", pending?.address)
     }
 
@@ -210,7 +186,7 @@ class DiscoverViewModelTest {
 
         assertEquals(2, viewModel.uiState.value.knownChildren.size)
         assertEquals(
-            mapOf("Nursery" to KnownChildStatus.Available, "Bedroom" to KnownChildStatus.NotFound),
+            mapOf("Nursery" to KnownChildStatus.Available, "Bedroom" to KnownChildStatus.Available),
             viewModel.uiState.value.knownChildren.associate { it.child.displayName to it.status }
         )
     }

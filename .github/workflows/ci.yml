@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "internet-relay-clean"]
   pull_request:
     branches: ["main"]
   workflow_dispatch:
@@ -10,6 +10,7 @@ on:
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
+
 
 jobs:
   host-checks:

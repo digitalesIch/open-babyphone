@@ -32,11 +32,13 @@ data class PendingConnection(
     val pairingCode: CharArray?,
     val expectedChildId: String? = null,
     val expectedPairingId: String? = null,
-    val rememberAfterAuthentication: Boolean = false
+    val rememberAfterAuthentication: Boolean = false,
+    val relaySessionId: String? = null
 ) {
     init {
         require((address.isBlank()) == (port == 0))
         require(port == 0 || port in 1..65535)
+        require(relaySessionId == null || relaySessionId.matches(Regex("[A-Fa-f0-9]{64}")))
         require(pairingCode == null || PairingCode.isValid(pairingCode.concatToString()))
         require((expectedChildId == null) == (expectedPairingId == null))
         require(!rememberAfterAuthentication || expectedChildId != null)
