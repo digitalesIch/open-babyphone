@@ -28,6 +28,9 @@ set their phase/status there.
 
 Use JDK 21 when building the project. The Android app is configured with
 Java 17 source and target compatibility for Android tool compatibility.
+Gradle resolves the Java 21 toolchain from a locally installed JDK (auto
+detection); the build does not download toolchains from the network, so a
+JDK 21 must already be present on the machine or CI runner.
 
 ## Test Your Code
 
