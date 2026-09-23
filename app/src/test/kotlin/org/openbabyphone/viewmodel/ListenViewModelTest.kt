@@ -78,6 +78,8 @@ class ListenViewModelTest {
             ListenSessionError.Unreachable to ListenPrimaryAction.Retry,
             ListenSessionError.Authentication to ListenPrimaryAction.PairAgain,
             ListenSessionError.CredentialStorage to ListenPrimaryAction.Retry,
+            ListenSessionError.CredentialUnavailable to ListenPrimaryAction.PairAgain,
+            ListenSessionError.CredentialCorrupt to ListenPrimaryAction.PairAgain,
             ListenSessionError.Playback to ListenPrimaryAction.Retry,
             ListenSessionError.Decoding to ListenPrimaryAction.ConnectionHelp
         )
@@ -86,6 +88,20 @@ class ListenViewModelTest {
             assertEquals(action, presentation.primaryAction)
             assertFalse(presentation.showProgress)
         }
+    }
+
+    @Test
+    fun `credential read failures present distinct messages`() {
+        val unavailable = listenPresentation(context, ListenSessionState.Error(ListenSessionError.CredentialUnavailable, "reason"))
+        val corrupt = listenPresentation(context, ListenSessionState.Error(ListenSessionError.CredentialCorrupt, "reason"))
+
+        assertEquals(context.getString(R.string.saved_pairing_unavailable), unavailable.message)
+        assertEquals(context.getString(R.string.saved_pairing_unavailable_detail), unavailable.detail)
+        assertEquals(ListenPrimaryAction.PairAgain, unavailable.primaryAction)
+
+        assertEquals(context.getString(R.string.saved_pairing_damaged), corrupt.message)
+        assertEquals(context.getString(R.string.saved_pairing_damaged_detail), corrupt.detail)
+        assertEquals(ListenPrimaryAction.PairAgain, corrupt.primaryAction)
     }
 
     @Test

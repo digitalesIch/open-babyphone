@@ -35,6 +35,7 @@ sealed interface TrustedConnectionResult {
     data class Available(val child: TrustedChild, val pairingCode: CharArray) : TrustedConnectionResult
     data object Missing : TrustedConnectionResult
     data object Unavailable : TrustedConnectionResult
+    data object Corrupt : TrustedConnectionResult
 }
 
 enum class CredentialStorageResult {
@@ -73,8 +74,14 @@ class TrustedChildStore(
             when (val result = credentials.get(childId, pairingId)) {
                 is CredentialReadResult.Available -> TrustedConnectionResult.Available(child, result.value)
                 CredentialReadResult.Unavailable -> TrustedConnectionResult.Unavailable
-                CredentialReadResult.Missing,
                 CredentialReadResult.Corrupt -> {
+                    // A damaged credential cannot be repaired by retrying; remove
+                    // the unusable material so the next pairing starts clean.
+                    profiles.removeAll { it.childId == childId && it.pairingId == pairingId }
+                    if (persistMetadataLocked(profiles)) credentials.remove(childId, pairingId)
+                    TrustedConnectionResult.Corrupt
+                }
+                CredentialReadResult.Missing -> {
                     profiles.removeAll { it.childId == childId && it.pairingId == pairingId }
                     if (persistMetadataLocked(profiles)) credentials.remove(childId, pairingId)
                     TrustedConnectionResult.Missing
@@ -203,8 +210,15 @@ class TrustedChildStore(
                             true
                         }
                         CredentialReadResult.Unavailable -> true
-                        CredentialReadResult.Missing,
+                        // A corrupt credential stays visible until the parent
+                        // tries to connect: the specific read failure must ask
+                        // the user to pair again instead of hiding the child.
                         CredentialReadResult.Corrupt -> {
+                            if (loaded.removeAll { it.childId == child.childId }) changed = true
+                            loaded.add(child)
+                            false
+                        }
+                        CredentialReadResult.Missing -> {
                             changed = true
                             credentials.remove(child.childId, child.pairingId)
                             false

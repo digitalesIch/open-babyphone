@@ -215,6 +215,88 @@ class ListenServiceHandshakeTest {
         }
     }
 
+    @Test
+    fun `trusted credential read unavailability reports credential unavailable terminal error`() {
+        val application = RuntimeEnvironment.getApplication() as OpenBabyphoneApplication
+        application.getSharedPreferences(TrustedChildStore.METADATA_PREFS_NAME, 0).edit().clear().commit()
+        application.getSharedPreferences(ProtectedTrustedCredentialStore.PREFS_NAME, 0).edit().clear().commit()
+        val key = javax.crypto.KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
+        val store = TrustedChildStore(application, AesGcmTrustedCredentialCrypto({ key }))
+        assertEquals(
+            CredentialStorageResult.Success,
+            store.trustAuthenticated(
+                "abcdefghijklmnop",
+                "1234567890abcdef",
+                "Nursery",
+                "code1234".toCharArray(),
+                "127.0.0.1",
+                10_000
+            )
+        )
+        val field = application.javaClass.getDeclaredField("trustedChildStore").apply { isAccessible = true }
+        val originalStore = field.get(application)
+        field.set(application, TrustedChildStore(application, SwitchableCrypto(AesGcmTrustedCredentialCrypto({ key })).also { it.available = false }))
+        ListenServiceRepository.reset()
+
+        val intent = Intent(application, ListenService::class.java)
+            .putExtra("expectedChildId", "abcdefghijklmnop")
+            .putExtra("expectedPairingId", "1234567890abcdef")
+        val controller = Robolectric.buildService(ListenService::class.java, intent).create()
+
+        try {
+            controller.get().onStartCommand(intent, 0, 1)
+            val error = awaitError()
+
+            assertEquals(ListenSessionError.CredentialUnavailable, error.type)
+        } finally {
+            controller.destroy()
+            field.set(application, originalStore)
+            application.getSharedPreferences(TrustedChildStore.METADATA_PREFS_NAME, 0).edit().clear().commit()
+            application.getSharedPreferences(ProtectedTrustedCredentialStore.PREFS_NAME, 0).edit().clear().commit()
+        }
+    }
+
+    @Test
+    fun `corrupt trusted credential reports credential corrupt terminal error and cleans up`() {
+        val application = RuntimeEnvironment.getApplication() as OpenBabyphoneApplication
+        application.getSharedPreferences(TrustedChildStore.METADATA_PREFS_NAME, 0).edit().clear().commit()
+        val credentialsPrefs = application.getSharedPreferences(ProtectedTrustedCredentialStore.PREFS_NAME, 0)
+        credentialsPrefs.edit().clear().commit()
+        val key = javax.crypto.KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
+        val store = TrustedChildStore(application, AesGcmTrustedCredentialCrypto({ key }))
+        assertEquals(
+            CredentialStorageResult.Success,
+            store.trustAuthenticated(
+                "abcdefghijklmnop",
+                "1234567890abcdef",
+                "Nursery",
+                "code1234".toCharArray(),
+                "127.0.0.1",
+                10_000
+            )
+        )
+        credentialsPrefs.edit().putString(credentialsPrefs.all.keys.single(), "not-json").commit()
+        ListenServiceRepository.reset()
+
+        val intent = Intent(application, ListenService::class.java)
+            .putExtra("expectedChildId", "abcdefghijklmnop")
+            .putExtra("expectedPairingId", "1234567890abcdef")
+        val controller = Robolectric.buildService(ListenService::class.java, intent).create()
+
+        try {
+            controller.get().onStartCommand(intent, 0, 1)
+            val error = awaitError()
+
+            assertEquals(ListenSessionError.CredentialCorrupt, error.type)
+            assertTrue(credentialsPrefs.all.isEmpty())
+            assertTrue(store.getAll().isEmpty())
+        } finally {
+            controller.destroy()
+            application.getSharedPreferences(TrustedChildStore.METADATA_PREFS_NAME, 0).edit().clear().commit()
+            credentialsPrefs.edit().clear().commit()
+        }
+    }
+
     private fun invokePerformHandshake(
         service: ListenService,
         socket: Socket,
@@ -243,5 +325,17 @@ class ListenServiceHandshakeTest {
             throw CredentialCryptoUnavailableException()
         override fun decrypt(protectedCredential: ProtectedCredential, aad: ByteArray): ByteArray =
             throw CredentialCryptoUnavailableException()
+    }
+
+    private class SwitchableCrypto(private val delegate: TrustedCredentialCrypto) : TrustedCredentialCrypto {
+        var available = true
+        override fun encrypt(plaintext: ByteArray, aad: ByteArray): ProtectedCredential {
+            if (!available) throw CredentialCryptoUnavailableException()
+            return delegate.encrypt(plaintext, aad)
+        }
+        override fun decrypt(protectedCredential: ProtectedCredential, aad: ByteArray): ByteArray {
+            if (!available) throw CredentialCryptoUnavailableException()
+            return delegate.decrypt(protectedCredential, aad)
+        }
     }
 }

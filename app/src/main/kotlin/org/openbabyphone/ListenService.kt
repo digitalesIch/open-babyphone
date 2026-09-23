@@ -185,10 +185,10 @@ class ListenService : Service() {
             ServiceRecoveryNotifier.cancelListenActionRequired(this)
             registerNetworkCallback()
             if (connection == null) {
-                val error = if (resolution == ConnectionResolution.CredentialUnavailable) {
-                    ListenSessionError.CredentialStorage
-                } else {
-                    ListenSessionError.Unreachable
+                val error = when (resolution) {
+                    ConnectionResolution.CredentialUnavailable -> ListenSessionError.CredentialUnavailable
+                    ConnectionResolution.CredentialCorrupt -> ListenSessionError.CredentialCorrupt
+                    else -> ListenSessionError.Unreachable
                 }
                 handleTerminalFailure(error, claim)
                 if (redelivered) {
@@ -466,6 +466,7 @@ class ListenService : Service() {
                     is TrustedConnectionResult.Available -> trusted.pairingCode
                     TrustedConnectionResult.Missing -> null
                     TrustedConnectionResult.Unavailable -> return ConnectionResolution.CredentialUnavailable
+                    TrustedConnectionResult.Corrupt -> return ConnectionResolution.CredentialCorrupt
                 }
             } ?: return ConnectionResolution.Missing
             return ConnectionResolution.Available(
@@ -484,6 +485,7 @@ class ListenService : Service() {
         return when (val trusted = trustedChildStore().resolveConnection(identity.childId, identity.pairingId)) {
             TrustedConnectionResult.Missing -> ConnectionResolution.Missing
             TrustedConnectionResult.Unavailable -> ConnectionResolution.CredentialUnavailable
+            TrustedConnectionResult.Corrupt -> ConnectionResolution.CredentialCorrupt
             is TrustedConnectionResult.Available -> {
                 val address = trusted.child.lastKnownAddress
                 val port = trusted.child.lastKnownPort
@@ -1354,5 +1356,6 @@ class ListenService : Service() {
         data class Available(val connection: ListenConnection) : ConnectionResolution
         data object Missing : ConnectionResolution
         data object CredentialUnavailable : ConnectionResolution
+        data object CredentialCorrupt : ConnectionResolution
     }
 }

@@ -124,6 +124,16 @@ internal fun listenPresentation(
             resources.getString(R.string.could_not_save_pairing_detail),
             primaryAction = ListenPrimaryAction.Retry
         )
+        ListenSessionError.CredentialUnavailable -> ListenPresentation(
+            resources.getString(R.string.saved_pairing_unavailable),
+            resources.getString(R.string.saved_pairing_unavailable_detail),
+            primaryAction = ListenPrimaryAction.PairAgain
+        )
+        ListenSessionError.CredentialCorrupt -> ListenPresentation(
+            resources.getString(R.string.saved_pairing_damaged),
+            resources.getString(R.string.saved_pairing_damaged_detail),
+            primaryAction = ListenPrimaryAction.PairAgain
+        )
         ListenSessionError.Playback -> ListenPresentation(
             resources.getString(R.string.playback_failed),
             resources.getString(R.string.playback_failed_detail),
