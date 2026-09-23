@@ -1,10 +1,28 @@
 package org.openbabyphone
 
+import android.app.Application
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.Robolectric
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 
+@RunWith(RobolectricTestRunner::class)
 class MicrophoneSensitivityTest {
+
+    private lateinit var context: Application
+
+    @Before
+    fun setUp() {
+        context = RuntimeEnvironment.getApplication()
+        context.getSharedPreferences(OpenBabyphoneApplication.SETTINGS_PREFS_NAME, Application.MODE_PRIVATE)
+            .edit().clear().commit()
+        context.getSharedPreferences(MonitorService.PAIRING_PREFS_NAME, Application.MODE_PRIVATE)
+            .edit().clear().commit()
+    }
 
     @Test
     fun `fromPreferenceValue null returns NORMAL`() {
@@ -125,5 +143,59 @@ class MicrophoneSensitivityTest {
         assertEquals("normal", MicrophoneSensitivity.NORMAL.preferenceValue)
         assertEquals("high", MicrophoneSensitivity.HIGH.preferenceValue)
         assertEquals("very_high", MicrophoneSensitivity.VERY_HIGH.preferenceValue)
+    }
+
+    @Test
+    fun `preferences read defaults to normal`() {
+        assertEquals(MicrophoneSensitivity.NORMAL, MicrophoneSensitivityPreferences.read(context))
+    }
+
+    @Test
+    fun `preferences read uses settings preference`() {
+        context.getSharedPreferences(OpenBabyphoneApplication.SETTINGS_PREFS_NAME, Application.MODE_PRIVATE)
+            .edit()
+            .putString(MicrophoneSensitivityPreferences.KEY, MicrophoneSensitivity.HIGH.preferenceValue)
+            .apply()
+
+        assertEquals(MicrophoneSensitivity.HIGH, MicrophoneSensitivityPreferences.read(context))
+    }
+
+    @Test
+    fun `preferences read migrates legacy pairing preference`() {
+        context.getSharedPreferences(MonitorService.PAIRING_PREFS_NAME, Application.MODE_PRIVATE)
+            .edit()
+            .putString(MonitorService.PREF_KEY_MICROPHONE_SENSITIVITY, MicrophoneSensitivity.VERY_HIGH.preferenceValue)
+            .apply()
+
+        assertEquals(MicrophoneSensitivity.VERY_HIGH, MicrophoneSensitivityPreferences.read(context))
+        assertEquals(
+            MicrophoneSensitivity.VERY_HIGH.preferenceValue,
+            context.getSharedPreferences(OpenBabyphoneApplication.SETTINGS_PREFS_NAME, Application.MODE_PRIVATE)
+                .getString(MicrophoneSensitivityPreferences.KEY, null)
+        )
+    }
+
+    @Test
+    fun `preferences write persists selected sensitivity`() {
+        assertEquals(
+            true,
+            MicrophoneSensitivityPreferences.write(context, MicrophoneSensitivity.HIGH)
+        )
+
+        assertEquals(MicrophoneSensitivity.HIGH, MicrophoneSensitivityPreferences.read(context))
+    }
+
+    @Test
+    fun `active service listener applies sensitivity without restarting service`() {
+        val controller = Robolectric.buildService(MonitorService::class.java).create()
+        val service = controller.get()
+
+        MicrophoneSensitivityPreferences.write(context, MicrophoneSensitivity.VERY_HIGH)
+
+        val gainField = MonitorService::class.java.getDeclaredField("microphoneGain").apply {
+            isAccessible = true
+        }
+        assertEquals(MicrophoneSensitivity.VERY_HIGH.gain, gainField.getFloat(service), 0.001f)
+        controller.destroy()
     }
 }

@@ -42,9 +42,17 @@ with the latest installed Build Tools using `zipalign -c -P 16 4`, extracts ever
 packaged `.so`, and requires every ELF `LOAD` segment alignment to be at least
 `0x4000`.
 
-Separate KVM-enabled emulator jobs run all instrumentation tests on API 30 and
-API 36 with explicit job and boot timeouts. API 36 is current-platform behavior
-coverage; the app still targets SDK 34. An API 35 `google_apis_ps16k` emulator
+Separate KVM-enabled emulator jobs run a filtered instrumentation subset on API 30
+and API 36 with explicit job and boot timeouts. API 36 is current-platform behavior
+coverage; the app still targets SDK 34. Every emulator job runs the same 5-class
+crypto/handshake/launch smoke filter (`AppLaunchSmokeInstrumentedTest`,
+`HandshakeInstrumentedTest`, `CryptoHelperInstrumentedTest`,
+`TrustedCredentialCryptoInstrumentedTest`, `FrameCodecCryptoInstrumentedTest`).
+The API 30 job additionally runs `AppNavigationTest` and the three fast user
+journeys from `CoreJourneyAndConfigurationTest` (first-child, first-parent,
+returning-parent); the slower configuration-reachability and semantics tests in
+that file, like all other Compose screen tests, stay local-only to keep CI time
+bounded. An API 35 `google_apis_ps16k` emulator
 first asserts that `getconf PAGE_SIZE` is exactly `16384`, then runs Android
 crypto, protected-credential, frame-crypto, handshake, and real `MainActivity`
 launch/UI smoke tests. Every emulator job uploads connected-test reports and
@@ -71,17 +79,20 @@ Run with:
 
 Covers:
 - Audio protocol: `FrameCodec`, `FrameHeader`, `G711UCodec`, fixed 20 ms capture timing, sequence-ordered adaptive pre-roll, and bounded packet-loss concealment
-- Client management: `ClientManager` lifecycle and queue behavior
+- Client management: `ClientManager` lifecycle, queue behavior, slow-client grace/eviction, and multi-parent connect/disconnect/reconnect sequences
 - Crypto: `CryptoHelper` key derivation and encrypt/decrypt round-trip
-- Volume: `VolumeStatistics` ring buffer and normalization, `VolumeHistory`
+- Volume: `VolumeStatistics` ring buffer and normalization, async `VolumeHistory` drain ordering, waveform math
 - Pairing: `PairingCode` validation, `PairingCodeGenerator`, `PairingQrCode` parsing
-- Handshake: protocol handshake serialization
-- ViewModels: `DiscoverViewModel`, `MonitorViewModel`, `ListenViewModel`
+- Handshake: protocol handshake serialization, deadline handling, bounded executor
+- ViewModels: `DiscoverViewModel`, `MonitorViewModel`, `ListenViewModel`, `WifiDirectParentViewModel`
 - Trusted child: protected credential encryption, migration, authenticated persistence, reset, deletion, and process recreation
-- Microphone: `MicrophoneSensitivity` gain levels
-- Wi-Fi Direct: `WifiDirectErrorsTest`, `WifiDirectTxtRecordParserTest`
-- Listen service: `ListenServiceAlertTest`
-- Device name: `DeviceNameTest`
+- Microphone: `MicrophoneSensitivity` gain levels, settings persistence with legacy migration, live apply without service restart
+- Listen service: alert behavior, audio end-to-end gating plus worker error mapping, handshake, readiness, resume routing
+- Monitor service: handshake accept/reject, audio producer error mapping, notifications
+- Services: connection-manager callbacks, repository state, session/failure policy, sticky-start recovery, redelivery tracking, worker generations
+- Wi-Fi Direct: callback gate, error mapping, TXT-record parsing, listen cleanup
+- Device name: validation rules plus preferences persistence
+- Navigation: launcher route policy
 
 ### Instrumentation Tests (Device/Emulator)
 
@@ -90,8 +101,8 @@ Run with:
     ./gradlew connectedDebugAndroidTest
 
 Covers:
-- Crypto: `CryptoHelper` Android JCA behavior, `FrameCodecCryptoInstrumentedTest`
-- Compose UI: `StartScreen`, `DiscoverScreen`, `MonitorScreen`, `DiscoverAddressScreen`
+- Crypto: `CryptoHelper` Android JCA smoke (derive-key determinism, encrypt/decrypt round-trip, wrong-key rejection, proof round-trip), `FrameCodecCryptoInstrumentedTest`, real-`AndroidKeyStore` credential crypto
+- Compose UI: `StartScreen`, `DiscoverScreen`, `MonitorScreen`, `DiscoverAddressScreen` and the remaining screens, journeys, navigation wiring, and session-recreation behavior — local-only via `./gradlew connectedDebugAndroidTest`, except `AppNavigationTest` and the three fast `CoreJourneyAndConfigurationTest` journeys which also run in the CI API 30 job
 - Handshake: on-device challenge-response
 
 ### Lint
