@@ -260,6 +260,8 @@ class ListenServiceAudioIntegrationTest {
 
         override fun stop() = Unit
 
+        override fun setMuted(muted: Boolean) = Unit
+
         override fun release() = Unit
     }
 

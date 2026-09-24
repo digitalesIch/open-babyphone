@@ -62,6 +62,13 @@ object ListenServiceRepository {
     private val _sessionState = MutableStateFlow<ListenSessionState>(ListenSessionState.Idle)
     val sessionState: StateFlow<ListenSessionState> = _sessionState.asStateFlow()
 
+    private val _muted = MutableStateFlow(false)
+    val muted: StateFlow<Boolean> = _muted.asStateFlow()
+
+    fun setMuted(muted: Boolean) {
+        _muted.value = muted
+    }
+
     fun updateChildDeviceName(name: String) {
         _childDeviceName.value = name
     }
@@ -138,5 +145,6 @@ object ListenServiceRepository {
     fun reset() {
         _childDeviceName.value = ""
         _sessionState.value = ListenSessionState.Idle
+        _muted.value = false
     }
 }

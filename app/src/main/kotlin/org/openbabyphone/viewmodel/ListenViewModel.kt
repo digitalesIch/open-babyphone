@@ -34,7 +34,8 @@ data class ListenUiState(
     val presentation: ListenPresentation = ListenPresentation("", ""),
     val volumeHistory: FloatArray = floatArrayOf(),
     val volumeNorm: Float = 1.0f,
-    val lastAudioUpdateAtMillis: Long = 0L
+    val lastAudioUpdateAtMillis: Long = 0L,
+    val isMuted: Boolean = false
 )
 
 class ListenViewModel(application: Application) : AndroidViewModel(application) {
@@ -46,19 +47,21 @@ class ListenViewModel(application: Application) : AndroidViewModel(application) 
         _volumeHistory,
         _volumeNorm,
         _lastAudioUpdateAtMillis,
+        ListenServiceRepository.muted,
         combine(
             ListenServiceRepository.childDeviceName,
             ListenServiceRepository.sessionState
         ) { name, state -> name to state }
-    ) { volumeHistory, volumeNorm, lastAudioUpdateAtMillis, repoInfo ->
+    ) { volumeHistory, volumeNorm, lastAudioUpdateAtMillis, muted, repoInfo ->
         val (name, sessionState) = repoInfo
         ListenUiState(
             childDeviceName = name,
             sessionState = sessionState,
-            presentation = listenPresentation(application, sessionState),
+            presentation = listenPresentation(application, sessionState, muted),
             volumeHistory = volumeHistory,
             volumeNorm = volumeNorm,
-            lastAudioUpdateAtMillis = lastAudioUpdateAtMillis
+            lastAudioUpdateAtMillis = lastAudioUpdateAtMillis,
+            isMuted = muted
         )
     }.stateIn(
         viewModelScope,
@@ -74,16 +77,22 @@ class ListenViewModel(application: Application) : AndroidViewModel(application) 
         _volumeNorm.value = norm
         _lastAudioUpdateAtMillis.value = SystemClock.elapsedRealtime()
     }
+
+    fun toggleMute() {
+        ListenServiceRepository.setMuted(!ListenServiceRepository.muted.value)
+    }
 }
 
 internal fun listenPresentation(
     application: Application,
-    state: ListenSessionState
-): ListenPresentation = listenPresentation(application.resources, state)
+    state: ListenSessionState,
+    muted: Boolean = false
+): ListenPresentation = listenPresentation(application.resources, state, muted)
 
 internal fun listenPresentation(
     resources: Resources,
-    state: ListenSessionState
+    state: ListenSessionState,
+    muted: Boolean = false
 ): ListenPresentation = when (state) {
     ListenSessionState.Connecting -> ListenPresentation(
         resources.getString(R.string.listen_connecting_title),
@@ -91,7 +100,11 @@ internal fun listenPresentation(
         showProgress = true
     )
     ListenSessionState.Listening -> ListenPresentation(
-        resources.getString(R.string.listen_listening_title),
+        if (muted) {
+            resources.getString(R.string.listening_muted)
+        } else {
+            resources.getString(R.string.listen_listening_title)
+        },
         resources.getString(R.string.listen_listening_detail)
     )
     is ListenSessionState.Reconnecting -> ListenPresentation(

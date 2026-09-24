@@ -25,6 +25,7 @@ internal interface AudioCaptureSource {
 internal interface AudioPlaybackSink {
     fun start()
     fun write(samples: ShortArray, offset: Int, count: Int): Int
+    fun setMuted(muted: Boolean)
     fun stop()
     fun release()
 }
@@ -93,6 +94,10 @@ internal fun createAudioPlaybackSink(
 
         override fun write(samples: ShortArray, offset: Int, count: Int): Int =
             track.write(samples, offset, count, AudioTrack.WRITE_NON_BLOCKING)
+
+        override fun setMuted(muted: Boolean) {
+            track.setVolume(if (muted) 0f else 1f)
+        }
 
         override fun stop() = track.stop()
 

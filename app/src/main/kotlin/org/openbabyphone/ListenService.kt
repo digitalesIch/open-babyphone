@@ -1051,13 +1051,23 @@ class ListenService : Service() {
                 Log.d(TAG, "Failed to close socket after playback failure", e)
             }
         }
-        val playbackThread = Thread {
+            val playbackThread = Thread {
             val decodedBuffer = ShortArray(FrameCodec.MAX_G711_AUDIO_SIZE)
             val concealmentBuffer = ShortArray(AudioFrameTiming.FRAME_SAMPLES)
             val concealer = PacketLossConcealer()
+            var sinkMuted = false
             Log.i(TAG, "Starting playback from jitter buffer")
             try {
                 playbackLoop@ while (streamRunning.get() && isWorkerActive(claim) && !Thread.currentThread().isInterrupted) {
+                    val requestedMute = ListenServiceRepository.muted.value
+                    if (requestedMute != sinkMuted) {
+                        try {
+                            audioSink.setMuted(requestedMute)
+                        } catch (e: RuntimeException) {
+                            Log.w(TAG, "Failed to apply mute state to audio sink", e)
+                        }
+                        sinkMuted = requestedMute
+                    }
                     val jitterFrame = jitterBuffer.getFrame(AudioFrameTiming.FRAME_DURATION_MS.toLong())
                     if (jitterFrame != null && jitterFrame.gapBefore > 0) {
                         // The sender skipped sequence numbers: conceal the gap by
