@@ -78,7 +78,13 @@ class MainActivity : ComponentActivity() {
         val requestedMonitor = intent.action == ACTION_RESUME_MONITOR
         setContent {
             var themeMode by remember { mutableStateOf(ThemePreferences.read(this@MainActivity)) }
-            QuietEngineTheme(darkTheme = themeMode.useDarkTheme(isSystemInDarkTheme())) {
+            var useSystemColors by remember {
+                mutableStateOf(ThemePreferences.readDynamicColors(this@MainActivity))
+            }
+            QuietEngineTheme(
+                darkTheme = themeMode.useDarkTheme(isSystemInDarkTheme()),
+                dynamicColor = useSystemColors
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -171,6 +177,12 @@ class MainActivity : ComponentActivity() {
                                     onThemeModeChanged = { selectedMode ->
                                         if (ThemePreferences.write(this@MainActivity, selectedMode)) {
                                             themeMode = selectedMode
+                                        }
+                                    },
+                                    useSystemColors = useSystemColors,
+                                    onUseSystemColorsChanged = { enabled ->
+                                        if (ThemePreferences.writeDynamicColors(this@MainActivity, enabled)) {
+                                            useSystemColors = enabled
                                         }
                                     }
                                 )

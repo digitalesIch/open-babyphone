@@ -22,6 +22,7 @@ enum class ThemeMode(val preferenceValue: String) {
 
 object ThemePreferences {
     const val KEY = "theme_mode"
+    const val DYNAMIC_COLORS_KEY = "use_system_colors"
 
     fun read(context: Context): ThemeMode = ThemeMode.fromPreferenceValue(
         context.getSharedPreferences(
@@ -48,4 +49,16 @@ object ThemePreferences {
             }
         )
     }
+
+    fun readDynamicColors(context: Context): Boolean =
+        context.getSharedPreferences(
+            OpenBabyphoneApplication.SETTINGS_PREFS_NAME,
+            Context.MODE_PRIVATE
+        ).getBoolean(DYNAMIC_COLORS_KEY, false)
+
+    fun writeDynamicColors(context: Context, enabled: Boolean): Boolean =
+        context.getSharedPreferences(
+            OpenBabyphoneApplication.SETTINGS_PREFS_NAME,
+            Context.MODE_PRIVATE
+        ).edit().putBoolean(DYNAMIC_COLORS_KEY, enabled).commit()
 }

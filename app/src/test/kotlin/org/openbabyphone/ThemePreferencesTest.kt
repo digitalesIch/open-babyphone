@@ -42,4 +42,15 @@ class ThemePreferencesTest {
         assertEquals(AppCompatDelegate.MODE_NIGHT_YES, AppCompatDelegate.getDefaultNightMode())
         assertTrue(ThemeMode.DARK.useDarkTheme(false))
     }
+
+    @Test
+    fun `dynamic colors default off and persist across reads`() {
+        assertEquals(false, ThemePreferences.readDynamicColors(context))
+
+        assertTrue(ThemePreferences.writeDynamicColors(context, true))
+        assertEquals(true, ThemePreferences.readDynamicColors(context))
+
+        assertTrue(ThemePreferences.writeDynamicColors(context, false))
+        assertEquals(false, ThemePreferences.readDynamicColors(context))
+    }
 }
