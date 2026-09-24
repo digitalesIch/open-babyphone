@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -187,7 +188,9 @@ class DiscoverScreenTest {
 
     private fun setParentHome(
         state: DiscoverUiState,
-        onConnectionHelp: (String?) -> Unit = {}
+        onConnectionHelp: (String?) -> Unit = {},
+        cameraPermissionDenied: Boolean = false,
+        onUseCodeInstead: () -> Unit = {}
     ) {
         composeTestRule.setContent {
             QuietEngineTheme {
@@ -198,9 +201,59 @@ class DiscoverScreenTest {
                     onKnownChildAction = { _, _ -> },
                     onRetry = {},
                     onStartListening = {},
-                    onConnectionHelp = onConnectionHelp
+                    onConnectionHelp = onConnectionHelp,
+                    cameraPermissionDenied = cameraPermissionDenied,
+                    onUseCodeInstead = onUseCodeInstead
                 )
             }
         }
+    }
+
+    @Test
+    fun cameraDenial_showsRecoveryWithCodeAndSettingsFallback() {
+        var usedCodeInstead = false
+        setParentHome(
+            DiscoverUiState(),
+            cameraPermissionDenied = true,
+            onUseCodeInstead = { usedCodeInstead = true }
+        )
+
+        composeTestRule.onNodeWithText("Camera access is required").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("scan_qr_button").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("retry_camera_permission").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("open_camera_settings").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("camera_use_code_instead").performClick()
+        assertEquals(true, usedCodeInstead)
+    }
+
+    @Test
+    fun cameraRecovery_hiddenWhenPermissionAvailable() {
+        setParentHome(DiscoverUiState())
+
+        composeTestRule.onNodeWithText("Camera access is required").assertDoesNotExist()
+        composeTestRule.onAllNodesWithTag("camera_permission_recovery").assertCountEquals(0)
+    }
+
+    @Test
+    fun cameraRecovery_remainsReachableAtTwoHundredPercent() {
+        val density = composeTestRule.activity.resources.displayMetrics.density
+        composeTestRule.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(density, fontScale = 2f)) {
+                QuietEngineTheme {
+                    ParentHomeContent(
+                        uiState = DiscoverUiState(),
+                        onScanQr = {},
+                        onCannotScan = {},
+                        onKnownChildAction = { _, _ -> },
+                        onRetry = {},
+                        onStartListening = {},
+                        onConnectionHelp = {},
+                        cameraPermissionDenied = true
+                    )
+                }
+            }
+        }
+        composeTestRule.onNodeWithTag("retry_camera_permission").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithTag("open_camera_settings").performScrollTo().assertIsDisplayed()
     }
 }
