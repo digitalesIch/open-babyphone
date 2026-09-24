@@ -129,6 +129,7 @@
     <string name="wifi_direct_start_discovery">Search for child devices</string>
     <string name="wifi_direct_searching">Searching for child devices…</string>
     <string name="wifi_direct_connecting">Connecting to %1$s…</string>
+    <string name="wifi_direct_connected_opening">Connected. Opening listening…</string>
     <string name="wifi_direct_not_supported">Wi-Fi Direct is not supported on this device</string>
     <string name="wifi_direct_connection_details">Connection details</string>
     <string name="wifi_direct_discovery_status">Discovery status</string>

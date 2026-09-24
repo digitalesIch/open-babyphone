@@ -16,10 +16,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.openbabyphone.navigation.Discover
+import org.openbabyphone.navigation.DiscoverAddress
+import org.openbabyphone.navigation.DiscoverWifiDirect
 import org.openbabyphone.navigation.Listen
 import org.openbabyphone.navigation.Monitor
 import org.openbabyphone.navigation.Start
@@ -96,6 +99,44 @@ class AppNavigationTest {
         composeTestRule.runOnIdle { assertFalse(navController.popBackStack()) }
     }
 
+    @Test
+    fun wifiDirectConnectConsumesTransientRoute() {
+        lateinit var navController: NavHostController
+        setNavigationContent(Discover) { navController = it }
+        composeTestRule.runOnIdle {
+            navController.navigate(DiscoverWifiDirect("request"))
+            navigateFromWifiDirectToListen(navController, "request")
+        }
+
+        composeTestRule.onNodeWithText("Listen destination").assertIsDisplayed()
+        composeTestRule.runOnIdle {
+            assertTrue(navController.popBackStack())
+        }
+        composeTestRule.onNodeWithText("Discover destination").assertIsDisplayed()
+        composeTestRule.runOnIdle {
+            assertFalse(navController.popBackStack())
+        }
+    }
+
+    @Test
+    fun manualAddressConnectConsumesTransientRoute() {
+        lateinit var navController: NavHostController
+        setNavigationContent(Discover) { navController = it }
+        composeTestRule.runOnIdle {
+            navController.navigate(DiscoverAddress("request"))
+            navigateFromManualAddressToListen(navController, "request")
+        }
+
+        composeTestRule.onNodeWithText("Listen destination").assertIsDisplayed()
+        composeTestRule.runOnIdle {
+            assertTrue(navController.popBackStack())
+        }
+        composeTestRule.onNodeWithText("Discover destination").assertIsDisplayed()
+        composeTestRule.runOnIdle {
+            assertFalse(navController.popBackStack())
+        }
+    }
+
     private fun setNavigationContent(
         startDestination: Any,
         onController: (NavHostController) -> Unit
@@ -121,7 +162,10 @@ class AppNavigationTest {
                         }
                     }
                     composable<Discover> { Text("Discover destination") }
+                    composable<DiscoverWifiDirect> { Text("WifiDirect destination") }
+                    composable<DiscoverAddress> { Text("Address destination") }
                     composable<Listen> {
+                        Text("Listen destination")
                         TextButton(
                             onClick = { navigateFromStoppedListen(navController) },
                             modifier = Modifier.testTag("confirmed_disconnect")

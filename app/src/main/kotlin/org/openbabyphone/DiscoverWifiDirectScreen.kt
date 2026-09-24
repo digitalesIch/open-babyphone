@@ -298,9 +298,15 @@ internal fun WifiDirectParentContent(
                     )
                 }
             }
-            WifiDirectState.Starting,
+            WifiDirectState.Starting -> {
+                ProgressState(
+                    stringResource(R.string.wifi_direct_starting),
+                    "wifi_direct_starting"
+                )
+                CancelButton(onCancel)
+            }
             is WifiDirectState.Discovering -> {
-                val peers = (state as? WifiDirectState.Discovering)?.peers.orEmpty()
+                val peers = state.peers
                 if (peers.isEmpty()) {
                     ProgressState(
                         stringResource(R.string.wifi_direct_searching),
@@ -343,7 +349,10 @@ internal fun WifiDirectParentContent(
                 CancelButton(onCancel)
             }
             is WifiDirectState.Connected -> {
-                ProgressState(stringResource(R.string.connecting), "wifi_direct_connected")
+                ProgressState(
+                    stringResource(R.string.wifi_direct_connected_opening),
+                    "wifi_direct_connected"
+                )
                 CancelButton(onCancel)
             }
             is WifiDirectState.Error -> {
@@ -366,7 +375,10 @@ internal fun WifiDirectParentContent(
                 CancelButton(onCancel)
             }
             WifiDirectState.Advertising -> {
-                ProgressState(stringResource(R.string.wifi_direct_starting), "wifi_direct_searching")
+                ProgressState(
+                    stringResource(R.string.wifi_direct_starting),
+                    "wifi_direct_advertising"
+                )
                 CancelButton(onCancel)
             }
         }

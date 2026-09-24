@@ -384,15 +384,28 @@ private fun ChildWifiDirectAction(
         }
     }
     when (state) {
-        WifiDirectState.Idle,
-        is WifiDirectState.Error -> {
-            if (state is WifiDirectState.Error) {
-                Text(state.message, color = MaterialTheme.colorScheme.error)
-            }
+        WifiDirectState.Idle -> {
             OdOutlinedActionButton(
                 text = stringResource(R.string.try_wifi_direct),
                 onClick = onStart,
                 modifier = Modifier.testTag("child_wifi_direct_try")
+            )
+        }
+        is WifiDirectState.Error -> {
+            Text(
+                state.message,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.testTag("child_wifi_direct_error")
+            )
+            OdOutlinedActionButton(
+                text = stringResource(R.string.try_wifi_direct),
+                onClick = onStart,
+                modifier = Modifier.testTag("child_wifi_direct_try")
+            )
+            OdTextButton(
+                text = stringResource(R.string.use_regular_wifi),
+                onClick = onUseRegularWifi,
+                modifier = Modifier.testTag("child_wifi_direct_error_regular_wifi")
             )
         }
         else -> {

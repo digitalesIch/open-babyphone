@@ -46,8 +46,50 @@ class DiscoverWifiDirectScreenTest {
     }
 
     @Test
-    fun progressConnectingAndError_eachExposeCancelAndSinglePresentation() {
+    fun eachTransientState_rendersDistinctPresentation() {
         var state by mutableStateOf<WifiDirectState>(WifiDirectState.Starting)
+        composeTestRule.setContent {
+            QuietEngineTheme {
+                WifiDirectParentContent(
+                    uiState = WifiDirectParentUiState(wifiDirectState = state),
+                    credentialState = PendingCredentialState.None,
+                    permissionDenied = false,
+                    permissionPermanentlyDenied = false,
+                    onTry = {},
+                    onRetry = {},
+                    onCancel = {},
+                    onUseRegularWifi = {},
+                    onPairAgain = {},
+                    onOpenAppSettings = {},
+                    onPairingCodeChange = {},
+                    onConnect = {}
+                )
+            }
+        }
+        val cases = listOf(
+            WifiDirectState.Starting to "wifi_direct_starting",
+            WifiDirectState.Discovering(emptyList()) to "wifi_direct_searching",
+            WifiDirectState.Connecting(peer()) to "wifi_direct_connecting",
+            WifiDirectState.Connected(WifiDirectEndpoint("child", 10000, "Nursery")) to
+                "wifi_direct_connected",
+            WifiDirectState.Advertising to "wifi_direct_advertising"
+        )
+        val allTags = cases.map { it.second }
+        cases.forEach { (nextState, tag) ->
+            composeTestRule.runOnIdle { state = nextState }
+            composeTestRule.onNodeWithTag(tag).assertIsDisplayed()
+            composeTestRule.onNodeWithTag("wifi_direct_cancel").assertIsDisplayed()
+            allTags.filter { it != tag }.forEach { other ->
+                composeTestRule.onAllNodesWithTag(other).assertCountEquals(0)
+            }
+            if (nextState is WifiDirectState.Connected) {
+                composeTestRule.onNodeWithText("Connected. Opening listening…").assertIsDisplayed()
+            }
+        }
+    }
+
+    @Test
+    fun progressConnectingAndError_eachExposeCancelAndSinglePresentation() {        var state by mutableStateOf<WifiDirectState>(WifiDirectState.Starting)
         composeTestRule.setContent {
             QuietEngineTheme {
                 WifiDirectParentContent(

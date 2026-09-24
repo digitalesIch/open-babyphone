@@ -118,8 +118,14 @@ class DiscoverAddressScreenTest {
     }
 
     @Test
-    fun manualFormConnectActionRemainsReachableAtTwoHundredPercent() {
-        val density = composeTestRule.activity.resources.displayMetrics.density
+    fun manualForm_offersRegularWifiFallback() {
+        setAddressScreen()
+
+        composeTestRule.onNodeWithTag("manual_regular_wifi").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun manualFormConnectActionRemainsReachableAtTwoHundredPercent() {        val density = composeTestRule.activity.resources.displayMetrics.density
         composeTestRule.setContent {
             CompositionLocalProvider(LocalDensity provides Density(density, fontScale = 2f)) {
                 DiscoverAddressScreen(onNavigateBack = {}, onConnect = {})
