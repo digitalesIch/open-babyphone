@@ -28,6 +28,8 @@ import android.net.wifi.p2p.WifiP2pManager.P2P_UNSUPPORTED
 import android.net.wifi.p2p.nsd.WifiP2pDnsSdServiceInfo
 import android.net.wifi.p2p.nsd.WifiP2pDnsSdServiceRequest
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -114,8 +116,55 @@ interface WifiDirectSession {
     fun stop()
 }
 
-internal class WifiDirectCallbackGate {
-    private var generation = 0L
+/**
+ * Schedules a one-shot delayed action. The default implementation posts to
+ * the main thread; tests inject a manual scheduler.
+ */
+fun interface TimeoutScheduler {
+    fun interface Cancellable {
+        fun cancel()
+    }
+
+    fun schedule(delayMs: Long, action: () -> Unit): Cancellable
+}
+
+class MainThreadTimeoutScheduler(looper: Looper) : TimeoutScheduler {
+    private val handler = Handler(looper)
+
+    override fun schedule(delayMs: Long, action: () -> Unit): TimeoutScheduler.Cancellable {
+        val runnable = Runnable { action() }
+        handler.postDelayed(runnable, delayMs)
+        return TimeoutScheduler.Cancellable { handler.removeCallbacks(runnable) }
+    }
+}
+
+/**
+ * Bounds a single Wi-Fi Direct operation. The armed generation token and
+ * pending predicate make late callbacks harmless: the timeout fires only
+ * while its own operation is still pending, and [cancel] disarms it when a
+ * new operation begins or the flow stops.
+ */
+class WifiDirectOperationTimeout(
+    private val scheduler: TimeoutScheduler,
+    private val timeoutMs: Long
+) {
+    private var pending: TimeoutScheduler.Cancellable? = null
+
+    fun arm(isCurrent: (Long) -> Boolean, token: Long, isPending: () -> Boolean, onTimeout: () -> Unit) {
+        cancel()
+        pending = scheduler.schedule(timeoutMs) {
+            pending = null
+            if (isCurrent(token) && isPending()) onTimeout()
+        }
+    }
+
+    fun cancel() {
+        pending?.cancel()
+        pending = null
+    }
+}
+
+internal class WifiDirectCallbackGate {    private var generation = 0L
     private var connectedClaimed = false
 
     fun begin(): Long {
@@ -189,7 +238,11 @@ object WifiDirectTxtRecordParser {
  * It exposes a [state] flow consumed by the ViewModels and handles the child
  * (group owner + local service) and parent (service discovery + connect) roles.
  */
-class WifiDirectController(private val context: Context) : WifiDirectSession {
+class WifiDirectController(
+    private val context: Context,
+    private val operationTimeoutMs: Long = OPERATION_TIMEOUT_MS,
+    timeoutScheduler: TimeoutScheduler? = null
+) : WifiDirectSession {
 
     private val _state = MutableStateFlow<WifiDirectState>(WifiDirectState.Idle)
     override val state: StateFlow<WifiDirectState> = _state.asStateFlow()
@@ -201,6 +254,13 @@ class WifiDirectController(private val context: Context) : WifiDirectSession {
     private var pendingEndpointPort: Int = ConnectionConstants.DEFAULT_PORT
     private var pendingEndpointName: String = ""
     private val callbackGate = WifiDirectCallbackGate()
+    private val operationTimeout = WifiDirectOperationTimeout(
+        timeoutScheduler ?: MainThreadTimeoutScheduler(context.mainLooper),
+        operationTimeoutMs
+    )
+
+    private fun timeoutMessage(): String =
+        context.getString(R.string.wifi_direct_operation_timeout)
 
     private val intentFilter = IntentFilter().apply {
         addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION)
@@ -263,6 +323,7 @@ class WifiDirectController(private val context: Context) : WifiDirectSession {
         ensureManager()
         registerReceiver(token)
         _state.value = WifiDirectState.Starting
+        armOperationTimeout(token) { _state.value == WifiDirectState.Starting }
         pendingEndpointPort = port
         pendingEndpointName = name
 
@@ -319,6 +380,10 @@ class WifiDirectController(private val context: Context) : WifiDirectSession {
         ensureManager()
         registerReceiver(token)
         _state.value = WifiDirectState.Starting
+        armOperationTimeout(token) {
+            _state.value == WifiDirectState.Starting ||
+                (_state.value as? WifiDirectState.Discovering)?.peers.isNullOrEmpty()
+        }
 
         val m = manager ?: run {
             emitIfCurrent(token, WifiDirectState.Error("Wi-Fi Direct is not available"))
@@ -403,6 +468,7 @@ class WifiDirectController(private val context: Context) : WifiDirectSession {
         pendingEndpointPort = peer.port
         pendingEndpointName = peer.displayName
         _state.value = WifiDirectState.Connecting(peer)
+        armOperationTimeout(token) { _state.value is WifiDirectState.Connecting }
         val config = android.net.wifi.p2p.WifiP2pConfig().apply {
             deviceAddress = peer.deviceAddress
         }
@@ -465,6 +531,7 @@ class WifiDirectController(private val context: Context) : WifiDirectSession {
 
     override fun stop() {
         callbackGate.cancel()
+        operationTimeout.cancel()
         cleanupFrameworkState()
         discoveredPeers.clear()
         _state.value = WifiDirectState.Idle
@@ -472,9 +539,22 @@ class WifiDirectController(private val context: Context) : WifiDirectSession {
 
     private fun beginOperation(): Long {
         val token = callbackGate.begin()
+        operationTimeout.cancel()
         cleanupFrameworkState()
         discoveredPeers.clear()
         return token
+    }
+
+    private fun armOperationTimeout(token: Long, isPending: () -> Boolean) {
+        operationTimeout.arm(
+            isCurrent = { current -> isCurrent(current) },
+            token = token,
+            isPending = isPending,
+            onTimeout = {
+                cleanupFrameworkState()
+                emitIfCurrent(token, WifiDirectState.Error(timeoutMessage()))
+            }
+        )
     }
 
     private fun isCurrent(token: Long): Boolean = callbackGate.isCurrent(token)
@@ -539,5 +619,6 @@ class WifiDirectController(private val context: Context) : WifiDirectSession {
 
     companion object {
         private const val TAG = "WifiDirectController"
+        const val OPERATION_TIMEOUT_MS = 30_000L
     }
 }
