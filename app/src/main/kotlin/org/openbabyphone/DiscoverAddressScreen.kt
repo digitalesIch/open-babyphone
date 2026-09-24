@@ -247,6 +247,11 @@ fun DiscoverAddressScreen(
                     modifier = Modifier.testTag("connect_button"),
                     enabled = canConnect
                 )
+                OdTextButton(
+                    text = stringResource(R.string.use_regular_wifi),
+                    onClick = onUseRegularWifi,
+                    modifier = Modifier.testTag("manual_regular_wifi")
+                )
             }
         }
     }

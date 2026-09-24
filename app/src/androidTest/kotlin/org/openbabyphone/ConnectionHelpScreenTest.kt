@@ -136,6 +136,21 @@ class ConnectionHelpScreenTest {
         composeTestRule.onNodeWithTag("child_wifi_direct_app_settings").assertIsDisplayed()
     }
 
+    @Test
+    fun childWifiDirectError_offersTryAndRegularWifi() {
+        setHelpContent(
+            mode = ConnectionHelpMode.Child,
+            state = ConnectionHelpUiState(
+                wifiDirectSupported = true,
+                childWifiDirectState = WifiDirectState.Error("failed")
+            )
+        )
+
+        composeTestRule.onNodeWithTag("child_wifi_direct_error").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("child_wifi_direct_try").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("child_wifi_direct_error_regular_wifi").assertIsDisplayed()
+    }
+
     private fun setHelpContent(
         mode: ConnectionHelpMode,
         state: ConnectionHelpUiState = ConnectionHelpUiState(),

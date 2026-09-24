@@ -236,7 +236,7 @@ class MainActivity : ComponentActivity() {
                                         }
                                     },
                                     onConnect = { requestId ->
-                                        navController.navigate(Listen(requestId))
+                                        navigateFromManualAddressToListen(navController, requestId)
                                     }
                                 )
                             }
@@ -253,7 +253,7 @@ class MainActivity : ComponentActivity() {
                                         }
                                     },
                                     onConnected = { requestId ->
-                                        navController.navigate(Listen(requestId))
+                                        navigateFromWifiDirectToListen(navController, requestId)
                                     }
                                 )
                             }
@@ -324,6 +324,20 @@ internal fun navigateFromStoppedListen(navController: NavHostController) {
             popUpTo<Listen> { inclusive = true }
             launchSingleTop = true
         }
+    }
+}
+
+internal fun navigateFromWifiDirectToListen(navController: NavHostController, requestId: String) {
+    navController.navigate(Listen(requestId)) {
+        popUpTo<DiscoverWifiDirect> { inclusive = true }
+        launchSingleTop = true
+    }
+}
+
+internal fun navigateFromManualAddressToListen(navController: NavHostController, requestId: String) {
+    navController.navigate(Listen(requestId)) {
+        popUpTo<DiscoverAddress> { inclusive = true }
+        launchSingleTop = true
     }
 }
 
