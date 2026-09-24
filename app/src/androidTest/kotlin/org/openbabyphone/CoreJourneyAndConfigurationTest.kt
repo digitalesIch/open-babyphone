@@ -407,7 +407,6 @@ class CoreJourneyAndConfigurationTest {
         deviceName = "Nursery",
         status = if (active) "Streaming securely" else "Ready",
         connectedClients = if (active) 1 else 0,
-        isLoading = false,
         isMonitoring = active,
         sessionState = if (active) MonitorSessionState.Connected(1) else MonitorSessionState.Setup,
         batteryOptimizationIgnored = true

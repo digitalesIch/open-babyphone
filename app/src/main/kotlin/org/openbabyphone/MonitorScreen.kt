@@ -45,6 +45,7 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -372,37 +373,37 @@ private fun SetupSection(
                 bottom = Spacing.space24
             )
         )
-        OdPrimaryButton(
-            text = stringResource(R.string.start_monitoring),
-            onClick = onStartMonitoring,
-            modifier = Modifier
-                .testTag("start_monitoring_button")
-                .semantics { traversalIndex = 1f }
-        )
-        if (terminalErrorReason != null) {
-            Spacer(modifier = Modifier.height(Spacing.space16))
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("monitor_terminal_recovery")
-            ) {
-                Column(modifier = Modifier.padding(Spacing.space16)) {
-                    Text(
-                        text = stringResource(R.string.monitoring_problem),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                    Spacer(modifier = Modifier.height(Spacing.space4))
-                    Text(text = terminalErrorReason, style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-        }
         if (microphonePermissionDenied) {
-            Spacer(modifier = Modifier.height(Spacing.space16))
             PermissionRecovery(
                 onRetry = onStartMonitoring,
                 onOpenAppSettings = onOpenAppSettings
             )
+        } else {
+            OdPrimaryButton(
+                text = stringResource(R.string.start_monitoring),
+                onClick = onStartMonitoring,
+                modifier = Modifier
+                    .testTag("start_monitoring_button")
+                    .semantics { traversalIndex = 1f }
+            )
+            if (terminalErrorReason != null) {
+                Spacer(modifier = Modifier.height(Spacing.space16))
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("monitor_terminal_recovery")
+                ) {
+                    Column(modifier = Modifier.padding(Spacing.space16)) {
+                        Text(
+                            text = stringResource(R.string.monitoring_problem),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(modifier = Modifier.height(Spacing.space4))
+                        Text(text = terminalErrorReason, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
         }
     }
 }
@@ -519,10 +520,35 @@ private fun MonitoringSection(
                         traversalIndex = 1f
                     }
             )
+            if (uiState.sessionState is MonitorSessionState.Starting) {
+                Spacer(modifier = Modifier.height(Spacing.space12))
+                CircularProgressIndicator(modifier = Modifier.testTag("monitor_starting_progress"))
+                Spacer(modifier = Modifier.height(Spacing.space4))
+                Text(
+                    text = stringResource(R.string.monitoring_starting),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
 
     Spacer(modifier = Modifier.height(Spacing.space16))
+
+    if (uiState.connectedClients == 0 && uiState.qrPayload.isNotEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            QrCode(
+                content = uiState.qrPayload,
+                size = 160.dp,
+                modifier = Modifier.testTag("monitoring_inline_qr")
+            )
+        }
+        Spacer(modifier = Modifier.height(Spacing.space16))
+    }
 
     if (uiState.connectedClients == 0) {
         OdPrimaryButton(

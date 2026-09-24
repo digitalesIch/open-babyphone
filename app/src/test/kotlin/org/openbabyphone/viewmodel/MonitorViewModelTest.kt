@@ -8,6 +8,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -109,13 +110,14 @@ class MonitorViewModelTest {
     }
 
     @Test
-    fun `service details remain available for connection details`() = runTest {
+    fun `service details are not exposed in ui state`() = runTest {
         MonitorServiceRepository.updateServiceInfo("TestService", 8080, listOf("test.local"))
+        MonitorServiceRepository.updateSessionState(MonitorSessionState.WaitingForParent)
 
-        val state = viewModel.uiState.first { it.serviceName == "TestService" }
+        val state = viewModel.uiState.first { it.isMonitoring }
 
-        assertEquals(8080, state.port)
-        assertEquals(listOf("test.local"), state.addresses)
+        assertEquals(0, state.connectedClients)
+        assertTrue(state.status.isNotEmpty())
     }
 
     @Test
