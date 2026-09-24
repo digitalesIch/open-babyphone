@@ -1,6 +1,14 @@
 package org.openbabyphone
 
+import android.Manifest
+import android.app.Activity
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +23,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -30,10 +39,13 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -44,6 +56,10 @@ import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
@@ -65,19 +81,48 @@ fun DiscoverScreen(
     onConnectionHelp: (requestId: String?) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: DiscoverViewModel = viewModel(),
-    autoStartDiscovery: Boolean = true
+    autoStartDiscovery: Boolean = true,
+    permissionChecker: (Context, String) -> Boolean = { context, permission ->
+        ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+    },
+    permissionRequester: ((String, (Boolean) -> Unit) -> Unit)? = null,
+    openAppSettings: (Context) -> Unit = { context ->
+        context.startActivity(
+            Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.fromParts("package", context.packageName, null)
+            )
+        )
+    }
 ) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val activity = context as? Activity
     val uiState by viewModel.uiState.collectAsState()
     val scanPrompt = stringResource(R.string.scan_qr_code_prompt)
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var showCodePairing by remember { mutableStateOf(false) }
     var fallbackCode by remember { mutableStateOf("") }
+    var cameraPermissionDenied by rememberSaveable { mutableStateOf(false) }
+    var showCameraRationale by rememberSaveable { mutableStateOf(false) }
 
     DisposableEffect(autoStartDiscovery) {
         if (autoStartDiscovery) viewModel.activate() else viewModel.refreshTrustedChildren()
         onDispose {
             if (autoStartDiscovery) viewModel.stopDiscovery()
         }
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME &&
+                permissionChecker(context, Manifest.permission.CAMERA)
+            ) {
+                cameraPermissionDenied = false
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     val scanLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
@@ -92,7 +137,7 @@ fun DiscoverScreen(
             }
         }
     }
-    val launchScan = {
+    val launchScanInternal = {
         viewModel.cancelPairingSearch()
         scanLauncher.launch(
             ScanOptions().apply {
@@ -103,6 +148,39 @@ fun DiscoverScreen(
                 setOrientationLocked(true)
             }
         )
+    }
+
+    val handleCameraPermissionResult: (Boolean) -> Unit = { granted ->
+        if (granted) {
+            cameraPermissionDenied = false
+            launchScanInternal()
+        } else {
+            cameraPermissionDenied = true
+        }
+    }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> handleCameraPermissionResult(granted) }
+
+    val requestCameraPermission: () -> Unit = {
+        if (permissionRequester != null) {
+            permissionRequester(Manifest.permission.CAMERA, handleCameraPermissionResult)
+        } else {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    val launchScan = {
+        if (permissionChecker(context, Manifest.permission.CAMERA)) {
+            launchScanInternal()
+        } else if (activity != null &&
+            ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.CAMERA)
+        ) {
+            showCameraRationale = true
+        } else {
+            requestCameraPermission()
+        }
     }
 
     Scaffold(
@@ -148,9 +226,47 @@ fun DiscoverScreen(
                     onNavigateToListen(it.requestId, it.childId, it.pairingId)
                 },
                  onConnectionHelp = onConnectionHelp,
+                cameraPermissionDenied = cameraPermissionDenied,
+                onRetryCameraPermission = launchScan,
+                onUseCodeInstead = {
+                    fallbackCode = ""
+                    showCodePairing = true
+                },
+                onOpenCameraSettings = { openAppSettings(context) },
                 modifier = modifier
             )
         }
+    }
+
+    if (showCameraRationale) {
+        AlertDialog(
+            onDismissRequest = { showCameraRationale = false },
+            title = { Text(stringResource(R.string.camera_rationale_title)) },
+            text = { Text(stringResource(R.string.camera_rationale_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showCameraRationale = false
+                        requestCameraPermission()
+                    },
+                    modifier = Modifier.testTag("camera_rationale_continue")
+                ) {
+                    Text(stringResource(R.string.continue_action))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showCameraRationale = false
+                        fallbackCode = ""
+                        showCodePairing = true
+                    },
+                    modifier = Modifier.testTag("camera_rationale_use_code")
+                ) {
+                    Text(stringResource(R.string.cannot_scan_code))
+                }
+            }
+        )
     }
 
     if (showCodePairing) {
@@ -188,7 +304,11 @@ internal fun ParentHomeContent(
     onRetry: () -> Unit,
     onStartListening: (ListenRequest) -> Unit,
     onConnectionHelp: (requestId: String?) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    cameraPermissionDenied: Boolean = false,
+    onRetryCameraPermission: () -> Unit = {},
+    onUseCodeInstead: () -> Unit = {},
+    onOpenCameraSettings: () -> Unit = {}
 ) {
     Column(
         modifier = modifier
@@ -204,7 +324,11 @@ internal fun ParentHomeContent(
                 onScanQr = onScanQr,
                 onCannotScan = onCannotScan,
                 onKnownChildAction = onKnownChildAction,
-                onConnectionHelp = { onConnectionHelp(null) }
+                onConnectionHelp = { onConnectionHelp(null) },
+                cameraPermissionDenied = cameraPermissionDenied,
+                onRetryCameraPermission = onRetryCameraPermission,
+                onUseCodeInstead = onUseCodeInstead,
+                onOpenCameraSettings = onOpenCameraSettings
             )
             PairingFlowState.InvalidQr -> FocusedMessage(
                 title = stringResource(R.string.invalid_child_qr_title),
@@ -282,7 +406,11 @@ private fun ParentHomeIdle(
     onScanQr: () -> Unit,
     onCannotScan: () -> Unit,
     onKnownChildAction: (String, KnownChildStatus) -> Unit,
-    onConnectionHelp: () -> Unit
+    onConnectionHelp: () -> Unit,
+    cameraPermissionDenied: Boolean = false,
+    onRetryCameraPermission: () -> Unit = {},
+    onUseCodeInstead: () -> Unit = {},
+    onOpenCameraSettings: () -> Unit = {}
 ) {
     if (uiState.knownChildren.isEmpty()) {
         OdSectionHeader(
@@ -305,6 +433,14 @@ private fun ParentHomeIdle(
             onClick = onConnectionHelp,
             modifier = Modifier.testTag("parent_connection_help")
         )
+        if (cameraPermissionDenied) {
+            Spacer(modifier = Modifier.height(Spacing.space16))
+            CameraPermissionRecovery(
+                onRetry = onRetryCameraPermission,
+                onUseCodeInstead = onUseCodeInstead,
+                onOpenAppSettings = onOpenCameraSettings
+            )
+        }
         return
     }
 
@@ -384,6 +520,60 @@ private fun ParentHomeIdle(
         onClick = onConnectionHelp,
         modifier = Modifier.testTag("parent_connection_help")
     )
+    if (cameraPermissionDenied) {
+        Spacer(modifier = Modifier.height(Spacing.space16))
+        CameraPermissionRecovery(
+            onRetry = onRetryCameraPermission,
+            onUseCodeInstead = onUseCodeInstead,
+            onOpenAppSettings = onOpenCameraSettings
+        )
+    }
+}
+
+@Composable
+private fun CameraPermissionRecovery(
+    onRetry: () -> Unit,
+    onUseCodeInstead: () -> Unit,
+    onOpenAppSettings: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("camera_permission_recovery")
+    ) {
+        Column(modifier = Modifier.padding(Spacing.space16)) {
+            Text(
+                text = stringResource(R.string.camera_permission_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.error
+            )
+            Spacer(modifier = Modifier.height(Spacing.space4))
+            Text(
+                text = stringResource(R.string.camera_permission_description),
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Spacer(modifier = Modifier.height(Spacing.space12))
+            OdPrimaryButton(
+                text = stringResource(R.string.retry),
+                onClick = onRetry,
+                modifier = Modifier.testTag("retry_camera_permission")
+            )
+            OdTextButton(
+                text = stringResource(R.string.cannot_scan_code),
+                onClick = onUseCodeInstead,
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .testTag("camera_use_code_instead")
+            )
+            OdTextButton(
+                text = stringResource(R.string.open_app_settings),
+                onClick = onOpenAppSettings,
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .testTag("open_camera_settings")
+            )
+        }
+    }
 }
 
 @Composable

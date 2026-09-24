@@ -101,6 +101,10 @@
     <string name="monitoring_setup_description">This phone will listen in the room and securely send audio to paired parent devices.</string>
     <string name="microphone_permission_title">Microphone access is required</string>
     <string name="microphone_permission_description">Allow microphone access to start monitoring. If Android no longer shows the permission prompt, enable Microphone in app settings.</string>
+    <string name="camera_permission_title">Camera access is required</string>
+    <string name="camera_permission_description">Allow camera access to scan the child QR code. You can also pair with a code instead, or enable Camera in app settings if Android no longer shows the permission prompt.</string>
+    <string name="camera_rationale_title">Scan the QR code with your camera</string>
+    <string name="camera_rationale_body">Parent pairing starts by scanning the QR code shown on the child phone. The camera is only used for this scan.</string>
     <string name="authentication_setup_failed">Secure session setup failed</string>
     <string name="monitoring_setup_hint">Open this only if you want to replace the automatically generated pairing code. Parents that already paired must reconnect with the new code.</string>
     <string name="open_app_settings">Open app settings</string>
