@@ -18,6 +18,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.unit.Density
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.filters.SdkSuppress
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
@@ -240,6 +241,8 @@ class SettingsScreenTest {
         onNavigateBack: () -> Unit = {},
         themeMode: ThemeMode = ThemeMode.SYSTEM,
         onThemeModeChanged: (ThemeMode) -> Unit = {},
+        useSystemColors: Boolean = false,
+        onUseSystemColorsChanged: (Boolean) -> Unit = {},
         trustedChildStore: TrustedChildStore = TrustedChildStore(
             composeTestRule.activity,
             TestCredentialCrypto()
@@ -251,10 +254,29 @@ class SettingsScreenTest {
                 onNavigateBack = onNavigateBack,
                 themeMode = themeMode,
                 onThemeModeChanged = onThemeModeChanged,
+                useSystemColors = useSystemColors,
+                onUseSystemColorsChanged = onUseSystemColorsChanged,
                 trustedChildStore = trustedChildStore,
                 externalLinkOpener = externalLinkOpener
             )
         }
+    }
+
+    @Test
+    @SdkSuppress(minSdkVersion = 31)
+    fun systemColorsToggle_appliesAndPersists() {
+        val enabled = mutableStateOf(false)
+        setSettingsContent(
+            useSystemColors = enabled.value,
+            onUseSystemColorsChanged = {
+                ThemePreferences.writeDynamicColors(composeTestRule.activity, it)
+                enabled.value = it
+            }
+        )
+
+        composeTestRule.onNodeWithTag("use_system_colors").performScrollTo().performClick()
+
+        assertEquals(true, ThemePreferences.readDynamicColors(composeTestRule.activity))
     }
 
     private class TestCredentialCrypto : TrustedCredentialCrypto {

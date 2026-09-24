@@ -12,6 +12,7 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,6 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -66,6 +68,8 @@ fun SettingsScreen(
     themeMode: ThemeMode,
     onThemeModeChanged: (ThemeMode) -> Unit,
     modifier: Modifier = Modifier,
+    useSystemColors: Boolean = false,
+    onUseSystemColorsChanged: (Boolean) -> Unit = {},
     trustedChildStore: TrustedChildStore? = null,
     initialKnownChildren: List<TrustedChild>? = null,
     initialChildName: String? = null,
@@ -156,6 +160,37 @@ fun SettingsScreen(
                             selected = themeMode == mode,
                             onClick = { onThemeModeChanged(mode) },
                             modifier = Modifier.testTag("theme_${mode.preferenceValue}")
+                        )
+                    }
+                    SettingsDivider()
+                    val dynamicColorsAvailable =
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("use_system_colors_row"),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.use_system_colors),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                text = if (dynamicColorsAvailable) {
+                                    stringResource(R.string.use_system_colors_description)
+                                } else {
+                                    stringResource(R.string.system_colors_unavailable)
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = useSystemColors && dynamicColorsAvailable,
+                            onCheckedChange = { onUseSystemColorsChanged(it) },
+                            enabled = dynamicColorsAvailable,
+                            modifier = Modifier.testTag("use_system_colors")
                         )
                     }
                 }

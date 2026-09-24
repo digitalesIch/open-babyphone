@@ -76,6 +76,9 @@
     <string name="theme_system">System</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
+    <string name="use_system_colors">Use system colors</string>
+    <string name="use_system_colors_description">Follow the system Material You palette on Android 12 and later instead of the Open Babyphone brand colors.</string>
+    <string name="system_colors_unavailable">System colors need Android 12 or later.</string>
     <plurals name="connected_clients">
         <item quantity="one">Connected: %d parent</item>
         <item quantity="other">Connected: %d parents</item>
