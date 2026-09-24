@@ -248,6 +248,9 @@
     <string name="listen_connecting_detail">Setting up a secure connection to the child phone.</string>
     <string name="listen_listening_title">Listening</string>
     <string name="listen_listening_detail">Verified audio is playing from the child phone.</string>
+    <string name="listening_muted">Listening, muted</string>
+    <string name="mute">Mute</string>
+    <string name="unmute">Unmute</string>
     <string name="listen_reconnecting_title">Reconnecting</string>
     <string name="listen_reconnecting_detail">Automatic recovery attempt %1$d of %2$d.</string>
     <string name="audio_interrupted">Audio interrupted</string>

@@ -222,6 +222,41 @@ class ListenServiceAudioWorkerTest {
     }
 
     @Test
+    fun `muted repository state is applied to the playback sink and restored`() {
+        val controller = Robolectric.buildService(ListenService::class.java).create()
+        val service = controller.get()
+        val sink = RecordingSink(maximumWrite = AudioFrameTiming.FRAME_SAMPLES)
+        service.audioPlaybackFactory = { sink }
+        ListenServiceRepository.setMuted(true)
+
+        val result = runStream(service = service) {
+            val wroteWhileMuted = sink.firstWrite.await(2, TimeUnit.SECONDS)
+            ListenServiceRepository.setMuted(false)
+            val unmuteApplied = awaitMuteState(sink, false)
+            wroteWhileMuted && unmuteApplied
+        }
+
+        try {
+            assertStreamResult(result, "Reconnect")
+            assertTrue(sink.hasMuteState(true))
+            assertTrue(sink.hasMuteState(false))
+            // Frames keep flowing while muted: the stream stays alive.
+            assertTrue(sink.writtenSamples.get() > 0)
+        } finally {
+            ListenServiceRepository.setMuted(false)
+            controller.destroy()
+        }
+    }
+
+    private fun awaitMuteState(sink: RecordingSink, muted: Boolean): Boolean {
+        repeat(200) {
+            if (sink.hasMuteState(muted)) return true
+            Thread.sleep(20)
+        }
+        return false
+    }
+
+    @Test
     fun `explicit sequence gaps are concealed with faded previous audio`() {
         val controller = Robolectric.buildService(ListenService::class.java).create()
         val service = controller.get()
@@ -332,11 +367,15 @@ class ListenServiceAudioWorkerTest {
     private class RecordingSink(private val maximumWrite: Int) : AudioPlaybackSink {
         val firstWrite = CountDownLatch(1)
         val writtenSamples = AtomicLong()
+        val muteStates = mutableListOf<Boolean>()
         private val writes = mutableListOf<ShortArray>()
         private val writesLock = Any()
 
         override fun start() = Unit
 
+        override fun setMuted(muted: Boolean) {
+            synchronized(writesLock) { muteStates += muted }
+        }
         override fun write(samples: ShortArray, offset: Int, count: Int): Int {
             firstWrite.countDown()
             val written = minOf(maximumWrite, count)
@@ -348,6 +387,10 @@ class ListenServiceAudioWorkerTest {
         }
 
         fun writeHistory(): List<ShortArray> = synchronized(writesLock) { writes.toList() }
+
+        fun hasMuteState(muted: Boolean): Boolean = synchronized(writesLock) {
+            muteStates.contains(muted)
+        }
 
         override fun stop() = Unit
 
@@ -363,6 +406,8 @@ class ListenServiceAudioWorkerTest {
             firstWrite.countDown()
             throw IllegalStateException("playback failed")
         }
+
+        override fun setMuted(muted: Boolean) = Unit
 
         override fun stop() = Unit
 
@@ -382,6 +427,8 @@ class ListenServiceAudioWorkerTest {
             }
             return count
         }
+
+        override fun setMuted(muted: Boolean) = Unit
 
         override fun stop() = Unit
 

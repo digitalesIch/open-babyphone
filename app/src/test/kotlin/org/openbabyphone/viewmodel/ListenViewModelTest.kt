@@ -126,6 +126,21 @@ class ListenViewModelTest {
         assertEquals("Nursery", currentState { it.childDeviceName == "Nursery" }.childDeviceName)
     }
 
+    @Test
+    fun `toggleMute flips repository state and muted presentation`() {
+        ListenServiceRepository.updateListening()
+        currentState { it.sessionState == ListenSessionState.Listening }
+
+        viewModel.toggleMute()
+        val muted = currentState { it.isMuted }
+        assertEquals(context.getString(R.string.listening_muted), muted.presentation.message)
+        assertEquals(null, muted.presentation.primaryAction)
+
+        viewModel.toggleMute()
+        val unmuted = currentState { !it.isMuted }
+        assertEquals(context.getString(R.string.listen_listening_title), unmuted.presentation.message)
+    }
+
     private fun currentState(predicate: (ListenUiState) -> Boolean): ListenUiState {
         repeat(5) {
             shadowOf(Looper.getMainLooper()).idle()

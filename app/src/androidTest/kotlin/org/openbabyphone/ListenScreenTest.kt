@@ -395,6 +395,37 @@ class ListenScreenTest {
             .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.LiveRegion))
     }
 
+    @Test
+    fun muteToggle_updatesLabelAndMutedMessage() {
+        var muted by mutableStateOf(false)
+        composeTestRule.setContent {
+            ListenContent(
+                uiState = listeningState(floatArrayOf(0.2f), 4_000L).copy(
+                    isMuted = muted,
+                    presentation = listenPresentation(
+                        composeTestRule.activity.application,
+                        ListenSessionState.Listening,
+                        muted
+                    )
+                ),
+                childName = "Nursery",
+                nowMillis = 5_000L,
+                readinessNotice = null,
+                onPrimaryAction = {},
+                onOpenNotificationSettings = {},
+                onDisconnect = {},
+                onToggleMute = { muted = !muted }
+            )
+        }
+
+        composeTestRule.onNodeWithTag("mute_toggle_button").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Mute").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("mute_toggle_button").performClick()
+
+        composeTestRule.onNodeWithText("Unmute").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Listening, muted").assertIsDisplayed()
+    }
+
     private fun assertBackRequiresConfirmation(resumeOnly: Boolean, systemBack: Boolean) {
         ListenServiceRepository.updateListening()
         var stopped = 0

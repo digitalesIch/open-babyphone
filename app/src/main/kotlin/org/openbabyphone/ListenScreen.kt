@@ -52,6 +52,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -256,6 +257,7 @@ fun ListenScreen(
                 },
                 onOpenNotificationSettings = { openNotificationSettings(context) },
                 onDisconnect = requestDisconnect,
+                onToggleMute = viewModel::toggleMute,
                 modifier = modifier
             )
         }
@@ -298,7 +300,8 @@ internal fun ListenContent(
     onPrimaryAction: (ListenPrimaryAction) -> Unit,
     onOpenNotificationSettings: () -> Unit,
     onDisconnect: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onToggleMute: () -> Unit = {}
 ) {
     Column(
         modifier = modifier
@@ -360,15 +363,24 @@ internal fun ListenContent(
                 )
 
                 if (uiState.sessionState is ListenSessionState.Listening) {
-                    Spacer(Modifier.height(Spacing.space24))
+                    Spacer(modifier = Modifier.height(Spacing.space24))
                     AudioSignalIndicator(
                         volumeHistory = uiState.volumeHistory,
                         volumeNorm = uiState.volumeNorm,
                         lastAudioUpdateAtMillis = uiState.lastAudioUpdateAtMillis,
                         nowMillis = nowMillis,
+                        dimmed = uiState.isMuted,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("audio_signal_indicator")
+                    )
+                    Spacer(modifier = Modifier.height(Spacing.space16))
+                    OdOutlinedActionButton(
+                        text = stringResource(
+                            if (uiState.isMuted) R.string.unmute else R.string.mute
+                        ),
+                        onClick = onToggleMute,
+                        modifier = Modifier.testTag("mute_toggle_button")
                     )
                 }
 
@@ -472,7 +484,8 @@ private fun AudioSignalIndicator(
     volumeNorm: Float,
     lastAudioUpdateAtMillis: Long,
     nowMillis: Long,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    dimmed: Boolean = false
 ) {
     val signalState = audioSignalState(volumeHistory, volumeNorm, lastAudioUpdateAtMillis, nowMillis)
     val loudness = if (signalState == AudioSignalState.NoRecentAudio) 0f else {
@@ -511,6 +524,7 @@ private fun AudioSignalIndicator(
                     backgroundMix
                 )
             )
+            .alpha(if (dimmed) 0.55f else 1f)
             .padding(Spacing.space16)
             .semantics {
                 contentDescription = signalContentDescription
