@@ -99,7 +99,7 @@
     <string name="stop">Stop</string>
     <string name="stop_monitoring_confirmation">Stopping monitoring will disconnect all parent devices. Continue?</string>
     <string name="monitoring_setup_description">This phone will listen in the room and securely send audio to paired parent devices.</string>
-    <string name="microphone_permission_title">Microphone access is required</string>
+    <string name="monitoring_starting">Starting monitoring…</string>    <string name="microphone_permission_title">Microphone access is required</string>
     <string name="microphone_permission_description">Allow microphone access to start monitoring. If Android no longer shows the permission prompt, enable Microphone in app settings.</string>
     <string name="camera_permission_title">Camera access is required</string>
     <string name="camera_permission_description">Allow camera access to scan the child QR code. You can also pair with a code instead, or enable Camera in app settings if Android no longer shows the permission prompt.</string>

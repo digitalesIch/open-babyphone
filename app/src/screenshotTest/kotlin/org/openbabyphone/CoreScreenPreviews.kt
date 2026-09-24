@@ -60,7 +60,7 @@ fun roleChooserLargeFont() {
 @Preview(widthDp = 360, heightDp = 720)
 @Composable
 fun childSetup() {
-    MonitorPreview(MonitorUiState(isLoading = false, isMonitoring = false))
+    MonitorPreview(MonitorUiState(isMonitoring = false))
 }
 
 @PreviewTest
@@ -72,10 +72,58 @@ fun childActive() {
             deviceName = "Nursery",
             status = "Streaming securely",
             connectedClients = 1,
-            isLoading = false,
             isMonitoring = true,
             sessionState = MonitorSessionState.Connected(1),
             batteryOptimizationIgnored = true
+        )
+    )
+}
+
+@PreviewTest
+@Preview(widthDp = 360, heightDp = 720)
+@Composable
+fun childWaiting() {
+    MonitorPreview(
+        MonitorUiState(
+            deviceName = "Child phone",
+            status = "Waiting for parent",
+            connectedClients = 0,
+            isMonitoring = true,
+            sessionState = MonitorSessionState.WaitingForParent,
+            qrPayload = "OPENBABYPHONE:preview-waiting",
+            batteryOptimizationIgnored = true
+        )
+    )
+}
+
+@PreviewTest
+@Preview(widthDp = 360, heightDp = 720)
+@Composable
+fun childWarning() {
+    MonitorPreview(
+        MonitorUiState(
+            deviceName = "Nursery",
+            status = "Streaming securely",
+            connectedClients = 1,
+            isMonitoring = true,
+            sessionState = MonitorSessionState.Connected(1),
+            batteryOptimizationIgnored = true
+        ),
+        notificationWarning = true
+    )
+}
+
+@PreviewTest
+@Preview(widthDp = 360, heightDp = 720)
+@Composable
+fun childError() {
+    MonitorPreview(
+        MonitorUiState(
+            terminalErrorReason = "Monitoring could not start",
+            sessionState = MonitorSessionState.Error(
+                org.openbabyphone.service.MonitorSessionError.Startup,
+                "Monitoring could not start"
+            )
         )
     )
 }
@@ -244,11 +292,14 @@ fun parentQrReadyTwoHundredPercent() {
 }
 
 @Composable
-private fun MonitorPreview(state: MonitorUiState) {
+private fun MonitorPreview(
+    state: MonitorUiState,
+    notificationWarning: Boolean = false
+) {
     PreviewSurface {
         MonitorContent(
             uiState = state,
-            notificationWarning = false,
+            notificationWarning = notificationWarning,
             microphonePermissionDenied = false,
             onStartMonitoring = {},
             onStopMonitoring = {},

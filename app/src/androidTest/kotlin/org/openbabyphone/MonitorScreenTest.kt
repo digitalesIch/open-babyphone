@@ -14,7 +14,10 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.material3.Text
@@ -393,6 +396,123 @@ class MonitorScreenTest {
 
         composeTestRule.onNodeWithTag("confirm_stop_monitoring").performClick()
         assertTrue(navigatedBack)
+    }
+
+    @Test
+    fun deniedSetup_showsOnlyPermissionRecovery() {
+        MonitorServiceRepository.updateError(MonitorSessionError.Startup, "Stale startup failure")
+        setMonitorContent(
+            permissionChecker = { _, _ -> false },
+            permissionRequester = { _, result -> result(false) }
+        )
+
+        composeTestRule.onNodeWithTag("start_monitoring_button").performClick()
+
+        composeTestRule.onNodeWithTag("microphone_permission_recovery").assertIsDisplayed()
+        composeTestRule.onAllNodesWithTag("start_monitoring_button").assertCountEquals(0)
+        composeTestRule.onAllNodesWithTag("monitor_terminal_recovery").assertCountEquals(0)
+    }
+
+    @Test
+    fun waitingWithNoParent_showsInlineQr() {
+        composeTestRule.setContent {
+            org.openbabyphone.ui.theme.QuietEngineTheme {
+                MonitorContent(
+                    uiState = org.openbabyphone.viewmodel.MonitorUiState(
+                        deviceName = "Nursery",
+                        status = "Waiting",
+                        connectedClients = 0,
+                        isMonitoring = true,
+                        sessionState = MonitorSessionState.WaitingForParent,
+                        qrPayload = "OPENBABYPHONE:unit-test-payload",
+                        batteryOptimizationIgnored = true
+                    ),
+                    notificationWarning = false,
+                    microphonePermissionDenied = false,
+                    onStartMonitoring = {},
+                    onStopMonitoring = {},
+                    onConnectionHelp = {},
+                    onOpenWifiSettings = {},
+                    onOpenAppSettings = {},
+                    onOpenBatteryOptimizationSettings = {}
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithTag("monitoring_inline_qr").assertIsDisplayed()
+    }
+
+    @Test
+    fun connectedWithParent_hidesInlineQr() {
+        composeTestRule.setContent {
+            org.openbabyphone.ui.theme.QuietEngineTheme {
+                MonitorContent(
+                    uiState = org.openbabyphone.viewmodel.MonitorUiState(
+                        deviceName = "Nursery",
+                        status = "Streaming",
+                        connectedClients = 1,
+                        isMonitoring = true,
+                        sessionState = MonitorSessionState.Connected(1),
+                        qrPayload = "OPENBABYPHONE:unit-test-payload",
+                        batteryOptimizationIgnored = true
+                    ),
+                    notificationWarning = false,
+                    microphonePermissionDenied = false,
+                    onStartMonitoring = {},
+                    onStopMonitoring = {},
+                    onConnectionHelp = {},
+                    onOpenWifiSettings = {},
+                    onOpenAppSettings = {},
+                    onOpenBatteryOptimizationSettings = {}
+                )
+            }
+        }
+
+        composeTestRule.onAllNodesWithTag("monitoring_inline_qr").assertCountEquals(0)
+        composeTestRule.onNodeWithTag("pair_parent_button").assertIsDisplayed()
+    }
+
+    @Test
+    fun startingState_showsProgressInHero() {
+        MonitorServiceRepository.updateSessionState(MonitorSessionState.Starting)
+        setMonitorContent()
+
+        composeTestRule.onNodeWithTag("monitoring_hero").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("monitor_starting_progress").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Starting monitoring…").assertIsDisplayed()
+    }
+
+    @Test
+    fun qrAndStop_remainReachableAtTwoHundredPercent() {
+        val density = composeTestRule.activity.resources.displayMetrics.density
+        composeTestRule.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(density, fontScale = 2f)) {
+                org.openbabyphone.ui.theme.QuietEngineTheme {
+                    MonitorContent(
+                        uiState = org.openbabyphone.viewmodel.MonitorUiState(
+                            deviceName = "Nursery",
+                            status = "Waiting",
+                            connectedClients = 0,
+                            isMonitoring = true,
+                            sessionState = MonitorSessionState.WaitingForParent,
+                            qrPayload = "OPENBABYPHONE:unit-test-payload",
+                            batteryOptimizationIgnored = true
+                        ),
+                        notificationWarning = false,
+                        microphonePermissionDenied = false,
+                        onStartMonitoring = {},
+                        onStopMonitoring = {},
+                        onConnectionHelp = {},
+                        onOpenWifiSettings = {},
+                        onOpenAppSettings = {},
+                        onOpenBatteryOptimizationSettings = {}
+                    )
+                }
+            }
+        }
+
+        composeTestRule.onNodeWithTag("monitoring_inline_qr").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithTag("stop_monitoring_button").performScrollTo().assertIsDisplayed()
     }
 
     private fun setMonitorContent(
