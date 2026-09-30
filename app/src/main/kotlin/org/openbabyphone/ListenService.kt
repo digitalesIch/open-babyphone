@@ -1051,7 +1051,7 @@ class ListenService : Service() {
                 Log.d(TAG, "Failed to close socket after playback failure", e)
             }
         }
-            val playbackThread = Thread {
+        val playbackThread = Thread {
             val decodedBuffer = ShortArray(FrameCodec.MAX_G711_AUDIO_SIZE)
             val concealmentBuffer = ShortArray(AudioFrameTiming.FRAME_SAMPLES)
             val concealer = PacketLossConcealer()
@@ -1070,8 +1070,8 @@ class ListenService : Service() {
                     }
                     val jitterFrame = jitterBuffer.getFrame(AudioFrameTiming.FRAME_DURATION_MS.toLong())
                     if (jitterFrame != null && jitterFrame.gapBefore > 0) {
-                        // The sender skipped sequence numbers: conceal the gap by
-                        // fading in the previous audio instead of jumping ahead.
+                        // Only conceal gaps observed by the authenticated receiver,
+                        // not local latency trimming or known heartbeat frames.
                         val gapToConceal = jitterFrame.gapBefore.coerceAtMost(MAX_SEQUENCE_GAP_CONCEAL_FRAMES)
                         for (concealed in 0 until gapToConceal) {
                             val concealedSamples = concealer.concealInto(concealmentBuffer)
@@ -1138,7 +1138,7 @@ class ListenService : Service() {
                         pauseAfterNoProgress = audioWriteRetryPause
                     )
                     if (realFrame) {
-                        jitterBuffer.releaseFrame(jitterFrame!!)
+                        jitterBuffer.releaseFrame(jitterFrame)
                     }
                     when (writeResult) {
                         AudioWriteResult.Complete -> {
@@ -1286,13 +1286,12 @@ class ListenService : Service() {
                         plaintext.plaintextLength,
                         header.seqNum,
                         plaintext.timestampMs,
-                        receiveTime
-                    ).also { result ->
-                        if (result.indicatesOverflow() && isWorkerActive(claim) && !terminalFailure) {
-                            ListenServiceRepository.updateDisrupted()
-                        }
-                    }
+                        receiveTime,
+                        gapBefore = (acceptedSequence as? FrameSequenceDecision.ForwardGap)?.missingFrames ?: 0
+                    )
                 }
+                // Dropping queued audio bounds latency; it does not prove that
+                // delivery stopped. The watchdog judges actual delivery age.
                 if (addResult != JitterBuffer.AddResult.Accepted) {
                     val droppedFrames = jitterBuffer.getDroppedFrameCount()
                     if (addResult.indicatesOverflow() &&
