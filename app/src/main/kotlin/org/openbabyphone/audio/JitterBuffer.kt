@@ -34,21 +34,21 @@ internal class JitterBuffer {
         val ulawData: ByteArray,
         val ulawOffset: Int,
         val ulawLength: Int,
-        val receiveTime: Long
-    ) {
+        val receiveTime: Long,
         /**
-         * Number of missing sequence numbers directly before this frame.
-         * Set by the buffer when the frame is handed to playback; owned by
-         * the consumer thread until [releaseFrame] returns it to the pool.
+         * Missing transport frames reported by the authenticated receiver.
+         * Never infer this from playback order: heartbeats are not audio,
+         * and locally discarded audio must not be reinserted as extra delay.
          */
-        var gapBefore: Int = 0
-
+        val gapBefore: Int = 0
+    ) {
         constructor(
             seqNum: Int,
             timestampMs: Int,
             ulawData: ByteArray,
-            receiveTime: Long
-        ) : this(seqNum, timestampMs, ulawData, 0, ulawData.size, receiveTime)
+            receiveTime: Long,
+            gapBefore: Int = 0
+        ) : this(seqNum, timestampMs, ulawData, 0, ulawData.size, receiveTime, gapBefore)
     }
 
     data class Stats(
@@ -128,8 +128,10 @@ internal class JitterBuffer {
                 return AddResult.DroppedOverflow
             }
 
+            val evicted = frames[0]!!
             for (index in 1 until size) frames[index - 1] = frames[index]
-            releaseFrame(frames[--size]!!)
+            frames[--size] = null
+            releaseFrame(evicted)
             insertionIndex--
             insertAt(insertionIndex, frame)
             changed.signalAll()
@@ -154,14 +156,19 @@ internal class JitterBuffer {
         ulawLength: Int,
         seqNum: Int,
         timestampMs: Int,
-        receiveTime: Long
+        receiveTime: Long,
+        gapBefore: Int = 0
     ): AddResult {
         require(ulawOffset >= 0 && ulawLength >= 0 && ulawOffset <= scratch.size - ulawLength)
-        val window = freeSlots.poll() ?: return AddResult.DroppedOverflow
+        val window = freeSlots.poll() ?: return lock.withLock {
+            totalFrames++
+            droppedFrames++
+            AddResult.DroppedOverflow
+        }
         window.inUse.set(true)
         scratch.copyInto(slotStorage, window.offset, ulawOffset, ulawOffset + ulawLength)
         return addFrame(
-            DecodedFrame(seqNum, timestampMs, slotStorage, window.offset, ulawLength, receiveTime)
+            DecodedFrame(seqNum, timestampMs, slotStorage, window.offset, ulawLength, receiveTime, gapBefore)
         )
     }
 
@@ -197,10 +204,6 @@ internal class JitterBuffer {
             val frame = frames[0]!!
             for (index in 1 until size) frames[index - 1] = frames[index]
             frames[--size] = null
-            // Report how many sequence numbers were skipped directly before this
-            // frame so playback can conceal an explicit gap instead of jumping.
-            val expected = if (lastPlayedSequence >= 0) lastPlayedSequence + 1 else frame.seqNum
-            frame.gapBefore = (frame.seqNum - expected).coerceAtLeast(0)
             lastPlayedSequence = frame.seqNum
             playbackStarted = true
             preRollRequired = false

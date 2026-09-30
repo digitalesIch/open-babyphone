@@ -68,7 +68,9 @@ class JitterBufferTest {
         buffer.addFrame(frame(3))
 
         assertEquals(0, buffer.getFrame(0)?.seqNum)
-        assertEquals(2, buffer.getFrame(0)?.seqNum)
+        val afterHeartbeat = requireNotNull(buffer.getFrame(0))
+        assertEquals(2, afterHeartbeat.seqNum)
+        assertEquals("a transport sequence hole alone is not missing audio", 0, afterHeartbeat.gapBefore)
         assertEquals(3, buffer.getFrame(0)?.seqNum)
     }
 
@@ -77,7 +79,7 @@ class JitterBufferTest {
         val buffer = JitterBuffer()
         buffer.addFrame(frame(0))
         buffer.addFrame(frame(1))
-        buffer.addFrame(frame(4))
+        buffer.addFrame(frame(4, gapBefore = 2))
 
         assertEquals(0, buffer.getFrame(0)!!.gapBefore)
         assertEquals(0, buffer.getFrame(0)!!.gapBefore)
@@ -122,6 +124,18 @@ class JitterBufferTest {
     }
 
     @Test
+    fun `dropping old queued audio catches up instead of scheduling it again as concealment`() {
+        val buffer = JitterBuffer()
+        repeat(JitterBuffer.CAPACITY_FRAMES) { buffer.addFrame(frame(it)) }
+        assertEquals(0, buffer.getFrame(0)?.seqNum)
+        for (sequence in 6..12) buffer.addFrame(frame(sequence))
+
+        val fresh = requireNotNull(buffer.getFrame(0))
+        assertEquals(7, fresh.seqNum)
+        assertEquals("local latency trimming must not add replacement playback time", 0, fresh.gapBefore)
+    }
+
+    @Test
     fun `older incoming frame is overflow victim`() {
         val buffer = JitterBuffer()
         for (sequence in 1..JitterBuffer.CAPACITY_FRAMES) buffer.addFrame(frame(sequence))
@@ -131,7 +145,7 @@ class JitterBufferTest {
     }
 
     @Test
-    fun `only capacity overflow results disrupt delivery`() {
+    fun `only capacity overflow results indicate overflow`() {
         assertTrue(JitterBuffer.AddResult.AcceptedAfterDroppingOldest.indicatesOverflow())
         assertTrue(JitterBuffer.AddResult.DroppedOverflow.indicatesOverflow())
         assertFalse(JitterBuffer.AddResult.Accepted.indicatesOverflow())
@@ -318,9 +332,104 @@ class JitterBufferTest {
         }
     }
 
+    @Test
+    fun `repeated pooled overflow preserves retained audio and never starves the pool`() {
+        val buffer = JitterBuffer()
+        val scratch = ByteArray(64)
+        val sent = 100
+        repeat(sent) { sequence ->
+            scratch.fill(sequence.toByte())
+            assertEquals(
+                "receiver must keep the newest frame at sequence $sequence",
+                if (sequence < JitterBuffer.CAPACITY_FRAMES) JitterBuffer.AddResult.Accepted
+                else JitterBuffer.AddResult.AcceptedAfterDroppingOldest,
+                buffer.addFrameFromScratch(scratch, 0, scratch.size, sequence, sequence * 20, 1_000L + sequence * 20)
+            )
+        }
+
+        repeat(JitterBuffer.CAPACITY_FRAMES) { index ->
+            val expected = sent - JitterBuffer.CAPACITY_FRAMES + index
+            val retained = requireNotNull(buffer.getFrame(0))
+            assertEquals(expected, retained.seqNum)
+            assertArrayEquals(
+                "pooled payload must still belong to sequence $expected",
+                ByteArray(scratch.size) { expected.toByte() },
+                retained.ulawData.copyOfRange(retained.ulawOffset, retained.ulawOffset + retained.ulawLength)
+            )
+            buffer.releaseFrame(retained)
+        }
+        assertEquals(sent, buffer.getStats().totalFrames)
+        assertEquals(sent - JitterBuffer.CAPACITY_FRAMES, buffer.getDroppedFrameCount())
+
+        // A burst must not shrink the pool and prevent the next pre-roll.
+        assertNull(buffer.getFrame(0))
+        repeat(JitterBuffer.CAPACITY_FRAMES) { index ->
+            val sequence = sent + index
+            assertEquals(
+                JitterBuffer.AddResult.Accepted,
+                buffer.addFrameFromScratch(scratch, 0, scratch.size, sequence, sequence * 20, 1_000L + sequence * 20)
+            )
+        }
+        assertEquals(sent, buffer.getFrame(0)?.seqNum)
+    }
+
+    @Test
+    fun `overflow followed by drain preserves enough slots for repeated pre-roll`() {
+        val buffer = JitterBuffer()
+        val scratch = ByteArray(64)
+        var sequence = 0
+        repeat(20) { cycle ->
+            repeat(JitterBuffer.CAPACITY_FRAMES) {
+                val current = sequence++
+                assertEquals(
+                    "all slots must be available after cycle $cycle",
+                    JitterBuffer.AddResult.Accepted,
+                    buffer.addFrameFromScratch(scratch, 0, scratch.size, current, current * 20, 1_000L + current * 20)
+                )
+            }
+            val inPlayback = requireNotNull(buffer.getFrame(0))
+            repeat(4) {
+                val current = sequence++
+                buffer.addFrameFromScratch(scratch, 0, scratch.size, current, current * 20, 1_000L + current * 20)
+            }
+            buffer.releaseFrame(inPlayback)
+            repeat(JitterBuffer.CAPACITY_FRAMES) {
+                val next = buffer.getFrame(0)
+                assertTrue("pre-roll must still complete after overflow cycle $cycle", next != null)
+                buffer.releaseFrame(requireNotNull(next))
+            }
+            assertNull(buffer.getFrame(0))
+        }
+    }
+
+    @Test
+    fun `pool exhaustion is counted and recovers when borrowed frames return`() {
+        val buffer = JitterBuffer()
+        val scratch = byteArrayOf(42)
+        repeat(JitterBuffer.BASE_TARGET_FRAMES) { sequence ->
+            buffer.addFrameFromScratch(scratch, 0, 1, sequence, sequence * 20, 1_000L + sequence * 20)
+        }
+        val borrowed = mutableListOf<JitterBuffer.DecodedFrame>()
+        repeat(JitterBuffer.SLOT_COUNT) { sequence ->
+            if (sequence >= JitterBuffer.BASE_TARGET_FRAMES) {
+                assertEquals(
+                    JitterBuffer.AddResult.Accepted,
+                    buffer.addFrameFromScratch(scratch, 0, 1, sequence, sequence * 20, 1_000L + sequence * 20)
+                )
+            }
+            borrowed += requireNotNull(buffer.getFrame(0))
+        }
+        assertEquals(JitterBuffer.AddResult.DroppedOverflow, buffer.addFrameFromScratch(scratch, 0, 1, 8, 160, 1_160L))
+        assertEquals(JitterBuffer.SLOT_COUNT + 1, buffer.getStats().totalFrames)
+        assertEquals(1, buffer.getDroppedFrameCount())
+        borrowed.forEach(buffer::releaseFrame)
+        assertEquals(JitterBuffer.AddResult.Accepted, buffer.addFrameFromScratch(scratch, 0, 1, 9, 180, 1_180L))
+    }
+
     private fun frame(
         sequence: Int,
         timestampMs: Int = sequence * AudioFrameTiming.FRAME_DURATION_MS,
-        receiveTime: Long = 1_000L + sequence * AudioFrameTiming.FRAME_DURATION_MS
-    ) = JitterBuffer.DecodedFrame(sequence, timestampMs, byteArrayOf(sequence.toByte()), receiveTime)
+        receiveTime: Long = 1_000L + sequence * AudioFrameTiming.FRAME_DURATION_MS,
+        gapBefore: Int = 0
+    ) = JitterBuffer.DecodedFrame(sequence, timestampMs, byteArrayOf(sequence.toByte()), receiveTime, gapBefore)
 }
