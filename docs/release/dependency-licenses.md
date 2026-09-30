@@ -17,14 +17,14 @@ use that library for cryptography.
 | Dependency | Version | License | Project |
 |---|---:|---|---|
 | Bouncy Castle `bcprov-jdk15to18` | 1.86 | MIT | https://www.bouncycastle.org/ |
-| AndroidX Core/Core KTX | 1.19.0 | Apache-2.0 | https://developer.android.com/jetpack/androidx |
+| AndroidX Core/Core KTX | 1.19.1 | Apache-2.0 | https://developer.android.com/jetpack/androidx |
 | AndroidX Lifecycle runtime/viewmodel Compose | 2.11.0 | Apache-2.0 | https://developer.android.com/jetpack/androidx |
 | AndroidX Activity Compose | 1.13.0 | Apache-2.0 | https://developer.android.com/jetpack/androidx |
 | AndroidX AppCompat | 1.8.0 | Apache-2.0 | https://developer.android.com/jetpack/androidx |
 | AndroidX Core Splashscreen | 1.2.0 | Apache-2.0 | https://developer.android.com/jetpack/androidx |
 | Google Material Components | 1.14.0 | Apache-2.0 | https://github.com/material-components/material-components-android |
 | Jetpack Compose BOM and declared Compose modules | 2026.09.00 | Apache-2.0 | https://developer.android.com/jetpack/compose |
-| AndroidX Navigation Compose | 2.10.1 | Apache-2.0 | https://developer.android.com/jetpack/androidx |
+| AndroidX Navigation Compose | 2.10.2 | Apache-2.0 | https://developer.android.com/jetpack/androidx |
 | Kotlinx Serialization JSON | 1.11.0 | Apache-2.0 | https://github.com/Kotlin/kotlinx.serialization |
 | ZXing Core | 3.5.4 | Apache-2.0 | https://github.com/zxing/zxing |
 | JourneyApps ZXing Android Embedded | 4.3.0 | Apache-2.0 | https://github.com/journeyapps/zxing-android-embedded |
@@ -33,7 +33,7 @@ use that library for cryptography.
 
 | Dependency | Version | License | Project |
 |---|---:|---|---|
-| Gradle wrapper | 9.7.1 | Apache-2.0 | https://gradle.org/ |
+| Gradle wrapper | 9.8.0 | Apache-2.0 | https://gradle.org/ |
 | Android Gradle Plugin | 9.3.1 | Apache-2.0 | https://developer.android.com/build |
 | Kotlin Gradle, Compose, and Serialization plugins | 2.4.20 | Apache-2.0 | https://kotlinlang.org/ |
 | Compose Screenshot plugin/API | 0.0.1-alpha16 | Apache-2.0 | https://developer.android.com/studio/preview/compose-screenshot-testing |
@@ -41,7 +41,7 @@ use that library for cryptography.
 | JUnit 4 | 4.13.2 | EPL-1.0 | https://junit.org/junit4/ |
 | Robolectric | 4.17 | MIT | https://robolectric.org/ |
 | AndroidX Test libraries | 1.7.0 / 1.3.0 / 3.7.0 | Apache-2.0 | https://developer.android.com/training/testing |
-| Mockito Core | 5.23.0 | MIT | https://github.com/mockito/mockito |
+| Mockito Core | 5.24.0 | MIT | https://github.com/mockito/mockito |
 | Kotlinx Coroutines Test | 1.11.0 | Apache-2.0 | https://github.com/Kotlin/kotlinx.coroutines |
 
 ## Attributed Assets
