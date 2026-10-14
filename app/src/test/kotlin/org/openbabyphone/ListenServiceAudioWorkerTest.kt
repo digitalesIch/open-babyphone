@@ -24,6 +24,7 @@ import org.openbabyphone.service.ListenSessionError
 import org.openbabyphone.service.ListenSessionState
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.shadows.ShadowLog
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.CountDownLatch
@@ -106,23 +107,33 @@ class ListenServiceAudioWorkerTest {
     }
 
     @Test
-    fun `jitter overflow disrupts playback until a complete real frame is written`() {
+    fun `brief jitter overflow does not claim an audio delivery timeout`() {
         val controller = Robolectric.buildService(ListenService::class.java).create()
         val service = controller.get()
         val sink = BlockingSink()
         val recovered = CountDownLatch(1)
         service.audioPlaybackFactory = { sink }
         service.onUpdate = { recovered.countDown() }
+        ListenServiceRepository.startConnecting("Nursery")
+        var stateDuringOverflow: ListenSessionState? = null
 
-        val result = runStream(frameCount = OVERFLOW_FRAME_COUNT, service = service) {
+        val result = runStream(
+            frameCount = OVERFLOW_FRAME_COUNT + 1,
+            heartbeats = setOf(OVERFLOW_FRAME_COUNT),
+            service = service
+        ) {
             val writeStarted = sink.firstWrite.await(2, TimeUnit.SECONDS)
-            val disrupted = awaitState(ListenSessionState.Disrupted)
+            // This heartbeat follows the burst on the same TCP stream, so the
+            // receiver has processed the overflow before inspecting its state.
+            val burstProcessed = awaitLog("Received authenticated heartbeat frame")
+            stateDuringOverflow = ListenServiceRepository.sessionState.value
             sink.releaseWrite.countDown()
-            writeStarted && disrupted && recovered.await(2, TimeUnit.SECONDS)
+            writeStarted && burstProcessed && recovered.await(2, TimeUnit.SECONDS)
         }
 
         try {
             assertStreamResult(result, "Reconnect")
+            assertEquals(ListenSessionState.Connecting, stateDuringOverflow)
             assertEquals(ListenSessionState.Listening, ListenServiceRepository.sessionState.value)
         } finally {
             sink.releaseWrite.countDown()
@@ -165,6 +176,7 @@ class ListenServiceAudioWorkerTest {
     private fun runStream(
         frameCount: Int = JITTER_PRE_ROLL_FRAMES,
         sequences: List<Int>? = null,
+        heartbeats: Set<Int> = emptySet(),
         waitForServiceClose: Boolean = false,
         service: ListenService,
         awaitWrite: () -> Boolean
@@ -185,8 +197,13 @@ class ListenServiceAudioWorkerTest {
                         socket.getOutputStream().use { output ->
                             sequenceList.forEach { sequence ->
                                 output.write(
-                                    FrameCodec.encodeFrame(
-                                        ByteArray(AudioFrameTiming.FRAME_SAMPLES) { 0x7f },
+                                    if (sequence in heartbeats) FrameCodec.encodeHeartbeat(
+                                        sequence,
+                                        sequence * AudioFrameTiming.FRAME_DURATION_MS,
+                                        streamKey,
+                                        sessionId
+                                    ) else FrameCodec.encodeFrame(
+                                        ByteArray(AudioFrameTiming.FRAME_SAMPLES) { ULAW_SAMPLE },
                                         sequence,
                                         sequence * AudioFrameTiming.FRAME_DURATION_MS,
                                         streamKey,
@@ -257,6 +274,26 @@ class ListenServiceAudioWorkerTest {
     }
 
     @Test
+    fun `authenticated heartbeat does not insert replacement audio`() {
+        val controller = Robolectric.buildService(ListenService::class.java).create()
+        val service = controller.get()
+        val sink = RecordingSink(AudioFrameTiming.FRAME_SAMPLES)
+        service.audioPlaybackFactory = { sink }
+        try {
+            runStream(frameCount = 5, heartbeats = setOf(1), service = service) {
+                awaitWrittenSamples(sink, 4L * AudioFrameTiming.FRAME_SAMPLES)
+            }
+            val expected = ShortArray(AudioFrameTiming.FRAME_SAMPLES)
+            AudioCodecDefines.CODEC.decode(expected, ByteArray(expected.size) { ULAW_SAMPLE }, expected.size, 0)
+            sink.writeHistory().take(4).forEachIndexed { index, pcm ->
+                assertArrayEquals("audio frame $index must not be replaced by a heartbeat fade", expected, pcm)
+            }
+        } finally {
+            controller.destroy()
+        }
+    }
+
+    @Test
     fun `explicit sequence gaps are concealed with faded previous audio`() {
         val controller = Robolectric.buildService(ListenService::class.java).create()
         val service = controller.get()
@@ -285,7 +322,7 @@ class ListenServiceAudioWorkerTest {
             // concealment frames for the missing sequences 2 and 3, then
             // the real frame 4.
             val expected = ShortArray(AudioFrameTiming.FRAME_SAMPLES)
-            AudioCodecDefines.CODEC.decode(expected, ByteArray(AudioFrameTiming.FRAME_SAMPLES) { 0x7f }, AudioFrameTiming.FRAME_SAMPLES, 0)
+            AudioCodecDefines.CODEC.decode(expected, ByteArray(AudioFrameTiming.FRAME_SAMPLES) { ULAW_SAMPLE }, AudioFrameTiming.FRAME_SAMPLES, 0)
             assertArrayEquals("first real frame", expected, history[0])
             assertArrayEquals("second real frame", expected, history[1])
 
@@ -307,9 +344,9 @@ class ListenServiceAudioWorkerTest {
         }
     }
 
-    private fun awaitState(expected: ListenSessionState): Boolean {
+    private fun awaitLog(message: String): Boolean {
         repeat(100) {
-            if (ListenServiceRepository.sessionState.value == expected) return true
+            if (ShadowLog.getLogsForTag("ListenService").any { it.msg == message }) return true
             Thread.sleep(20)
         }
         return false
@@ -436,6 +473,7 @@ class ListenServiceAudioWorkerTest {
     }
 
     private companion object {
+        const val ULAW_SAMPLE: Byte = -128
         const val JITTER_PRE_ROLL_FRAMES = 3
         const val OVERFLOW_FRAME_COUNT = 10
         const val THROTTLE_FRAME_COUNT = 10
