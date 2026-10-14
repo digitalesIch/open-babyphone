@@ -91,7 +91,7 @@ jobs:
           printf 'Verified %d packaged native libraries.\n' "${#libraries[@]}"
 
       - name: Upload debug APK artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: app-debug
@@ -100,7 +100,7 @@ jobs:
           retention-days: 7
 
       - name: Upload release APK artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: app-release-unsigned
@@ -109,7 +109,7 @@ jobs:
           retention-days: 7
 
       - name: Upload test, screenshot, lint and coverage reports
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: build-verification-reports
@@ -175,7 +175,7 @@ jobs:
           timeout 15s adb logcat -d -v threadtime > "app/build/api-${{ matrix.api-level }}-logcat.txt" || true
 
       - name: Upload instrumentation reports and logs
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: instrumentation-api-${{ matrix.api-level }}
@@ -231,7 +231,7 @@ jobs:
           timeout 15s adb logcat -d -v threadtime > app/build/api-35-ps16k-logcat.txt || true
 
       - name: Upload 16 KB smoke reports and logs
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: smoke-api-35-ps16k
