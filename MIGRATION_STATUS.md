@@ -8,10 +8,10 @@ For current build versions, see `AGENTS.md` and `app/build.gradle`.
 ## Phase 1: Foundation & Dependencies (Complete)
 
 - minSdkVersion 30 (Android 11), compileSdk 37
-- Compose BOM 2026.08.00 + Material 3
-- Navigation Compose 2.9.8 (Type-Safe)
+- Compose BOM 2026.09.00 + Material 3
+- Navigation Compose 2.10.2 (Type-Safe)
 - Kotlin Serialization for Type-Safe Routes
-- Theme with Dynamic Color (SDK 31+) + M3 Fallback
+- Brand theme by default; opt-in Dynamic Color (SDK 31+) with M3 fallback
 - Edge-to-Edge Support
 
 ## Phase 2: Architecture (Complete)
@@ -23,7 +23,7 @@ For current build versions, see `AGENTS.md` and `app/build.gradle`.
 
 ## Phase 3: Screen Migration & Service-Integration (Complete)
 
-- 6 Compose Screens (Start, Monitor, Discover, DiscoverAddress, DiscoverWifiDirect, Listen)
+- 8 Compose screens (Start, Monitor, Settings, Discover, DiscoverAddress, DiscoverWifiDirect, ConnectionHelp, Listen)
 - MonitorService & ListenService integrated via Repository pattern
 - mDNS Discovery with NSD Manager
 - VolumeView migrated to Compose Canvas
@@ -84,10 +84,10 @@ For current build versions, see `AGENTS.md` and `app/build.gradle`.
 - Brand palette: cyan `#5FF2D2`, blue `#5DA8FF`, night canvas `#080B12`
 - Open Design components: `BrandMark`, `OdStatusPill` in `OpenDesignComponents.kt`
 - All runtime screens redesigned to match Open Design mockups (#138, #140)
-- StartScreen, MonitorScreen, DiscoverScreen, DiscoverAddressScreen,
-  DiscoverWifiDirectScreen, ListenScreen
+- StartScreen, MonitorScreen, SettingsScreen, DiscoverScreen, DiscoverAddressScreen,
+  DiscoverWifiDirectScreen, ConnectionHelpScreen, ListenScreen
 - Website landing page updated with brand mark (#136)
-- Android 12+ dynamic color disabled by default for stable brand palette
+- Android 12+ dynamic color disabled by default; "Use system colors" opt-in in Settings
 - Monochrome themed icon added (#109)
 - Design handoff document: `docs/design/app-ui-redesign.md`
 
@@ -96,10 +96,10 @@ For current build versions, see `AGENTS.md` and `app/build.gradle`.
 | Metric | Value |
 |--------|-------|
 | **Build** | Successful (Debug + Release) |
-| **Unit test files** | 21 |
-| **Instrumentation test files** | 7 |
+| **Unit test files** | 64 |
+| **Instrumentation test files** | 16 |
 | **Lint** | Passing |
 | **Min SDK** | 30 (Android 11) |
 | **Target SDK** | 34 |
-| **Compose BOM** | 2026.08.00 |
-| **Navigation** | Compose 2.9.8 (Type-Safe) |
+| **Compose BOM** | 2026.09.00 |
+| **Navigation** | Compose 2.10.2 (Type-Safe) |

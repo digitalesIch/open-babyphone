@@ -1,0 +1,7 @@
+Development release 1.1.0-alpha.17:
+
+* Fix parent audio starvation after short scheduling or network bursts
+* Correct jitter-buffer slot reuse, drop accounting, and concealment timing
+* Refresh Gradle, Kotlin, and CI tooling
+
+Verify audio on your own devices. Wi-Fi Direct remains experimental.

@@ -1,0 +1,9 @@
+Development release 1.1.0-alpha.16:
+
+* Request camera access only when QR scanning starts, with recovery guidance
+* Simplify child setup and show the pairing QR inline while waiting
+* Add parent mute, system colors, and clearer Connection Help states
+* Bound experimental Wi-Fi Direct operations and offer regular Wi-Fi fallback
+* Improve audio allocation, gap handling, and credential recovery
+
+Wi-Fi Direct remains experimental. Verify audio on your own devices.

@@ -1,20 +1,45 @@
 Open Babyphone (fork of Child Monitor)
 ======================================
 
-September 2026: 1.1.0-alpha.15 (current development version, versionCode 30)
+September 2026: 1.1.0-alpha.17 (current development version, versionCode 32)
 
-  * Keep the screen on while the listen screen is visible, including failure states (#290)
-  * Scale the listen waveform to fill more of the screen height (#289)
-  * Eliminate remaining per-frame allocations on the audio threads (#291, #163)
-  * Conceal explicit audio sequence gaps with faded previous audio instead of a hard jump (#294, #164)
-  * Give corrupt or unavailable stored credentials a distinct pair-again recovery (#293, #227)
+  * Fix parent audio starvation after short scheduling or network bursts: release the
+    evicted jitter-buffer slot, count pool exhaustion, stop scheduling replacement audio
+    for heartbeats or locally trimmed frames, and leave interruption timing to delivery
+    health (#308)
+  * Refresh the Gradle wrapper to 9.8.0 with strict dependency verification checksums
+
+September 2026: 1.1.0-alpha.16 (versionCode 31)
+
+  * Request camera access only when QR scanning starts, with rationale and app-settings
+    recovery (#230)
+  * Isolate Connection Help, give each Wi-Fi Direct state one presentation, consume
+    transient navigation, and offer regular Wi-Fi on every error (#229)
+  * Simplify child setup around one primary state, show the pairing QR inline while no
+    parent is connected, and remove technical detail fields (#224)
+  * Add a parent mute control that keeps the audio stream and safety alerts alive (#149)
+  * Add an opt-in Android 12+ system-color setting while keeping the brand palette the
+    default (#137)
+  * Bound Wi-Fi Direct advertising, discovery, and connect operations with cancellable
+    timeouts (#77)
+  * Keep the screen on while listening, scale the waveform to the screen, eliminate
+    remaining per-frame audio allocations, and conceal explicit sequence gaps (#163, #164)
+  * Give saved-credential read failures a distinct pair-again recovery (#227)
+  * Trim duplicated tests and run key caregiver journeys in CI (#292)
+  * Refresh Kotlin 2.4.20, Compose BOM 2026.09.00, navigation-compose 2.10.1,
+    Robolectric 4.17, and Bouncy Castle 1.86 with verification checksums
+  * Remove the Foojay toolchain resolver so the F-Droid scanner result is clean
+
+September 2026: 1.1.0-alpha.15 (versionCode 30)
+
   * Fix listen resume losing callbacks, session identity, and retry state (#285)
-  * Replace the legacy libsodium JNI dependency with pure-Java crypto (audited under #223)
-  * Harden the slow-client grace period against a disconnect race (#294)
-  * Trim duplicated tests and run key UI journeys in CI (#292)
-  * Refresh Gradle (9.7.1), AGP (9.3.1), Kotlin (2.4.20), Compose BOM (2026.09.00),
-    navigation-compose (2.10.1), Robolectric (4.17), and Bouncy Castle (1.86)
-    with strict dependency verification checksums
+  * Replace the listen signal bars with an adaptive audio waveform
+  * Make authenticated audio delivery health authoritative and harden audio worker
+    failure handling
+  * Fix active-session lifecycle recovery and add the MkDocs documentation site
+  * Refocus the README on stable product information
+  * Refresh Gradle wrapper 9.7.1, the androidx group, and the GitHub Actions used by CI
+    with verification checksums
 
 This entry describes the current alpha candidate work. It does not claim a
 stable release, F-Droid acceptance, signed publication, scanner pass, or

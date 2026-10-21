@@ -18,25 +18,35 @@ Open Babyphone does not need internet access for the audio connection itself.
 ### Child Device
 
 1. Open Open Babyphone and choose the child role.
-2. Review the child name and generated pairing information.
-3. Start monitoring.
-4. Leave the child device near the child, connected to power when practical.
+2. Start monitoring. A child name and pairing information are generated
+   automatically; rename the phone later in Settings if needed.
+3. Leave the child device near the child, connected to power when practical.
 
 The child device advertises itself on the attached local network while
 monitoring is active. Its pairing information remains protected by app-private
-storage.
+storage. The pairing QR code is shown directly on the monitoring screen while no
+parent is connected.
 
 ### Parent Device
 
 1. Open Open Babyphone and choose the parent role.
-2. Select the child found on the local network.
-3. Scan the pairing QR code shown by the child device, or use manual pairing
-   when scanning is unavailable.
-4. Confirm the connection and listen to the audio stream.
+2. Scan the child QR code, or choose **Can't scan the code?** for manual pairing.
+3. Wait for **Ready to listen**. If the child cannot be found, use Retry, Scan
+   again, or Connection Help.
+4. Move the parent device away from the child device and choose **Start
+   listening** to avoid audio feedback.
 
 After successful authentication, the parent can remember the trusted child and
-reconnect in later sessions without scanning again. Use **Forget child** when a
-stored relationship should be removed.
+reconnect in later sessions with one **Listen** action. Use **Forget child** in
+Settings or Connection Help when a stored relationship should be removed.
+
+### Listening Controls
+
+While listening, the parent can choose **Mute** to silence the speaker without
+dropping the stream or the session. **Unmute** restores the previous volume.
+Connection-loss and audio-interruption alerts still play while the stream is
+muted. Use **Disconnect** to end the session; Back asks for the same
+confirmation.
 
 ## Connection Options
 
@@ -91,6 +101,13 @@ Child mode provides software microphone sensitivity levels. Start with Normal
 and increase sensitivity only when quiet sounds are not reaching the parent
 clearly. Higher gain can also amplify room noise and clipping.
 
+## Appearance
+
+Settings offers System, Light, and Dark theme modes. On Android 12 and later,
+**Use system colors** follows the system Material You palette; the Open
+Babyphone brand colors remain the default. The option is shown disabled on
+older Android versions.
+
 ## Connection Help
 
 Use the in-app Connection Help when discovery or pairing fails. Check these
@@ -98,8 +115,10 @@ points first:
 
 1. Child monitoring is active.
 2. Both devices are on the same reachable local network.
-3. Android has granted the requested nearby-device, network, camera, microphone,
-   and notification permissions for the selected flow.
+3. Android has granted the permission needed for the selected flow: microphone
+   for child monitoring, camera for QR scanning, nearby devices or location only
+   for Wi-Fi Direct, and notifications for connection alerts. Normal LAN
+   discovery does not require nearby-device, location, or camera permission.
 4. The router or hotspot allows local devices to communicate with each other.
 5. Battery optimization or OEM power management is not stopping the active
    foreground service.

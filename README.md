@@ -26,6 +26,15 @@ cloud service, or project-operated server.
 - **Open and auditable:** the app, its protocol, and its development process are
   available for public review.
 
+## Features
+
+- QR-first pairing with remembered trusted children and one-action reconnect
+- Authenticated, encrypted audio with up to five parent devices listening
+- Live audio waveform that distinguishes quiet frames from a stalled stream
+- Parent mute that keeps the stream and safety alerts alive
+- Screen-on listening with clear reconnect, interruption, and pair-again states
+- Experimental Wi-Fi Direct fallback with regular Wi-Fi and hotspot recovery
+
 ## How It Works
 
 1. Start child mode on the device placed near the child.
