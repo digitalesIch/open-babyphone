@@ -149,7 +149,7 @@
             width="600"
             height="1200"
             loading="lazy"
-            alt="Listening screen in light mode showing a quiet audio signal">
+            alt="Listening screen in light mode showing a quiet audio waveform">
         </figure>
         <figure class="signal-phone signal-phone-dark">
           <img
@@ -157,17 +157,28 @@
             width="600"
             height="1200"
             loading="lazy"
-            alt="Listening screen in dark mode showing all six audio signal bars filled">
+            alt="Listening screen in dark mode showing a loud audio waveform">
         </figure>
       </div>
 
       <div class="signal-copy">
         <h2 id="signal-title">See what the parent phone hears.</h2>
-        <p>The six-step signal meter gives a calm, glanceable view of recent audio activity.</p>
-        <div class="mini-signal" role="img" aria-label="Six ascending bars showing a detected audio signal">
-          <span></span><span></span><span></span><span></span><span></span><span></span>
+        <p>The live waveform gives a calm, glanceable view of recent audio activity and
+          helps distinguish fresh quiet frames from a stalled stream.</p>
+        <div class="mini-waveform" role="img" aria-label="Audio waveform showing a detected signal">
+          <svg viewBox="0 0 320 64" preserveAspectRatio="none" focusable="false">
+            <defs>
+              <linearGradient id="wave-gradient" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0" stop-color="#5ff2d2"/>
+                <stop offset="1" stop-color="#5da8ff"/>
+              </linearGradient>
+            </defs>
+            <path class="wave-fill" d="M0 50 H44 l6-12 8 24 8-38 8 48 8-36 8 24 8-14 H152 l6-8 8 18 8-32 8 40 8-26 8 16 6-8 H320 V64 H0 Z"/>
+            <path class="wave-line" d="M0 50 H44 l6-12 8 24 8-38 8 48 8-36 8 24 8-14 H152 l6-8 8 18 8-32 8 40 8-26 8 16 6-8 H320"/>
+          </svg>
         </div>
-        <p class="signal-caption">Quiet uses cyan. Loud sound uses blue. Text and bar count always reinforce the color.</p>
+        <p class="signal-caption">Quiet uses cyan. Loud sound uses blue. The status label always
+          reinforces the color, and the waveform advances only while fresh audio arrives.</p>
       </div>
     </section>
 
@@ -183,7 +194,7 @@
         </div>
         <div>
           <dt>Pairing</dt>
-          <dd>A pairing code provides mutual authentication before encrypted audio starts.</dd>
+          <dd>Scanning the child QR code transfers the pairing credential; mutual authentication is required before encrypted audio starts.</dd>
         </div>
         <div>
           <dt>Infrastructure</dt>

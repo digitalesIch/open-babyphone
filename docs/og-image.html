@@ -104,16 +104,15 @@
     .visual::before {
       content: "";
       position: absolute;
-      inset: 8% 4% 5% 10%;
+      inset: 12% 2% 10% 6%;
       z-index: -1;
-      border: 1px solid var(--outline);
-      border-radius: 28px;
-      background: var(--surface-variant);
+      border-radius: 48px;
+      background: radial-gradient(circle at 70% 40%, rgba(93, 168, 255, 0.16), transparent 62%);
     }
 
     .phone {
       position: absolute;
-      width: 42%;
+      width: 39%;
       aspect-ratio: 1 / 2;
       overflow: hidden;
       border: 1px solid var(--outline);
@@ -124,11 +123,11 @@
 
     .phone:first-child {
       top: 0;
-      left: 6%;
+      left: 0;
     }
 
-    .phone:last-child {
-      right: 4%;
+    .phone:nth-of-type(2) {
+      right: 0;
       bottom: 0;
     }
 
@@ -140,33 +139,6 @@
       object-position: top center;
     }
 
-    .signal-mark {
-      position: absolute;
-      right: 38%;
-      bottom: 8%;
-      z-index: 3;
-      display: flex;
-      align-items: end;
-      gap: 5px;
-      height: 58px;
-      padding: 10px;
-      border: 1px solid var(--outline);
-      border-radius: 12px;
-      background: var(--surface);
-    }
-
-    .signal-mark span {
-      width: 9px;
-      border-radius: 4px;
-      background: var(--secondary);
-    }
-
-    .signal-mark span:nth-child(1) { height: 13px; }
-    .signal-mark span:nth-child(2) { height: 19px; }
-    .signal-mark span:nth-child(3) { height: 25px; }
-    .signal-mark span:nth-child(4) { height: 31px; }
-    .signal-mark span:nth-child(5) { height: 37px; }
-    .signal-mark span:nth-child(6) { height: 43px; }
   </style>
 </head>
 <body>
@@ -192,9 +164,6 @@
       <figure class="phone">
         <img src="assets/app/listening-loud-dark.webp" alt="Open Babyphone listening screen">
       </figure>
-      <div class="signal-mark" aria-hidden="true">
-        <span></span><span></span><span></span><span></span><span></span><span></span>
-      </div>
     </section>
   </main>
 </body>

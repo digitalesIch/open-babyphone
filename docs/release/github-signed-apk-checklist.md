@@ -1,8 +1,8 @@
 # GitHub Signed APK Checklist
 
-Use this checklist only in an isolated release environment. It documents future
-publication work; it does not claim that versionCode 30 has been signed or
-published. Never place keystores, passwords, or generated signing properties in
+Use this checklist only in an isolated release environment. It documents the
+procedure for future publication work and does not itself record a completed
+release. Never place keystores, passwords, or generated signing properties in
 the repository or CI artifacts.
 
 ## Build And Sign
@@ -46,4 +46,4 @@ sha256sum <signed-release.apk> > <signed-release.apk>.sha256
 
 R8 remains disabled for this release because enabling it without dedicated keep
 rules and focused behavior checks on the available devices creates unacceptable release risk.
-The resulting Bouncy Castle size overhead is accepted for versionCode 30.
+The resulting Bouncy Castle size overhead is accepted for versionCode 32.

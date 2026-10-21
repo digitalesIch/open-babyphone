@@ -26,7 +26,7 @@ If applicable, add screenshots to help explain your problem.
 **Environment:**
 - Device: [e.g., Pixel 7, Samsung Galaxy S10]
 - Android version: [e.g., Android 13, Android 11]
-- App version: [e.g., 1.4]
+- App version: [e.g., 1.1.0-alpha.17]
 - Network: [e.g., same Wi-Fi, same LAN, trusted VPN with manual address]
 
 **Additional context**

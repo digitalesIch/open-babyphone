@@ -311,7 +311,7 @@ h3 {
 
 .device-frame {
   position: absolute;
-  width: min(310px, 55%);
+  width: min(310px, 49%);
   aspect-ratio: 1 / 2;
 }
 
@@ -506,31 +506,32 @@ h3 {
   top: 48px;
 }
 
-.mini-signal {
+.mini-waveform {
   height: 96px;
-  display: flex;
-  align-items: end;
-  gap: 8px;
   margin-top: 32px;
   padding: 16px;
   border-radius: var(--radius-panel);
   background: var(--secondary-soft);
 }
 
-.mini-signal span {
-  flex: 1;
-  height: calc(18px + var(--bar-index, 0) * 9px);
-  border-radius: var(--radius-control);
-  background: var(--secondary);
-  transform-origin: bottom;
+.mini-waveform svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
-.mini-signal span:nth-child(1) { height: 18px; }
-.mini-signal span:nth-child(2) { height: 27px; }
-.mini-signal span:nth-child(3) { height: 36px; }
-.mini-signal span:nth-child(4) { height: 45px; }
-.mini-signal span:nth-child(5) { height: 54px; }
-.mini-signal span:nth-child(6) { height: 63px; }
+.wave-line {
+  fill: none;
+  stroke: url(#wave-gradient);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.wave-fill {
+  fill: url(#wave-gradient);
+  opacity: 0.18;
+}
 
 .signal-caption {
   font-size: 0.875rem;
@@ -641,15 +642,6 @@ h3 {
     animation: hero-enter 620ms 80ms cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
-  .mini-signal span {
-    animation: signal-breathe 1.8s ease-in-out infinite alternate;
-  }
-
-  .mini-signal span:nth-child(2) { animation-delay: 70ms; }
-  .mini-signal span:nth-child(3) { animation-delay: 140ms; }
-  .mini-signal span:nth-child(4) { animation-delay: 210ms; }
-  .mini-signal span:nth-child(5) { animation-delay: 280ms; }
-  .mini-signal span:nth-child(6) { animation-delay: 350ms; }
 }
 
 @keyframes hero-enter {
@@ -657,10 +649,6 @@ h3 {
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes signal-breathe {
-  from { opacity: 0.58; transform: scaleY(0.8); }
-  to { opacity: 1; transform: scaleY(1); }
-}
 
 @media (prefers-reduced-motion: reduce) {
   html {

@@ -34,7 +34,7 @@ JDK 21 must already be present on the machine or CI runner.
 
 ## Test Your Code
 
-There are three possible checks you can run while developing. The first is
+The main checks you can run while developing are listed below. The first is
 unit tests, which check the basic functionality of the application, and can be
 run by gradle using:
 
@@ -51,6 +51,17 @@ is testing on an available live device and recording what was actually covered.
 The host-side CI-grade verification command is:
 
     # ./gradlew --dependency-verification strict test lintRelease assembleRelease assembleDebugAndroidTest validateDebugScreenshotTest jacocoDebugUnitTestReport
+
+When UI changes affect the Compose previews, regenerate the references and
+review the diff before committing:
+
+    # ./gradlew updateDebugScreenshotTest
+    # ./gradlew validateDebugScreenshotTest
+
+For documentation changes, build the MkDocs site strictly:
+
+    # python -m pip install --requirement requirements-docs.txt
+    # mkdocs build --strict
 
 For the available-device reliability checks and release verification guidance,
 see [docs/testing.md](docs/testing.md). GitHub release signing uses the separate

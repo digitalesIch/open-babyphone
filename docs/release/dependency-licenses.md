@@ -1,6 +1,6 @@
 # Direct Dependency License Inventory
 
-Reviewed 2026-09-23 for Open Babyphone `1.1.0-alpha.15` (`versionCode 30`).
+Reviewed 2026-10-21 for the current `main` build after `1.1.0-alpha.17` (`versionCode 32`).
 This is a human-reviewed inventory of dependencies declared directly by the
 Gradle build and of shipped attributed assets. It is not a complete transitive
 software bill of materials. Gradle dependency verification records checksums,
@@ -33,7 +33,7 @@ use that library for cryptography.
 
 | Dependency | Version | License | Project |
 |---|---:|---|---|
-| Gradle wrapper | 9.8.0 | Apache-2.0 | https://gradle.org/ |
+| Gradle wrapper | 9.8.1 | Apache-2.0 | https://gradle.org/ |
 | Android Gradle Plugin | 9.3.1 | Apache-2.0 | https://developer.android.com/build |
 | Kotlin Gradle, Compose, and Serialization plugins | 2.4.21 | Apache-2.0 | https://kotlinlang.org/ |
 | Compose Screenshot plugin/API | 0.0.1-alpha16 | Apache-2.0 | https://developer.android.com/studio/preview/compose-screenshot-testing |
